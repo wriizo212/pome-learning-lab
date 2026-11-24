@@ -71,7 +71,10 @@
     }
     function scene(){
       const activeGas=!['0','pond','ponds','conventional'].includes(String(state.pathway).toLowerCase());
-      key=null; box(0,-.78,0,12,.66,9.6,'#557464'); box(0,-.12,0,12,.15,9.6,'#8cb78a');
+      key=null; box(0,-.78,0,12,.66,9.6,'#53665a'); box(0,-.12,0,12,.15,9.6,'#89a67a');
+      // The continuous terrain sits below every piece of equipment at every orbit angle.
+      faces.forEach(face => face.d -= 50);
+      for(const x of [-4,-.6,2.65]) box(x,.035,-1.6,2.6,.015,2.5,'#aeb2a1');
       for(let x=-5.6;x<6;x+=.6)box(x,.05,1.25,.43,.04,.3,'#c6c4aa');
       for(const [x,z,h] of [[-5,-3.5,2],[-4,-3.8,2.3],[4.7,-3.5,1.7],[5,-2.1,1.9],[-4.8,2.5,2]])palm(x,z,h);
       key='river';box(0,.045,3.95,11.96,.02,1.24,state.success===false?'#848f68':'#4baaa6');
@@ -87,10 +90,19 @@
         for(const h of [.35,1.23])cone(-.6,h,-1.6,1.22,1.22,.055,'#d6ddba',24);
         cone(-.6,1.54,-1.6,1.22,.83,.39,'#537f63',24);cone(-.6,1.93,-1.6,.83,.13,.25,'#6f9a71',24);
         cone(-.6,2.18,-1.6,.12,.12,.24,'#e2c78d',12);
+        for(const x of [-.81,-.48])beam([x,.12,-.38],[x,1.77,-.38],.027,'#f0c571');
+        for(let i=1;i<8;i++)beam([-.81,i*.21,-.38],[-.48,i*.21,-.38],.022,'#dbb164');
+        for(let i=0;i<12;i++){
+          const a=i*TAU/12;
+          beam([-.6+1.16*Math.cos(a),1.59,-1.6+1.16*Math.sin(a)],[-.6+.15*Math.cos(a),2.19,-1.6+.15*Math.sin(a)],.015,'#94ad94');
+        }
       } else basin(-.6,-1.6,2.65,2.12,'#777d4b');
       key='polish';basin(2.65,.2,2.65,1.55,'#61bab2');
       key='gas';box(2.65,.06,-3,1.75,.95,1.25,'#d4c390');box(2.65,1.01,-3,1.86,.1,1.36,'#edf0c9');
       cone(3.2,1.11,-3,.12,.12,.76,'#819a91',12);
+      for(let i=0;i<6;i++)box(2.1+i*.2,.43,-2.355,.13,.28,.03,'#476762');
+      for(const x of [1.45,2.65,3.85])beam([x,.57,.95],[x,.91,.95],.025,'#e6bb68');
+      beam([1.45,.91,.95],[3.85,.91,.95],.025,'#e6bb68');
       for(let i=0;i<3;i++){
         const a=i*TAU/3+(activeGas?t*4:0);
         beam([2.5,1.16,-3],[2.5+.47*Math.cos(a),1.17,-3+.47*Math.sin(a)],.067,'#527878');

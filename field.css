@@ -1,0 +1,21 @@
+@media screen {
+:root{--bg:#0d1717;--panel:#172525;--line:#35433e;--muted:#bdc9be;--lime:#ddf3a3;color-scheme:dark}
+body{background:radial-gradient(ellipse at 74% 8%,#243330 0,transparent 48%),#0d1717;color:#edf1e9;font-family:Inter,"Segoe UI",sans-serif}
+header{max-width:none;margin:0;padding:15px max(4%,calc((100vw - 1440px)/2));background:#101b1bf2;border-bottom:1px solid #34433d;gap:24px}
+header .brand,header>b{font-weight:750;letter-spacing:-1px;font-size:24px;white-space:nowrap}header .tag{display:none}
+header a{color:#e1eec6;text-underline-offset:4px}nav{align-items:center;gap:4px}nav button{border-radius:40px;padding:8px 15px}
+main{max-width:1540px;margin:auto;padding:24px 4% 50px}
+.field-cover{position:relative;isolation:isolate;overflow:hidden;padding:clamp(25px,4.3vw,70px);min-height:clamp(300px,32vw,450px);border:1px solid #53645a;border-radius:20px;display:flex;align-items:center;margin:0 0 24px;background:#203329 url('mill-aerial.webp') center 52% / cover}
+.field-cover:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#081915ee 0%,#0a1b16c9 32%,#0a191651 63%,#0b1a170c 100%),linear-gradient(0deg,#13211e70,transparent 45%);z-index:-1}
+.field-cover h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(45px,5.2vw,85px);line-height:.99;letter-spacing:-.055em;margin:15px 0;color:#fffdf3}
+.field-cover h1 em{font-weight:400;color:#dfedaf;font-style:italic}.field-cover p{max-width:39ch;color:#e3e9de;margin:16px 0 0;font-size:clamp(15px,1.3vw,19px);text-wrap:pretty}
+.field-cover .eyebrow{color:#e1ecbb;font:650 13px/1.4 "Segoe UI",sans-serif;letter-spacing:.12em}.field-cover figcaption{position:absolute;right:14px;bottom:10px;font-size:12px;background:#0d1919c9;padding:3px 8px;border-radius:4px;color:white}
+.grid{grid-template-columns:minmax(255px,.8fr) minmax(0,2.4fr)}.panel,.world,article,.metric,.record,.timeline div{background:linear-gradient(145deg,#20302d,#162522);border-color:#374941;border-radius:15px;box-shadow:0 12px 32px #0002}
+.controls label,.metric span{color:#d0d9cc}.controls select,select,textarea{background:#111f1d;color:#f2f3e8;border-color:#516059}.options button,.games button,.actions button{background:#1b2927;border:1px solid #46584f;transition:background .16s,border-color .16s}
+.options button:hover,.actions button:hover,.games button:hover{background:#324834;color:#f2f4de;border-color:#bbd387}.options button.active,.games button[aria-pressed=true]{background:#d9eab0;color:#1e3023;border-color:#e3eebe}
+.stage,.world canvas{background-color:#202c29;background-image:radial-gradient(ellipse at 50% 45%,#61746555,transparent 65%),radial-gradient(#a4bd9b35 .8px,transparent .9px);background-size:auto,16px 16px}.world canvas{height:clamp(350px,48vh,570px)}
+.detail,.world .toolbar{background:#15221f}.toolbar{padding:13px 18px}.toolbar button{min-height:40px}.stagehead{align-items:center}.metric strong{font-variant-numeric:tabular-nums;color:#deedbc}
+.games{gap:8px}.games button{padding:14px 16px;align-content:center}.actions button{padding:12px 15px}.actions b{display:inline-grid;place-items:center;width:28px;height:28px;background:#30443a;border-radius:6px;color:#ecf8d2}
+.result{background:#263d30;padding:12px 16px;color:#eff4e6}.world{overflow:hidden}.stage svg{height:clamp(280px,30vw,420px)}
+@media(max-width:800px){header{flex-wrap:wrap;gap:6px}header nav{margin-top:0;max-width:100%}nav button,nav a{font-size:14px}.grid{grid-template-columns:1fr}.field-cover{min-height:295px}.field-cover:before{background:linear-gradient(90deg,#091914e0,#11251c83 73%,#081a1644)}.field-cover figcaption{font-size:10px}.games{scroll-snap-type:x proximity}.games button{scroll-snap-align:start}.stagehead{flex-wrap:wrap}.world canvas{height:350px}main{padding:16px 4% 42px}}
+}
