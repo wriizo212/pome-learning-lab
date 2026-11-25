@@ -20,7 +20,15 @@
     el('inspect').textContent = sites[id] || 'Select a plant unit to inspect it.';
     model.update({stage:id});
   }
-  const model = Plant.mount(el('plant'), inspect);
+  const modelState = {};
+  let renderer = Plant.mount(el('plant'), inspect);
+  let autoOrbit = false;
+  const model = {
+    update(change){Object.assign(modelState,change);renderer.update(change);},
+    zoom(value){renderer.zoom(value);},
+    reset(){autoOrbit=false;renderer.reset();},
+    spin(value){autoOrbit=value;renderer.spin(value);}
+  };
   stationPicker.onchange = () => inspect(stationPicker.value);
   const cameraBar = document.createElement('div');
   cameraBar.className = 'camera-bar';
@@ -157,4 +165,13 @@
     if (/^[123]$/.test(event.key)) choose(Number(event.key) - 1);
   });
   start(Missions.games[0].id);
+  if(location.protocol !== 'file:') {
+    Promise.all([
+      import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js'),
+      import('./mill-gpu.mjs')
+    ]).then(([three, assets]) => {
+      const enhanced=assets.mount(three,el('plant'),inspect);
+      renderer.destroy();renderer=enhanced;renderer.update(modelState);renderer.spin(autoOrbit);
+    }).catch(error=>console.info('Using lightweight plant renderer.',error.message));
+  }
 })();
