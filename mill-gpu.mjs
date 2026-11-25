@@ -141,5 +141,5 @@ export function mount(T, host, onPick) {
     renderer.render(scene,camera);
   }
   host.replaceWith(wrapper);frame=requestAnimationFrame(draw);
-  return {update(s){if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s)waters.at(-1).material.color.set(s.success===false?0x756c42:0x436e64);},reset,zoom,spin(s){spin=s;},rotate(delta){yaw+=delta;},destroy(){cancelAnimationFrame(frame);renderer.dispose();}};
+  return {update(s){if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s)waters.at(-1).material.color.set(s.success===false?0x756c42:0x436e64);},reset,zoom,spin(s){spin=s;},rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.2,Math.min(1.33,pitch+tilt));},destroy(){cancelAnimationFrame(frame);renderer.dispose();}};
 }

@@ -170,7 +170,7 @@
     canvas.tabIndex=0;canvas.style.touchAction='none';canvas.style.cursor='grab';
     for(const [name,fn] of Object.entries(handlers))canvas.addEventListener(name,fn,{passive:false});
     raf=requestAnimationFrame(draw);
-    return {update(next){Object.assign(state,next);},reset,zoom:changeZoom,rotate(delta){yaw+=delta;},spin(value){spin=!!value;},
+    return {update(next){Object.assign(state,next);},reset,zoom:changeZoom,rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.27,Math.min(1.15,pitch+tilt));},spin(value){spin=!!value;},
       destroy(){disposed=true;cancelAnimationFrame(raf);for(const [name,fn] of Object.entries(handlers))canvas.removeEventListener(name,fn);}};
   }
   window.Plant={mount};

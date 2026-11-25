@@ -66,11 +66,11 @@
   }
   function arena() {
     return shuffle([
-      round('intake','Load detective','If flow doubles while influent COD stays constant, what happens to the incoming COD mass per day?','It doubles',['It halves','It is unchanged'],'Daily load is flow multiplied by concentration with the appropriate unit conversion.'),
-      round('river','River watch','Why can high BOD harm aquatic life?','Microbial decomposition consumes dissolved oxygen',['BOD measures plankton size','It always removes nutrients'],'High oxygen demand can deplete dissolved oxygen in receiving water.'),
-      round('gas','Methane match','Which pathway in Part A recovers biogas without planned water reuse?','UASB with aerobic post-treatment',['Open ponds with no capture','Full integrated recovery'],'The intermediate option captures biogas while focusing on effluent treatment.'),
-      round('polish','Reuse check','Which fact best supports choosing to reuse polished effluent?','Its quality matches the specific use and there is demand',['It looks transparent','A new pump is available'],'Quality and a realistic end use determine whether water can substitute for freshwater.'),
-      round('sludge','Resource or residue?','When can processed sludge become a useful resource?','When treatment, quality and the intended use are suitable',['As soon as it settles','Whenever there is unused land'],'Quality checks and an appropriate management route are essential for responsible recovery.')
+      round('intake','Load detective','If flow doubles while influent COD stays constant, what happens to the incoming COD mass per day?','It doubles',['It halves','It is unchanged','It quadruples'],'Daily load is flow multiplied by concentration with the appropriate unit conversion.'),
+      round('river','River watch','Why can high BOD harm aquatic life?','Microbial decomposition consumes dissolved oxygen',['BOD measures plankton size','It always removes nutrients','It raises oxygen solubility'],'High oxygen demand can deplete dissolved oxygen in receiving water.'),
+      round('gas','Methane match','Which pathway in Part A recovers biogas without planned water reuse?','UASB with aerobic post-treatment',['Open ponds with no capture','Full integrated recovery','Screening alone'],'The intermediate option captures biogas while focusing on effluent treatment.'),
+      round('polish','Reuse check','Which fact best supports choosing to reuse polished effluent?','Its quality matches the specific use and there is demand',['It looks transparent','A new pump is available','The outlet pipe is larger'],'Quality and a realistic end use determine whether water can substitute for freshwater.'),
+      round('sludge','Resource or residue?','When can processed sludge become a useful resource?','When treatment, quality and the intended use are suitable',['As soon as it settles','Whenever there is unused land','When wet sludge volume peaks'],'Quality checks and an appropriate management route are essential for responsible recovery.')
     ]);
   }
   function start(id,scenario='medium') {

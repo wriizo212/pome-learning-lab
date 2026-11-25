@@ -50,7 +50,11 @@
   track.className = 'mission-track';
   track.setAttribute('aria-hidden','true');
   el('progress').after(track);
-  const gesture = Gesture.mount(el('camera'), number => choose(number - 1));
+  window.PomeMission = {
+    choose, next(){if(pending && !finished) el('next').click();},
+    state(){return {locked:!!pending, finished};},
+    rotate(x,y){renderer.rotate(x,y);}, zoom: model.zoom
+  };
   let audio, audible = false, orbit = false, paused = false;
   el('sound').onclick = () => {
     audible = !audible;
@@ -69,7 +73,7 @@
     el('motion').textContent = paused ? 'Resume motion' : 'Pause motion';
   };
   function start(id) {
-    gesture.stop();
+    window.stopCamera?.(true);
     active = Missions.games.find(game => game.id === id);
     session = Missions.start(id, el('scenario').value);
     history = [];
@@ -82,6 +86,7 @@
   }
   function render() {
     pending = null;
+    window.pauseCameraSelection?.(false);
     const round = session.view();
     el('progress').textContent = active.title + ' · ' + round.progress;
     const [step, total] = round.progress.match(/\d+/g).slice(0,2).map(Number);
@@ -97,7 +102,8 @@
     el('actions').replaceChildren(...round.choices.map((choice, index) => {
       const button = document.createElement('button');
       const key = document.createElement('b');
-      key.textContent = String(index + 1);
+      button.dataset.answer = index;
+      key.textContent = 'ABCD'[index];
       button.append(key, document.createTextNode(choice));
       button.onclick = () => choose(index);
       return button;
@@ -111,6 +117,7 @@
     const round = session.view();
     if (!round.choices[index]) return;
     pending = session.act(index);
+    window.pauseCameraSelection?.(true);
     history.push({ title: round.title, choice: round.choices[index], ...pending });
     el('actions').querySelectorAll('button').forEach((button, i) => {
       button.disabled = true;
@@ -133,7 +140,7 @@
   }
   function finish() {
     finished = true;
-    gesture.stop();
+    window.stopCamera?.(true);
     el('record').hidden = false;
     el('next').hidden = true;
     el('summary').textContent = active.title + ' · ' + el('scenario').selectedOptions[0].text + ' · ' + history.filter(turn => turn.success).length + ' successful actions in ' + history.length + ' attempts.';
@@ -161,14 +168,14 @@
   el('print').onclick = () => window.print();
   el('scenario').onchange = () => start(active.id);
   document.addEventListener('keydown', event => {
-    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.target.closest('input,textarea,select')) return;
-    if (/^[123]$/.test(event.key)) choose(Number(event.key) - 1);
+    if (el('modal').open || !el('cameraHelp').hidden || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.target.closest('input,textarea,select')) return;
+    if (/^[1-4]$/.test(event.key)) choose(Number(event.key) - 1);
   });
   start(Missions.games[0].id);
   if(location.protocol !== 'file:') {
     Promise.all([
       import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js'),
-      import('./mill-gpu.mjs')
+      import('./mill-gpu.mjs?v=gesture5')
     ]).then(([three, assets]) => {
       const enhanced=assets.mount(three,el('plant'),inspect);
       renderer.destroy();renderer=enhanced;renderer.update(modelState);renderer.spin(autoOrbit);

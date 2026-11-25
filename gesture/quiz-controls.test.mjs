@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {FireAim,QUIZ_POWERS} from './quiz-controls.mjs';
+import {FaceController,HoldGate} from './gesture-math.mjs';
+import {qualityOfHand,cameraSettings} from './gesture-engine.mjs';
+assert.deepEqual(Object.keys(QUIZ_POWERS),['gesture','face','orb','fire']);
+const aim=new FireAim(),valid=t=>['A','B'].includes(t);
+aim.update('A',false,0,valid);assert.equal(aim.update('B',true,100,valid),'A','pinch drift retains aimed answer');assert.equal(aim.update(null,true,450,valid),'A');
+aim.reset();assert.equal(aim.update('B',true,1000,valid),'B','pinch over a card without prior aim works');aim.reset();aim.update('A',false,0,valid);assert.equal(aim.update(null,true,1900,valid),null,'expired aim does not fire');
+const face=new FaceController(),neutral={yaw:0,pitch:.4,jaw:0,geometricMouth:0};for(let t=0;t<=900;t+=100)face.update(neutral,t,'answer');
+for(const [i,delta]of [{yaw:-.14},{yaw:.14},{pitch:.28},{pitch:.52}].entries()){face.rearm();const t=2000+i*2000;face.update({...neutral,...delta},t,'answer');assert.equal(face.update({...neutral,...delta},t+650,'answer').choice,i,'natural head turn/nod '+i);assert.equal(face.update({...neutral,...delta},t+900,'answer').choice,undefined,'one answer per question')}
+const partial=Array.from({length:21},()=>({x:.5,y:.5}));partial[20]={x:1.04,y:.5};assert.ok(qualityOfHand(partial,{scale:.2,palm:{x:.5,y:.5}},null).ok,'slightly cropped fingertip must not disable all answers');
+console.log('PASS: four original quiz modes, fireball aim lock and expiry, natural head directions across questions, tolerant hand framing.');
+assert.equal(cameraSettings({dwell:600}).answerDwell,2500,'existing settings migrate to a slower answer default');
+assert.equal(cameraSettings({answerDwell:200}).answerDwell,1000);
+assert.equal(cameraSettings({answerDwell:9000}).answerDwell,5000);
+assert.equal(cameraSettings({answerDwell:'bad'}).answerDwell,2500);
+const answer=new HoldGate(2500);answer.update('A',0);assert.equal(answer.update('A',2400).fire,false);assert.equal(answer.update('B',2450).progress,0);assert.equal(answer.update('B',4900).fire,false);assert.equal(answer.update('B',4950).fire,true);assert.equal(answer.update('B',5000).fire,false);
+answer.reset();answer.ms=5000;answer.update('A',6000);assert.equal(answer.update('A',10999).fire,false);assert.equal(answer.update('A',11000).fire,true);
+face.rearm();face.hold.ms=2500;face.update({...neutral,yaw:-.14},12000,'answer');assert.equal(face.update({...neutral,yaw:-.14},14499,'answer').choice,undefined);assert.equal(face.update({...neutral,yaw:-.14},14500,'answer').choice,0);assert.equal(face.nextMouth.ms,650,'next-question mouth gesture keeps its own duration');
+console.log('PASS: answer delay migration, limits, full hold, target switching, one-shot selection and configurable face hold.');
