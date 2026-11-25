@@ -102,6 +102,7 @@
     el('actions').replaceChildren(...round.choices.map((choice, index) => {
       const button = document.createElement('button');
       const key = document.createElement('b');
+      button.className = 'option';
       button.dataset.answer = index;
       key.textContent = 'ABCD'[index];
       button.append(key, document.createTextNode(choice));

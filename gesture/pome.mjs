@@ -67,7 +67,8 @@ window.BioQuestAdventure={
  isDragging:()=>false,cancelDrag(){palm=null},beginDrag:()=>false,panAt:()=>false
 };
 function selectMode(next){
- window.stopCamera?.(true);board.destroy();practice.destroy();releaseGesture();
+ if(!QUIZ_POWERS[mode] || !QUIZ_POWERS[next] || window.BioQuestCamera?.getStatus().loading)window.stopCamera?.(true);
+ board.destroy();practice.destroy();releaseGesture();
  mode=next;power.value=mode;area.replaceChildren();
  el('powerHint').textContent=QUIZ_POWERS[mode]?.hint||hints[mode];
  if(mode==='practice'){
