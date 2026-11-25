@@ -9,7 +9,39 @@
     river: 'Receiving river · Organic pollution can reduce oxygen available to aquatic life.'
   };
   let active, session, pending, history, finished;
-  const model = Plant.mount(el('plant'), id => { el('inspect').textContent = sites[id] || id; });
+  const stationPicker = document.createElement('select');
+  stationPicker.setAttribute('aria-label', 'Inspect a plant unit');
+  stationPicker.add(new Option('Inspect a unit…', ''));
+  Object.entries(sites).forEach(([id, description]) => {
+    stationPicker.add(new Option(description.split(' · ')[0], id));
+  });
+  function inspect(id) {
+    stationPicker.value = id;
+    el('inspect').textContent = sites[id] || 'Select a plant unit to inspect it.';
+    model.update({stage:id});
+  }
+  const model = Plant.mount(el('plant'), inspect);
+  stationPicker.onchange = () => inspect(stationPicker.value);
+  const cameraBar = document.createElement('div');
+  cameraBar.className = 'camera-bar';
+  cameraBar.append(stationPicker);
+  for (const [title, glyph, run] of [
+    ['Zoom out','−',() => model.zoom(-.12)],
+    ['Zoom in','+',() => model.zoom(.12)],
+    ['Reset view','↺',() => {model.reset(); orbit=false; el('orbit').textContent='Auto-orbit';}]
+  ]) {
+    const control = document.createElement('button');
+    control.textContent = glyph;
+    control.title = title;
+    control.setAttribute('aria-label', title);
+    control.onclick = run;
+    cameraBar.append(control);
+  }
+  el('plant').after(cameraBar);
+  const track = document.createElement('div');
+  track.className = 'mission-track';
+  track.setAttribute('aria-hidden','true');
+  el('progress').after(track);
   const gesture = Gesture.mount(el('camera'), number => choose(number - 1));
   let audio, audible = false, orbit = false, paused = false;
   el('sound').onclick = () => {
@@ -44,6 +76,12 @@
     pending = null;
     const round = session.view();
     el('progress').textContent = active.title + ' · ' + round.progress;
+    const [step, total] = round.progress.match(/\d+/g).slice(0,2).map(Number);
+    track.replaceChildren(...Array.from({length:total}, (_, index) => {
+      const segment = document.createElement('span');
+      segment.className = index < step - 1 ? 'complete' : index === step - 1 ? 'current' : '';
+      return segment;
+    }));
     el('mission').textContent = round.title;
     el('brief').textContent = round.prompt;
     el('feedback').textContent = '';
@@ -57,6 +95,8 @@
       return button;
     }));
     model.update({ mode: active.id, stage: round.stage });
+    stationPicker.value = round.stage;
+    el('inspect').textContent = sites[round.stage];
   }
   function choose(index) {
     if (!session || pending || finished) return;
@@ -64,7 +104,10 @@
     if (!round.choices[index]) return;
     pending = session.act(index);
     history.push({ title: round.title, choice: round.choices[index], ...pending });
-    el('actions').querySelectorAll('button').forEach(button => button.disabled = true);
+    el('actions').querySelectorAll('button').forEach((button, i) => {
+      button.disabled = true;
+      if (i === index) button.dataset.outcome = pending.success ? 'success' : 'review';
+    });
     el('feedback').className = 'result';
     el('feedback').textContent = pending.feedback;
     model.update({ mode: active.id, stage: pending.stage, success: pending.success, ...(pending.pathway ? {pathway:pending.pathway} : {}) });
@@ -95,7 +138,11 @@
   }
   Missions.games.forEach(game => {
     const button = document.createElement('button');
-    button.textContent = game.title;
+    const title = document.createElement('strong');
+    title.textContent = game.title;
+    const description = document.createElement('small');
+    description.textContent = game.subtitle;
+    button.append(title, description);
     button.title = game.subtitle;
     button.dataset.id = game.id;
     button.onclick = () => start(game.id);
