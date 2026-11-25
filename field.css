@@ -19,3 +19,13 @@ main{max-width:1540px;margin:auto;padding:24px 4% 50px}
 .result{background:#263d30;padding:12px 16px;color:#eff4e6}.world{overflow:hidden}.stage svg{height:clamp(280px,30vw,420px)}
 @media(max-width:800px){header{flex-wrap:wrap;gap:6px}header nav{margin-top:0;max-width:100%}nav button,nav a{font-size:14px}.grid{grid-template-columns:1fr}.field-cover{min-height:295px}.field-cover:before{background:linear-gradient(90deg,#091914e0,#11251c83 73%,#081a1644)}.field-cover figcaption{font-size:10px}.games{scroll-snap-type:x proximity}.games button{scroll-snap-align:start}.stagehead{flex-wrap:wrap}.world canvas{height:350px}main{padding:16px 4% 42px}}
 }
+@media screen {
+.games{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:18px 0 26px}
+.games button{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:7px;position:relative;padding:19px 15px 16px;border-radius:12px;border-top:3px solid var(--mission-tone,#76ada5);background:linear-gradient(150deg,#23372f,#182824)}
+.games button[data-id=train]{--mission-tone:#d7b772}.games button[data-id=biogas]{--mission-tone:#e2a568}.games button[data-id=manager]{--mission-tone:#a7b5d2}.games button[data-id=arena]{--mission-tone:#c5a9c9}
+.games strong{font-weight:650;line-height:1.25}.games small{font-size:13px;line-height:1.4;color:#c1cdc3}.games button[aria-pressed=true]{background:#dcebb9;border-color:#dcebb9;color:#1c3025}.games button[aria-pressed=true] small{color:#3d553e}
+.camera-bar{display:flex;align-items:center;justify-content:flex-end;gap:5px;padding:8px 14px;background:#192c25;border-block:1px solid #3c5144}.camera-bar select{margin-right:auto;max-width:55%}.camera-bar button{min-width:42px;font-size:21px;line-height:1;padding:9px}
+.mission-track{display:flex;gap:5px;margin:10px 0 20px}.mission-track span{height:5px;border-radius:4px;flex:1;background:#40514a}.mission-track span.complete{background:#82b89a}.mission-track span.current{background:#daeaa4}
+.actions button[data-outcome]{opacity:1}.actions button[data-outcome=success]{border-color:#a8d397;background:#2a4331}.actions button[data-outcome=review]{border-color:#d9b583;background:#443a29}
+@media(max-width:950px){.games{display:flex;overflow-x:auto;padding-bottom:6px}.games button{min-width:180px;max-width:205px;flex:1 0 auto}}
+}
