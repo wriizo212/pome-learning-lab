@@ -1,56 +1,317 @@
 import * as T from './three.module.min.js';
 
+/*
+ Mill crew. Each worker follows a looping shift plan made of walking legs and jobs.
+ A job has its own pose, hand tools and world props (rake, dipper, wrench, shovel,
+ wheelbarrow, valve wheel) so the viewer can read what every person is doing.
+ The plan is a pure function of time, so pausing, resuming and orbiting stay in sync.
+*/
+
+const SPEED=.5;
+
+// Shift plans per scene. Points are [x,z] or [x,z,height] (height lifts the walker over a stile).
+const LAYOUTS={
+ reactor:{
+  lane:2.39,
+  skip:[-5.75,2.78],heap:[1.12,-2.82],valve:[-2.4,.86,.91],stile:[-3.08,.91],barrow:[4.75,-1.4],
+  bench:[5.75,1.74],dial:[3.43,1.88],
+  roles:[
+   {name:'Shift operator',skin:0xb98767,helmet:0xf0ede0,start:[-4.6,2.2],toss:1,plan:[
+    ['do','rake',10,[-4.6,1.0],'Raking screenings off the bar screen'],
+    ['go',[[-5.5,2.38]],{tool:'rake',label:'Carrying screenings to the skip'}],
+    ['do','dump',3,[-5.75,2.78],'Tipping screenings into the skip'],
+    ['go',[[-4.1,2.5],[-2.4,2.3],[-2.4,1.27]],{tool:'rake',label:'Walking to the UASB feed valve'}],
+    ['do','valve',6,[-2.4,.91],'Trimming the UASB feed flow at the valve'],
+    ['go',[[-.7,2.12]],{label:'Moving to the sludge-bed sight glass'}],
+    ['do','clipboard',6,[-1.2,.6],'Logging sludge-bed level and gas pressure'],
+    ['go',[[-3.0,2.5],[-4.6,2.2]],{label:'Returning to the inlet screen'}]
+   ]},
+   {name:'Water sampler',skin:0x875846,helmet:0xffbf39,start:[1.6,2.1],plan:[
+    ['do','dip',7,[1.6,1.0],'Dipping a mixed-liquor sample from the aeration basin'],
+    ['go',[[2.9,2.72],[4.1,2.72],[4.6,2.08]],{carry:'bottle',label:'Carrying the sample bottle'}],
+    ['do','dip',6,[4.75,.7],'Sampling treated effluent at the outlet chamber'],
+    ['go',[[5.75,2.36]],{carry:'bottle',label:'Taking samples to the field bench'}],
+    ['do','test',9,[5.75,1.74],'Testing pH, dissolved oxygen and COD'],
+    ['do','clipboard',4,[5.75,1.74],'Recording the lab results'],
+    ['go',[[4.1,2.72],[2.9,2.72],[1.6,2.1]],{label:'Heading back to the aeration basin'}]
+   ]},
+   {name:'Instrumentation technician',skin:0xc59878,helmet:0xffc548,start:[3.43,2.3],plan:[
+    ['do','tablet',6,[3.43,1.88],'Verifying the effluent flow meter'],
+    ['go',[[2.2,2.82],[-3.08,2.82],[-3.08,1.4],[-3.08,1.12,.19],[-3.08,.7,.19],[-3.08,.42],[-3.08,-2.2],[-1.95,-2.2]],{label:'Walking to the biogas engine'}],
+    ['do','kneel',10,[-.4,-2.2],'Servicing the biogas engine: plugs and gas filter'],
+    ['do','tablet',5,[-.4,-2.2],'Logging engine output (kW) and biogas flow'],
+    ['go',[[-3.08,-2.2],[-3.08,.42],[-3.08,.7,.19],[-3.08,1.12,.19],[-3.08,1.4],[-3.08,2.82],[2.2,2.82],[3.43,2.3]],{label:'Returning to the instrument loop'}]
+   ]},
+   {name:'Sludge handler',skin:0x9c6b4f,helmet:0x74c8a4,start:[4.75,-1.95],toss:1,plan:[
+    ['do','shovel',10,[3.6,-1.95],'Shovelling dried sludge cake into the barrow'],
+    ['go',[[4.75,-2.82],[2.05,-2.82]],{push:true,label:'Wheeling sludge cake to the compost heap'}],
+    ['do','tip',3.5,[1.12,-2.82],'Tipping cake onto the compost heap'],
+    ['go',[[4.75,-2.82],[4.75,-1.95]],{push:true,label:'Returning with the empty barrow'}]
+   ]}
+  ]},
+ arcade:{
+  lane:1.27,
+  skip:[-5.8,.85],heap:[-5.85,2.6],valve:[-.35,.8,.02],stile:null,barrow:[-.35,3.1],
+  bench:[5.45,.69],dial:[1.02,.76],
+  roles:[
+   {name:'Shift operator',skin:0xb98767,helmet:0xf0ede0,start:[-4,.72],plan:[
+    ['do','rake',10,[-4,-1.3],'Raking screenings off the intake screen'],
+    ['go',[[-5.3,.85]],{tool:'rake',label:'Carrying screenings to the skip'}],
+    ['do','dump',3,[-5.8,.85],'Tipping screenings into the skip'],
+    ['go',[[-4,1.27],[-.35,1.27],[-.35,.56]],{tool:'rake',label:'Walking to the digester feed valve'}],
+    ['do','valve',6,[-.35,-.3],'Trimming the digester feed at the valve'],
+    ['go',[[.15,1.2]],{label:'Moving to the digester gauges'}],
+    ['do','clipboard',5,[-.9,-1.65],'Logging digester temperature and gas pressure'],
+    ['go',[[-4,1.27],[-4,.72]],{label:'Returning to the intake screen'}]
+   ]},
+   {name:'Water sampler',skin:0x875846,helmet:0xffbf39,start:[2.6,1.15],plan:[
+    ['do','dip',7,[2.6,0],'Dipping a sample from the polishing basin'],
+    ['go',[[2.9,1.4],[3.1,3.4]],{carry:'bottle',label:'Walking down to the river bank'}],
+    ['do','dip',6,[3.1,4.6],'Sampling the receiving river downstream'],
+    ['go',[[5.45,1.55],[5.45,1.36]],{carry:'bottle',label:'Taking samples to the field bench'}],
+    ['do','test',9,[5.45,.69],'Testing pH, dissolved oxygen and COD'],
+    ['do','clipboard',4,[5.45,.69],'Recording the lab results'],
+    ['go',[[4.2,1.4],[2.6,1.15]],{label:'Heading back to the polishing basin'}]
+   ]},
+   {name:'Instrumentation technician',skin:0xc59878,helmet:0xffc548,start:[1.02,1.3],plan:[
+    ['do','tablet',6,[1.02,.76],'Verifying the flow meter reading'],
+    ['go',[[6.0,1.45],[6.0,-1.83],[2.6,-1.83]],{label:'Walking to the gas engine house'}],
+    ['do','kneel',10,[2.6,-3.1],'Servicing the gas engine: plugs and gas filter'],
+    ['do','tablet',5,[2.6,-3.1],'Logging engine output (kW) and biogas flow'],
+    ['go',[[6.0,-1.83],[6.0,1.45],[1.02,1.3]],{label:'Returning to the instrument loop'}]
+   ]},
+   {name:'Sludge handler',skin:0x9c6b4f,helmet:0x74c8a4,start:[-.35,2.55],toss:1,plan:[
+    ['do','shovel',10,[-1.6,2.55],'Shovelling dried sludge cake into the barrow'],
+    ['go',[[-.35,1.45],[-4.75,1.45],[-4.75,2.55],[-4.95,2.55]],{push:true,label:'Wheeling sludge cake to the compost heap'}],
+    ['do','tip',3.5,[-5.85,2.55],'Tipping cake onto the compost heap'],
+    ['go',[[-4.75,2.55],[-4.75,1.45],[-.35,1.45],[-.35,2.55]],{push:true,label:'Returning with the empty barrow'}]
+   ]}
+  ]}
+};
+
+const ease=x=>.5-.5*Math.cos(Math.PI*Math.min(1,Math.max(0,x)));
+const wrapAngle=a=>Math.atan2(Math.sin(a),Math.cos(a));
+const faceTo=(from,to)=>Math.atan2(-(to[0]-from[0]),-(to[1]-from[1]));
+
+function compile(role){
+ let pos=[...role.start,0],t=0,heading=0;const steps=[];
+ for(const s of role.plan){
+  if(s[0]==='go'){
+   const pts=[pos,...s[1].map(p=>[p[0],p[1],p[2]||0])],segs=[];let len=0;
+   for(let i=1;i<pts.length;i++){const l=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);segs.push({a:pts[i-1],b:pts[i],l,from:len});len+=l}
+   const last=segs.at(-1);const dur=len/SPEED;
+   steps.push({kind:'go',segs,len,dur,start:t,opts:s[2]||{},label:(s[2]||{}).label||'Walking'});
+   heading=faceTo(last.a,last.b);pos=pts.at(-1);t+=dur;
+  }else{
+   const [,job,dur,face,label]=s;const h=face?faceTo(pos,face):heading;
+   steps.push({kind:'do',job,dur,at:pos,h0:heading,h1:h,label,start:t});heading=h;t+=dur;
+  }
+ }
+ // The first job turns from the heading the loop ended on.
+ for(const s of steps)if(s.kind==='do'&&s.start===0)s.h0=heading;
+ return {steps,total:t};
+}
+
 export function populate(scene, materials, arcade=false){
  const {steel,brass,cement,dark,base}=materials;
- const mat=(color,roughness=.78)=>new T.MeshStandardMaterial({color,roughness});
- const navy=mat(0x273e50),orange=mat(0xe97835),stripe=mat(0xe1ebad),boots=mat(0x342d29),leaf=mat(0x506a43),bark=mat(0x79634a),roof=mat(0x688383);
- // Repeating woven fabric and a stitched placket remain visible in shoulder view.
+ const layout=arcade?LAYOUTS.arcade:LAYOUTS.reactor;
+ const mat=(color,roughness=.78,metalness=0)=>new T.MeshStandardMaterial({color,roughness,metalness});
+ const navy=mat(0x273e50),stripe=mat(0xe1ebad),boots=mat(0x342d29),leaf=mat(0x506a43),bark=mat(0x79634a),roof=mat(0x688383);
+ const wood=mat(0x9a7448,.85),rubber=mat(0x1d2222,.9),glove=mat(0xd9c46a,.85),paper=mat(0xf2efe2,.9),screen=new T.MeshStandardMaterial({color:0x5fd4e6,emissive:0x2b8fa8,emissiveIntensity:.9,roughness:.3});
+ const cake=mat(0x5a3f2c,.97),screenings=mat(0x6f5a35,.95),sampleWater=new T.MeshStandardMaterial({color:0x8fbfa9,transparent:true,opacity:.75,roughness:.15});
+ const vests=[0xe97835,0xe2c13a,0x4f9fd8,0x6fc06b];
+ // Repeating woven fabric remains visible in shoulder view.
  const cloth=document.createElement('canvas');cloth.width=cloth.height=128;const weave=cloth.getContext('2d');
  weave.fillStyle='#f3eada';weave.fillRect(0,0,128,128);
  for(let n=0;n<128;n+=3){weave.fillStyle='rgba(103,94,86,.13)';weave.fillRect(n,0,1,128);weave.fillStyle='rgba(255,255,255,.45)';weave.fillRect(0,n,128,1)}
- const textile=new T.CanvasTexture(cloth);textile.colorSpace=T.SRGBColorSpace;
- for(const fabric of [orange,navy]){fabric.map=textile;fabric.roughness=.91}
- const cube=new T.BoxGeometry(),round=new T.SphereGeometry(1,10,7);
+ const textile=new T.CanvasTexture(cloth);textile.colorSpace=T.SRGBColorSpace;navy.map=textile;navy.roughness=.91;
+ const cube=new T.BoxGeometry(),round=new T.SphereGeometry(1,10,7),tube=new T.CylinderGeometry(1,1,1,10);
  function part(parent,geo,m,x,y,z,w,h,d){const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(w,h,d);o.castShadow=o.receiveShadow=true;parent.add(o);return o}
  const box=(p,m,x,y,z,w,h,d)=>part(p,cube,m,x,y,z,w,h,d);
  const oval=(p,m,x,y,z,w,h,d)=>part(p,round,m,x,y,z,w,h,d);
+ const rod=(p,m,x,y,z,r,l)=>part(p,tube,m,x,y,z,r,l,r);
  function pivot(p,x,y,z){const g=new T.Group();p.add(g);g.position.set(x,y,z);return g}
- function worker(skin,helmet){
-  const g=pivot(scene,0,.1,0), body=pivot(g,0,0,0),legs=[],arms=[];
-  oval(body,orange,0,.66,0,.149,.218,.092);
-  box(body,navy,0,.742,-.093,.008,.104,.009);box(body,stripe,-.075,.756,-.083,.052,.029,.01);
-  for(const y of [.61,.67])oval(body,stripe,0,y,0,.15,.018,.095);
-  box(body,navy,0,.47,0,.242,.09,.15);box(body,dark,.08,.74,-.087,.047,.066,.025);
-  const face=mat(skin),hat=mat(helmet);
-  oval(body,face,0,.927,0,.093,.129,.093);oval(body,hat,0,1.01,0,.108,.083,.106);oval(body,hat,0,.99,-.011,.122,.017,.134);
-  box(body,dark,0,.943,-.086,.147,.029,.018);
+
+ /* ---------- hand tools (built in the torso frame: forward is -z) ---------- */
+ function rakeTool(parent){
+  const g=pivot(parent,.02,.2,-.12),shaft=pivot(g,0,0,0);
+  const h=rod(shaft,wood,0,0,-.55,.014,1.1);h.rotation.x=Math.PI/2;
+  box(shaft,steel,0,-.02,-1.1,.36,.03,.04);
+  for(let i=0;i<9;i++)box(shaft,steel,-.16+i*.04,-.07,-1.1,.01,.09,.012);
+  const load=oval(shaft,screenings,0,-.06,-1.07,.12,.05,.05);
+  return {g,shaft,load};
+ }
+ function shovelTool(parent){
+  const g=pivot(parent,.04,.16,-.1),shaft=pivot(g,0,0,0);
+  const h=rod(shaft,wood,0,0,-.42,.016,.85);h.rotation.x=Math.PI/2;
+  box(shaft,dark,0,0,.02,.1,.025,.03);
+  const blade=box(shaft,steel,0,-.02,-.93,.2,.015,.25);blade.rotation.x=-.2;
+  const load=oval(shaft,cake,0,.02,-.93,.09,.04,.1);
+  return {g,shaft,load};
+ }
+ function dipperTool(parent){
+  const g=pivot(parent,.08,.22,-.1),shaft=pivot(g,0,0,0);
+  const h=rod(shaft,steel,0,0,-.65,.011,1.3);h.rotation.x=Math.PI/2;
+  rod(shaft,steel,0,-.04,-1.3,.045,.08);const fill=rod(shaft,sampleWater,0,-.045,-1.3,.04,.05);
+  return {g,shaft,fill};
+ }
+ function bottleProp(hand){const g=pivot(hand,0,-.02,-.02);rod(g,sampleWater,0,0,0,.026,.09);rod(g,navy,0,.055,0,.02,.025);return g}
+ function tabletProp(hand){const g=pivot(hand,.02,-.02,-.05);box(g,dark,0,0,0,.2,.016,.14);const s=box(g,screen,0,.009,0,.18,.003,.12);g.rotation.x=.45;return {g,s}}
+ function clipboardProp(hand){const g=pivot(hand,.02,-.03,-.05);box(g,wood,0,0,0,.16,.012,.22);box(g,paper,0,.008,.01,.14,.004,.18);box(g,steel,0,.012,-.1,.06,.01,.02);g.rotation.x=.55;return g}
+ function wrenchProp(hand){const g=pivot(hand,0,-.04,-.01);box(g,steel,0,-.05,0,.018,.13,.012);box(g,steel,0,-.12,0,.045,.025,.015);return g}
+ function penProp(hand){const g=pivot(hand,0,-.02,-.02);rod(g,navy,0,0,0,.006,.08).rotation.x=.6;return g}
+ function probeProp(hand){const g=pivot(hand,0,-.03,-.02);box(g,mat(0x31363a),0,0,0,.05,.09,.03);rod(g,steel,0,-.09,0,.006,.12);return g}
+
+ /* ---------- worker rig ---------- */
+ function worker(spec,index){
+  const g=pivot(scene,0,.1,0),pelvis=pivot(g,0,.48,0),torso=pivot(pelvis,0,0,0),legs=[],arms=[],hands=[];
+  const vest=mat(vests[index%vests.length],.88);vest.map=textile;
+  oval(torso,vest,0,.18,0,.149,.218,.092);
+  box(torso,navy,0,.262,-.093,.008,.104,.009);box(torso,stripe,-.075,.276,-.083,.052,.029,.01);
+  for(const y of [.13,.19])oval(torso,stripe,0,y,0,.15,.018,.095);
+  box(torso,dark,.08,.26,-.087,.047,.066,.025);box(torso,dark,-.09,.05,-.08,.03,.05,.02);
+  box(pelvis,navy,0,-.01,0,.242,.09,.15);box(pelvis,dark,0,.03,0,.25,.025,.155);
+  const head=pivot(torso,0,.36,0),face=mat(spec.skin),hat=mat(spec.helmet,.45);
+  oval(head,face,0,.087,0,.093,.129,.093);oval(head,hat,0,.17,0,.108,.083,.106);oval(head,hat,0,.15,-.011,.122,.017,.134);
+  box(head,dark,0,.103,-.086,.147,.029,.018);
   for(const s of [-1,1]){
-   const hip=pivot(body,s*.069,.48,0),knee=pivot(hip,0,-.196,0);
+   const hip=pivot(pelvis,s*.069,0,0),knee=pivot(hip,0,-.196,0);
    oval(hip,navy,0,-.097,0,.069,.133,.066);oval(knee,navy,0,-.089,0,.052,.113,.053);
    oval(knee,boots,0,-.171,-.025,.059,.053,.093);legs.push([hip,knee]);
-   const shoulder=pivot(body,s*.143,.79,0),elbow=pivot(shoulder,s*.021,-.145,0);
-   oval(shoulder,orange,s*.014,-.064,0,.064,.096,.061);oval(elbow,navy,0,-.054,0,.043,.077,.044);
-   oval(elbow,boots,0,-.13,0,.039,.045,.038);arms.push([shoulder,elbow]);
+   const shoulder=pivot(torso,s*.143,.31,0),elbow=pivot(shoulder,s*.021,-.145,0);
+   oval(shoulder,vest,s*.014,-.064,0,.064,.096,.061);oval(elbow,navy,0,-.054,0,.043,.077,.044);
+   const hand=pivot(elbow,0,-.13,0);oval(hand,glove,0,0,0,.039,.045,.038);arms.push([shoulder,elbow]);hands.push(hand);
   }
-  function pose(time,walk,job=''){
-   const a=Math.sin(time*7)*walk;body.position.y=.015*Math.abs(a);
-   legs.forEach(([hip,knee],i)=>{const n=i?-a:a;hip.rotation.x=n*.58;knee.rotation.x=-Math.max(0,n)*.67});
-   arms.forEach(([sh,el],i)=>{sh.rotation.x=(i?a:-a)*.48;el.rotation.x=.17;if(job==='sample'&&i===1){sh.rotation.x=.85+.32*Math.sin(time*1.8);el.rotation.x=.3}if(job==='inspect'){sh.rotation.x=.52;el.rotation.x=.94+.13*Math.sin(time*2+i)}});
-  }
-  return {g,pose,arms};
- }
- const player=worker(0xb98767,0xf0ede0), patrol=worker(0x875846,0xffbf39),tech=worker(0xc59878,0xffc548);
- const tablet=box(tech.arms[0][1],dark,.08,-.14,-.06,.21,.022,.145);tablet.rotation.x=.3;
- const lane=arcade?1.27:2.39;
- const roles=[{name:'Shift operator',actor:player,from:-4.65,to:.12,offset:1.4,job:'inspect'},
-  {name:'Water sampler',actor:patrol,from:3.8,to:5.48,offset:7.8,job:'sample'},
-  {name:'Instrumentation technician',actor:tech,from:.35,to:3.1,offset:4.2,job:'inspect'}];
- oval(patrol.arms[1][1],steel,0,-.17,-.015,.039,.07,.039);
- box(patrol.arms[1][1],mat(0x228683),0,-.093,-.015,.036,.025,.036);
+  // Name and task tag floats above the helmet.
+  const tagCanvas=document.createElement('canvas');tagCanvas.width=512;tagCanvas.height=128;
+  const tagTex=new T.CanvasTexture(tagCanvas);tagTex.colorSpace=T.SRGBColorSpace;
+  const tag=new T.Sprite(new T.SpriteMaterial({map:tagTex,depthWrite:false,transparent:true}));tag.position.set(0,1.32,0);tag.scale.set(.95,.238,1);tag.renderOrder=5;g.add(tag);
+  let tagText='';
+  function setTag(text){if(text===tagText)return;tagText=text;const c=tagCanvas.getContext('2d');c.clearRect(0,0,512,128);
+   c.fillStyle='rgba(16,36,33,.86)';c.beginPath();c.roundRect(6,10,500,96,18);c.fill();
+   c.fillStyle='#'+vests[index%vests.length].toString(16).padStart(6,'0');c.fillRect(6,10,14,96);
+   c.fillStyle='#e8f6c4';c.font='bold 34px system-ui,Arial';c.fillText(spec.name,34,50);
+   c.fillStyle='#cfe1d6';c.font='26px system-ui,Arial';let line=text;while(c.measureText(line).width>456&&line.length>4)line=line.slice(0,-2);if(line!==text)line=line.trimEnd()+'…';c.fillText(line,34,88);
+   tagTex.needsUpdate=true}
 
- box(player.arms[0][1],brass,.02,-.13,-.06,.082,.032,.14);
- let controlled=null;
- // Repeated fasteners, fence rails and canopy leaves share geometry in GPU batches.
+  const props={},tools={};
+  function rest(){
+   pelvis.position.set(0,.48,0);pelvis.rotation.set(0,0,0);torso.rotation.set(0,0,0);head.rotation.set(0,0,0);
+   for(const [h,k] of legs){h.rotation.set(0,0,0);k.rotation.set(0,0,0)}
+   for(const [s,e] of arms){s.rotation.set(0,0,0);e.rotation.set(0,0,0)}
+   for(const h of hands)h.rotation.set(0,0,0);
+   for(const p of Object.values(props))p.visible=false;
+  }
+  function stride(time,amount){
+   const a=Math.sin(time*7)*amount;pelvis.position.y=.48+.016*Math.abs(a);torso.rotation.y=a*.06;
+   legs.forEach(([h,k],i)=>{const n=i?-a:a;h.rotation.x=n*.58;k.rotation.x=-Math.max(0,n)*.75-.05*amount});
+   return a;
+  }
+  const inward=(i,amt)=>{arms[i][0].rotation.z=i?-amt:amt};
+  function show(name){if(props[name])props[name].visible=true}
+
+  // Pose library. τ is seconds into the current job.
+  function pose(time,walk,job='',τ=time,extra={}){
+   rest();
+   const [L,R]=arms;
+   if(walk>0||job===''){
+    const a=stride(time,walk);
+    L[0].rotation.x=-a*.48;R[0].rotation.x=a*.48;L[1].rotation.x=R[1].rotation.x=.17;
+    if(walk===0){L[1].rotation.x=R[1].rotation.x=.12;head.rotation.y=.25*Math.sin(time*.4)}
+    if(extra.carry==='bottle'){show('bottle');R[0].rotation.x=.45;R[1].rotation.x=.75;inward(1,.1)}
+    if(extra.tool){show(extra.tool);const t=tools[extra.tool];t.g.rotation.set(1.15,0,-.25);t.g.position.set(.12,.33,.02);R[0].rotation.x=-.2;R[0].rotation.z=-1.9;R[1].rotation.x=1.4;if(t.load)t.load.visible=extra.tool==='rake'&&extra.loaded}
+    if(extra.push){torso.rotation.x=-.2;L[0].rotation.x=R[0].rotation.x=.55;L[1].rotation.x=R[1].rotation.x=.12;inward(0,.08);inward(1,.08);head.rotation.x=.12}
+    return;
+   }
+   switch(job){
+    case 'rake':{const c=(τ%2.6)/2.6,s=c<.45?ease(c/.45):1-ease((c-.45)/.55);const t=tools.rake;show('rake');
+     torso.rotation.x=-(.22+.24*s);head.rotation.x=.18;legs[0][0].rotation.x=.32;legs[0][1].rotation.x=-.25;legs[1][0].rotation.x=-.18;
+     L[0].rotation.x=.95+.45*s;R[0].rotation.x=.75+.45*s;L[1].rotation.x=.55-.35*s;R[1].rotation.x=.75-.35*s;inward(0,.28);inward(1,.18);
+     t.g.rotation.set(0,0,0);t.g.position.set(.02,.2,-.12-.18*s);t.shaft.rotation.x=-(.62-.12*s)-.1*Math.sin(c*Math.PI*2);
+     t.load.visible=c>.45;break}
+    case 'dump':{const s=ease(Math.min(1,τ/.8)),shake=τ>.8&&τ<2.4?Math.sin(τ*26)*.07:0;const t=tools.rake;show('rake');
+     L[0].rotation.x=R[0].rotation.x=.9+.6*s;L[1].rotation.x=R[1].rotation.x=.4;inward(0,.25);inward(1,.2);torso.rotation.x=-.1;
+     t.g.rotation.set(0,0,0);t.g.position.set(.02,.24,-.12);t.shaft.rotation.x=-.75+.55*s+shake;t.load.visible=τ<1.4;break}
+    case 'valve':{const turn=τ*2.2;show('');
+     L[0].rotation.x=1.3+.12*Math.sin(turn);R[0].rotation.x=1.3-.12*Math.sin(turn);L[1].rotation.x=R[1].rotation.x=.45;
+     L[0].rotation.z=.25+.1*Math.cos(turn);R[0].rotation.z=-.25+.1*Math.cos(turn);torso.rotation.x=-.08;torso.rotation.y=.05*Math.sin(turn);
+     head.rotation.x=-.05;break}
+    case 'clipboard':{show('clipboard');show('pen');const look=Math.sin(τ*.9)>0;
+     L[0].rotation.x=.75;L[1].rotation.x=1.25;inward(0,.42);
+     R[0].rotation.x=.7+.03*Math.sin(τ*12);R[1].rotation.x=1.15+.06*Math.sin(τ*15);inward(1,.36);
+     head.rotation.x=look?.22:-.38;head.rotation.y=look?.08*Math.sin(τ):0;break}
+    case 'tablet':{show('tablet');const look=Math.sin(τ*.7+1)>.35;
+     L[0].rotation.x=.82;L[1].rotation.x=1.05;inward(0,.35);
+     R[0].rotation.x=.72;R[1].rotation.x=1.05+.12*Math.max(0,Math.sin(τ*8));inward(1,.4);
+     head.rotation.x=look?.18:-.36;if(tools.tablet)tools.tablet.s.material.emissiveIntensity=.6+.4*Math.max(0,Math.sin(τ*3));break}
+    case 'dip':{const c=(τ%6)/6;const s=c<.3?ease(c/.3):c<.62?1:1-ease((c-.62)/.38);const t=tools.dipper;show('dipper');
+     torso.rotation.x=-(.12+.25*s);head.rotation.x=.1;legs[0][0].rotation.x=.25;legs[0][1].rotation.x=-.2;
+     R[0].rotation.x=.75+.35*s;R[1].rotation.x=.3;L[0].rotation.x=.6+.3*s;L[1].rotation.x=.5;inward(0,.3);inward(1,.05);
+     t.shaft.rotation.x=-.25-.75*s+(c>.3&&c<.62?.04*Math.sin(τ*9):0);t.fill.visible=c>.45;break}
+    case 'test':{const c=(τ%9)/9;show('bottle');show('probe');torso.rotation.x=-.18;head.rotation.x=-.42;
+     L[0].rotation.x=.65;L[1].rotation.x=.75;inward(0,.3);
+     if(c<.45){const p=ease(c/.2)-ease((c-.3)/.15);R[0].rotation.x=.75+.35*p;R[1].rotation.x=.75;hands[1].rotation.z=-1.3*p;inward(1,.35)}
+     else{R[0].rotation.x=.7;R[1].rotation.x=.95+.05*Math.sin(τ*6);inward(1,.45);head.rotation.y=.15*Math.sin(τ*.8)}
+     props.probe.visible=c>=.45;break}
+    case 'kneel':{show('wrench');pelvis.position.y=.31;
+     legs[0][0].rotation.x=1.38;legs[0][1].rotation.x=-1.42;legs[1][0].rotation.x=-.05;legs[1][1].rotation.x=-1.52;
+     torso.rotation.x=-.28;head.rotation.x=-.22;
+     R[0].rotation.x=1.15+.08*Math.sin(τ*2);R[1].rotation.x=.55+.35*Math.max(0,Math.sin(τ*5));inward(1,.18);hands[1].rotation.z=.5*Math.sin(τ*5);
+     L[0].rotation.x=.55;L[1].rotation.x=.95;inward(0,.1);break}
+    case 'shovel':{const c=(τ%3.2)/3.2,t=tools.shovel;show('shovel');
+     const drive=c<.35?ease(c/.35):1,lift=c<.35?0:c<.65?ease((c-.35)/.3):1,toss=c<.65?0:c<.85?ease((c-.65)/.2):1-ease((c-.85)/.15);
+     const dir=spec.toss||1;
+     torso.rotation.x=-(.5*drive-.32*lift);torso.rotation.y=dir*.95*toss;pelvis.position.y=.48-.06*drive+.05*lift;
+     legs[0][0].rotation.x=.45;legs[0][1].rotation.x=-.55*drive;legs[1][0].rotation.x=-.25;legs[1][1].rotation.x=-.3*drive;
+     L[0].rotation.x=.7+.3*drive-.15*lift;R[0].rotation.x=.4+.5*lift;L[1].rotation.x=.4;R[1].rotation.x=.6;inward(0,.3);inward(1,.25);
+     t.g.rotation.set(0,0,0);t.shaft.rotation.x=-.95*drive+.55*lift+.25*toss;t.shaft.rotation.z=dir*-.9*toss;
+     t.load.visible=c>.33&&c<.8;break}
+    case 'tip':{const s=ease(τ/1.2)-ease((τ-2.4)/1);torso.rotation.x=-.12-.1*s;
+     L[0].rotation.x=R[0].rotation.x=.55+.65*s;L[1].rotation.x=R[1].rotation.x=.15;inward(0,.08);inward(1,.08);
+     legs[0][0].rotation.x=.3;legs[1][0].rotation.x=-.2;break}
+   }
+  }
+  const actor={g,pose,arms,hands,torso,setTag,tag,tools,props,spec};
+  return actor;
+ }
+
+ // Build the crew and their personal kit.
+ const roles=layout.roles.map((spec,i)=>{
+  const actor=worker(spec,i),{props,tools,hands,torso}=actor;
+  if(i===0){tools.rake=rakeTool(torso);props.rake=tools.rake.g;props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.walkie=box(torso,dark,.09,.32,-.09,.03,.07,.02)}
+  if(i===1){tools.dipper=dipperTool(torso);props.dipper=tools.dipper.g;props.bottle=bottleProp(hands[1]);props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.probe=probeProp(hands[1])}
+  if(i===2){tools.tablet=tabletProp(hands[0]);props.tablet=tools.tablet.g;props.wrench=wrenchProp(hands[1])}
+  if(i===3){tools.shovel=shovelTool(torso);props.shovel=tools.shovel.g}
+  return {name:spec.name,actor,spec,...compile(spec),offset:i*3.7,state:{job:'',label:'',τ:0}};
+ });
+ const player=roles[0].actor;
+
+ /* ---------- shared world props: skip, valve wheel, stile, barrow, compost heap ---------- */
+ const skip=new T.Group();skip.position.set(layout.skip[0],.09,layout.skip[1]);scene.add(skip);
+ box(skip,mat(0x2f6b5a,.6,.3),0,.2,0,.62,.4,.44);box(skip,dark,0,.41,0,.66,.03,.48);
+ const skipFill=box(skip,screenings,0,.38,0,.56,.06,.38);for(let k=0;k<7;k++)oval(skip,screenings,-.22+k*.075,.43,(k%3-1)*.1,.05,.035,.04);
+ const valve=new T.Group();valve.position.set(...layout.valve);scene.add(valve);
+ rod(valve,steel,0,-.17,0,.035,.34);box(valve,dark,0,-.36,0,.12,.1,.12);
+ const wheel=new T.Group();wheel.position.y=.02;valve.add(wheel);
+ const rim=new T.Mesh(new T.TorusGeometry(.13,.014,8,28),mat(0xb8382c,.5,.2));rim.castShadow=true;wheel.add(rim);
+ for(let k=0;k<3;k++){const sp=box(wheel,mat(0xb8382c,.5,.2),0,0,0,.25,.016,.016);sp.rotation.z=k*Math.PI/3}
+ rod(wheel,steel,0,0,0,.02,.05).rotation.x=Math.PI/2;
+ if(layout.stile){const [sx,sz]=layout.stile,stile=new T.Group();stile.position.set(sx,.09,sz);scene.add(stile);
+  box(stile,mat(0x9aa7a0,.4,.6),0,.19,0,.42,.035,.46);for(const dz of [-.37,.37])box(stile,mat(0x9aa7a0,.4,.6),0,.09,dz,.42,.03,.2);
+  for(const dx of [-.2,.2]){for(const dz of [-.18,.18])box(stile,steel,dx,.095,dz,.03,.2,.03);box(stile,brass,dx,.48,0,.025,.025,.5);for(const dz of [-.22,.22])box(stile,brass,dx,.34,dz,.025,.3,.025)}}
+ const heap=new T.Group();heap.position.set(layout.heap[0],.09,layout.heap[1]);scene.add(heap);
+ for(let k=0;k<9;k++){const a=k*2.3,r=k?.18+.06*(k%3):0;oval(heap,cake,Math.cos(a)*r,.06+(k?0:.08),Math.sin(a)*r,.24-r*.4,.13+(k?0:.05),.22-r*.3)}
+ for(let k=0;k<3;k++)oval(heap,leaf,-.2+k*.18,.05,.28,.06,.03,.05);
+ const barrow=new T.Group();scene.add(barrow);
+ const axle=pivot(barrow,0,.14,-.33),tray=pivot(axle,0,-.14,.33),barrowPaint=mat(0x4f8db0,.5,.4);
+ box(tray,barrowPaint,0,.34,0,.42,.04,.52);for(const s of [-1,1]){const side=box(tray,barrowPaint,s*.22,.42,0,.03,.17,.52);side.rotation.z=s*.25}
+ box(tray,barrowPaint,0,.42,-.27,.44,.17,.03);box(tray,barrowPaint,0,.42,.27,.44,.17,.03);
+ for(const s of [-1,1]){rod(tray,steel,s*.17,.34,.45,.014,.6).rotation.x=Math.PI/2;rod(tray,steel,s*.15,.2,.22,.012,.3)}
+ const tyre=new T.Mesh(new T.TorusGeometry(.11,.035,8,18),rubber);tyre.rotation.y=Math.PI/2;tyre.position.set(0,.14,-.33);tyre.castShadow=true;tray.add(tyre);
+ const barrowLoad=oval(tray,cake,0,.4,0,.17,.08,.22);
+ let barrowPos=new T.Vector3(layout.barrow[0],.09,layout.barrow[1]),barrowHeading=0;
+
+ /* ---------- instanced backdrop: fence, shed, pipe rack, palms, bench, dial ---------- */
  const batches=new Map();
  function repeat(geo,m,x,y,z,w,h,d,rx=0,ry=0,rz=0){
   const key=geo.uuid+m.uuid;if(!batches.has(key))batches.set(key,{geo,m,list:[]});
@@ -58,13 +319,10 @@ export function populate(scene, materials, arcade=false){
  }
  for(let i=-10;i<=10;i++){repeat(cube,steel,i,-.03+.66,-4.6,.048,1.4,.048);if(i<10)for(const y of [.35,.9])repeat(cube,steel,i+.5,y,-4.6,1,.03,.035)}
  for(let i=0;i<6;i++){repeat(cube,brass,-5.7+i*2.2,.112,2.91,.9,.011,.055)}
- // Mill service shed with ventilated cladding and an open-sided maintenance canopy.
  box(scene,base,-6,.8,-7,4.6,1.9,2.35);for(let i=0;i<45;i++)repeat(cube,roof,-8.24+i*.102,.9,-5.81,.039,1.94,.04);
  for(const side of [-1,1])repeat(cube,steel,-6,2.03,-7+side*.64,4.94,.095,1.4,-side*.19);
  for(let i=0;i<4;i++){repeat(cube,dark,-7.55+i*.88,1.25,-5.77,.54,.46,.08);for(let k=0;k<5;k++)repeat(cube,steel,-7.55+i*.88,1.08+k*.076,-5.72,.51,.019,.035)}
- // A pipe rack and bundled spare stock sit beside the service shed.
  for(const z of [-5.9,-6.48]){repeat(cube,steel,1.52,.53,z,.09,1.1,.09);repeat(cube,steel,4.18,.53,z,.09,1.1,.09);repeat(cube,brass,2.85,.71,z,2.83,.055,.065)}
- const tube=new T.CylinderGeometry(1,1,1,12);
  for(let k=0;k<5;k++)repeat(tube,steel,2.85,.84,-5.88-k*.145,.07,3.4,.07,0,0,Math.PI/2);
  const frond=new T.OctahedronGeometry(1,0);
  for(let i=0;i<22;i++){
@@ -74,30 +332,80 @@ export function populate(scene, materials, arcade=false){
    for(let k=1;k<=6;k++){const f=k/6;repeat(frond,leaf,x+dx*1.5*f,h+.48*Math.sin(f*3.6)-.32*f,z+dz*1.5*f,.19*(1.2-f*.6),.054,.38,0,a,.12)}
   }
  }
- // Sampling bench with capped vials, a handheld meter cradle and instrument dial.
- const bx=arcade?5.45:5.75,bz=arcade?.69:1.74;
+ // Sampling bench with capped vials, a pH meter with a live display and a wash bottle.
+ const [bx,bz]=layout.bench;
  repeat(cube,steel,bx,.58,bz,.82,.055,.47);
  for(const dx of [-.32,.32])for(const dz of [-.16,.16])repeat(cube,dark,bx+dx,.31,bz+dz,.045,.54,.045);
  for(let k=0;k<4;k++){repeat(round,stripe,bx-.26+k*.10,.66,bz,.036,.08,.036);repeat(cube,navy,bx-.26+k*.1,.74,bz,.042,.025,.042)}
+ box(scene,mat(0x31363a,.5),bx+.2,.66,bz-.05,.16,.1,.12);
+ const meterCanvas=document.createElement('canvas');meterCanvas.width=128;meterCanvas.height=64;const meterTex=new T.CanvasTexture(meterCanvas);meterTex.colorSpace=T.SRGBColorSpace;
+ const meterFace=part(scene,new T.PlaneGeometry(.13,.065),new T.MeshStandardMaterial({map:meterTex,emissive:0xffffff,emissiveMap:meterTex,emissiveIntensity:.7}),bx+.2,.672,bz+.012,1,1,1);meterFace.castShadow=false;
+ let meterText='';function meter(text){if(text===meterText)return;meterText=text;const c=meterCanvas.getContext('2d');c.fillStyle='#16302a';c.fillRect(0,0,128,64);c.fillStyle='#9ff5b8';c.font='bold 30px monospace';c.textAlign='center';c.fillText(text,64,44);meterTex.needsUpdate=true}
+ meter('--.-');
+ rod(scene,mat(0xe8eef0,.3),bx+.3,.67,bz+.12,.03,.12);
  const c=document.createElement('canvas');c.width=256;c.height=256;const ctx=c.getContext('2d');
- ctx.fillStyle='#dedcc8';ctx.fillRect(0,0,256,256);ctx.strokeStyle='#33403d';ctx.lineWidth=4;
- for(let k=0;k<=20;k++){const a=2.5+k*.223;ctx.beginPath();ctx.moveTo(128+Math.cos(a)*78,128+Math.sin(a)*78);ctx.lineTo(128+Math.cos(a)*91,128+Math.sin(a)*91);ctx.stroke()}
- ctx.strokeStyle='#a7412e';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(128,128);ctx.lineTo(154,61);ctx.stroke();ctx.fillStyle='#33403d';ctx.font='bold 24px sans-serif';ctx.textAlign='center';ctx.fillText('FLOW',128,175);
- const dial=new T.CanvasTexture(c);dial.colorSpace=T.SRGBColorSpace;
- const ix=arcade?1.02:3.43,iz=arcade?.76:1.88;
+ const dialTex=new T.CanvasTexture(c);dialTex.colorSpace=T.SRGBColorSpace;
+ function drawDial(v){ctx.fillStyle='#dedcc8';ctx.fillRect(0,0,256,256);ctx.strokeStyle='#33403d';ctx.lineWidth=4;
+  for(let k=0;k<=20;k++){const a=2.5+k*.223;ctx.beginPath();ctx.moveTo(128+Math.cos(a)*78,128+Math.sin(a)*78);ctx.lineTo(128+Math.cos(a)*91,128+Math.sin(a)*91);ctx.stroke()}
+  const a=2.5+v*4.46;ctx.strokeStyle='#a7412e';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(128,128);ctx.lineTo(128+Math.cos(a)*70,128+Math.sin(a)*70);ctx.stroke();
+  ctx.fillStyle='#33403d';ctx.font='bold 24px sans-serif';ctx.textAlign='center';ctx.fillText('FLOW m³/h',128,182);dialTex.needsUpdate=true}
+ drawDial(.62);
+ const [ix,iz]=layout.dial;
  repeat(cube,steel,ix,.48,iz,.055,.82,.055);repeat(cube,dark,ix,.92,iz,.31,.33,.085);
- part(scene,new T.PlaneGeometry(.28,.28),new T.MeshStandardMaterial({map:dial}),ix,.92,iz+.047,1,1,1);
+ part(scene,new T.PlaneGeometry(.28,.28),new T.MeshStandardMaterial({map:dialTex}),ix,.92,iz+.047,1,1,1);
  for(const {geo,m,list} of batches.values()){const o=new T.InstancedMesh(geo,m,list.length);list.forEach((matrix,i)=>o.setMatrixAt(i,matrix));o.castShadow=o.receiveShadow=true;scene.add(o)}
+
+ /* ---------- shift scheduler ---------- */
+ let controlled=null,tagsOn=true,lastDial=-1;
+ function locate(r,t){
+  const local=((t+r.offset)%r.total+r.total)%r.total;
+  let step=r.steps[0];for(const s of r.steps)if(local>=s.start)step=s;
+  return {step,τ:local-step.start};
+ }
  function animate(t){
-  for(const [i,r] of roles.entries()){
-   if(r.actor===controlled)continue;
-   const duration=(r.to-r.from)/.48,wait=3.4,phase=(t+r.offset)%(2*(duration+wait));
-   const outbound=phase<duration+wait,leg=outbound?phase:phase-duration-wait,walking=leg<duration;
-   const f=Math.min(1,leg/duration),px=outbound?r.from+(r.to-r.from)*f:r.to-(r.to-r.from)*f;
-   r.actor.g.position.set(px,.11,lane+i*.13);r.actor.g.rotation.y=walking?(outbound?-Math.PI/2:Math.PI/2):0;
-   r.actor.pose(t+r.offset,walking?1:0,walking?'':r.job);
+  for(const r of roles){
+   const {step,τ}=locate(r,t),a=r.actor;
+   r.state.job=step.kind==='do'?step.job:'walk';r.state.label=step.label;r.state.τ=τ;r.state.step=step;
+   if(a===controlled){a.tag.visible=false;continue}
+   a.tag.visible=tagsOn;a.setTag(step.label);
+   if(step.kind==='go'){
+    const d=Math.min(step.len,τ*SPEED);let seg=step.segs[0];for(const s of step.segs)if(d>=s.from)seg=s;
+    const f=seg.l?(d-seg.from)/seg.l:1,x=seg.a[0]+(seg.b[0]-seg.a[0])*f,z=seg.a[1]+(seg.b[1]-seg.a[1])*f,y=seg.a[2]+(seg.b[2]-seg.a[2])*f;
+    a.g.position.set(x,.11+y,z);a.g.rotation.y=faceTo(seg.a,seg.b);
+    a.pose(t+r.offset,1,'',τ,{...step.opts,loaded:step.opts.tool==='rake'&&step===r.steps[1]});
+   }else{
+    a.g.position.set(step.at[0],.11+(step.at[2]||0),step.at[1]);
+    const turn=Math.min(1,τ/.6);a.g.rotation.y=step.h0+wrapAngle(step.h1-step.h0)*ease(turn);
+    a.pose(t+r.offset,0,step.job,τ);
+   }
   }
+  // Valve wheel spins while the operator turns it.
+  const op=roles[0].state;if(op.job==='valve')wheel.rotation.z=-op.τ*2.2;
+  // Skip fills a little each time screenings are tipped.
+  skipFill.scale.y=.06+.05*((t/40)%1);
+  // Field meter cycles through readings while the sampler tests.
+  const sm=roles[1].state;
+  if(sm.job==='test'){const c=(sm.τ%9)/9;meter(c<.45?'pH 7.4':c<.7?'DO 2.1':'COD 96')}else if(sm.job!=='clipboard')meter('--.-');
+  // The flow dial needle trembles with the pumped flow.
+  const dv=.6+.04*Math.sin(t*1.3)+.015*Math.sin(t*7.1);if(Math.abs(dv-lastDial)>.004){lastDial=dv;drawDial(dv)}
+  // Wheelbarrow travels in front of the sludge handler while pushed, otherwise stays parked.
+  const sh=roles[3],ss=sh.state;
+  if(sh.actor!==controlled&&(ss.job==='walk'&&ss.step.opts.push||ss.job==='tip')){
+   const h=sh.actor.g.rotation.y;barrowHeading=h;
+   barrowPos.set(sh.actor.g.position.x-Math.sin(h)*.62,.09,sh.actor.g.position.z-Math.cos(h)*.62);
+  }
+  barrow.position.copy(barrowPos);barrow.rotation.y=barrowHeading;
+  const pushing=ss.job==='walk';axle.rotation.x=ss.job==='tip'?-.9*(ease(ss.τ/1.2)-ease((ss.τ-2.4)/1)):pushing?-.14:0;
+  if(pushing)tyre.rotation.x=-ss.τ*4.5;
+  const fill=ss.job==='shovel'?Math.min(1,ss.τ/ss.step.dur):ss.job==='tip'?Math.max(0,1-ss.τ/1.8):(ss.step===sh.steps[1]?1:0);
+  barrowLoad.visible=fill>.05;barrowLoad.scale.set(.17,.03+.09*fill,.22);barrowLoad.position.y=.36+.05*fill;
  }
  animate(0);
- return {roles,animate,control(actor){controlled=actor}};
+ return {
+  roles,animate,
+  control(actor){if(controlled)controlled.tag.visible=tagsOn;controlled=actor},
+  activity(i){return roles[i]?.state},
+  status(){return roles.map(r=>({name:r.name,label:r.actor===controlled?'Controlled by you':r.state.label,job:r.state.job}))},
+  tags(on){tagsOn=on;for(const r of roles)r.actor.tag.visible=on&&r.actor!==controlled}
+ };
 }

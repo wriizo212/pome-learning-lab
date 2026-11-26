@@ -2,12 +2,14 @@ import {frameBudget} from './frame-budget.mjs';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift3';
-import {explore} from './explore.mjs?v=shift3';
+import {populate} from './crew.mjs?v=shift4';
+import {explore} from './explore.mjs?v=shift4';
+import {reactorProcess} from './reactor-flows.mjs?v=shift4';
+import {legend} from './molecules.mjs?v=shift4';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
-view.innerHTML='<div class="reactor-frame"><canvas tabindex="0" aria-label="UASB reactor cutaway and aerobic basin. Drag to orbit or use arrow keys."></canvas><span class="reactor-caption">UASB section · aerobic basin</span></div><div class="reactor-controls"><label>Inspect <select aria-label="Inspect treatment stage"><option value="">Plant overview</option></select></label><button data-command="section" aria-pressed="true">Cutaway</button><button data-command="motion">Pause flow</button><button data-command="out" aria-label="Zoom out">−</button><button data-command="in" aria-label="Zoom in">+</button><button data-command="home">Reset view</button></div>';
+view.innerHTML='<div class="reactor-frame"><canvas tabindex="0" aria-label="UASB reactor cutaway and aerobic basin. Drag to orbit or use arrow keys."></canvas><span class="reactor-caption">UASB section · aerobic basin</span></div><div class="reactor-controls"><label>Inspect <select aria-label="Inspect treatment stage"><option value="">Plant overview</option></select></label><button data-command="section" aria-pressed="true">Cutaway</button><button data-command="motion">Pause flow</button><button data-command="molecules" aria-pressed="true">Molecules</button><button data-command="out" aria-label="Zoom out">−</button><button data-command="in" aria-label="Zoom in">+</button><button data-command="home">Reset view</button></div>';
 diagram.before(view);
 const canvas=view.querySelector('canvas'), select=view.querySelector('select'), toggle=view.querySelector('[data-command=section]'), motion=view.querySelector('[data-command=motion]');
 const units=[...diagram.querySelectorAll('[data-stage]')];
@@ -56,7 +58,8 @@ function build(){
   const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;
   const sprite=new T.Sprite(new T.SpriteMaterial({map:tex}));sprite.position.set(x,y,z);sprite.scale.set(w,w*96/512,1);group.add(sprite);
  }
- function route(points,mat,r){run(points,r,mat);const path=new T.CurvePath();points.slice(1).forEach((p,i)=>path.add(new T.LineCurve3(v(...points[i]),v(...p))));const marker=mesh(new T.SphereGeometry(r*1.3,12,8),foam,...points[0]);movers.add(marker);dynamic.push(t=>marker.position.copy(path.getPoint((t*.16)%1)))}
+ // Pipe runs carry several glowing parcels tinted by what flows inside them.
+ function route(points,mat,r,tint=0xacddd2){run(points,r,mat);const path=new T.CurvePath();points.slice(1).forEach((p,i)=>path.add(new T.LineCurve3(v(...points[i]),v(...p))));const look=new T.MeshStandardMaterial({color:tint,emissive:tint,emissiveIntensity:.45,roughness:.3});const n=6,speed=.5/Math.max(1,path.getLength());for(let k=0;k<n;k++){const marker=mesh(new T.SphereGeometry(r*1.32,12,8),look,...points[0]);movers.add(marker);dynamic.push(t=>marker.position.copy(path.getPoint((t*speed+k/n)%1)))}}
  box(0,-.41,0,200,.24,200,base);box(0,-.12,0,12.4,.42,6.5,cement);box(0,.08,2.94,12,.03,.12,brass);
  group=groups[0];tank(-4.55,.9,2.2,1.7,1,brown);for(let i=0;i<14;i++)box(-5.38+i*.13,1.02,.68,.04,.09,1.02,steel).rotation.x=-.17;
  label('INLET',-4.55,1.5,1,1.3);
@@ -82,14 +85,11 @@ function build(){
  const axle=pipe([-1.14,.48,-2.16],[.31,.48,-2.16],.08,steel);for(let j=0;j<4;j++){cyl(-1+j*.2,.55,-2.2,.105,.43,teal);cyl(-1+j*.2,.79,-2.2,.113,.06,steel)}
  const rotor=cyl(.1,.5,-2.19,.25,.46,brass);rotor.rotation.z=Math.PI/2;for(let j=0;j<8;j++){const a=j*Math.PI/4;pipe([-.14,.50+Math.cos(a)*.24,-2.19+Math.sin(a)*.24],[.32,.50+Math.cos(a)*.24,-2.19+Math.sin(a)*.24],.024,dark)}
  movers.add(rotor);movers.add(axle);dynamic.push(t=>{rotor.rotation.x=t*2;axle.rotation.x=t*2});
- route([[x,4.16,0],[x,4.16,-1.55],[-.46,4.16,-1.55],[-.46,.96,-1.55],[-.46,.96,-2.18]],brass,.077);
- group=groups[4];tank(3.2,-1.95,2,1.03,.58,sludge);run([[2.95,.5,-.5],[3.1,.5,-.98],[3.1,.7,-1.95]],.07,dark);
- group=groups[5];mesh(new T.CylinderGeometry(.74,.74,1,60,1,true,start,arc),cement,4.75,.58,.7);solids.push(mesh(new T.CylinderGeometry(.74,.74,1,60,1,true,start+arc,2*Math.PI-arc),cement,4.75,.58,.7),cyl(4.75,1.1,.7,.66,.04,water));cyl(4.75,.22,.7,.69,.16,water);pipe([4.74,.39,.7],[4.74,.94,.7],.085,teal);for(let j=0;j<6;j++)cyl(4.74,.43+j*.074,.7,.12,.026,steel);route([[3.16,.74,.5],[3.96,.74,.5],[3.96,1.18,.5],[4.49,1.18,.5]],teal,.095);
- group=groups[0];route([[-3.44,.57,.91],[-2.82,.57,.91],[x,.57,.91],[x,.57,.48]],teal,.085);
- group=groups[1];route([[x+1.17,3.35,0],[.2,3.35,0],[.2,1.18,0],[.78,1.18,0]],teal,.105);
- const particles=new T.InstancedMesh(new T.SphereGeometry(1,8,5),foam,140);scene.add(particles);
- const drops=Array.from({length:140},(_,i)=>({rx:rand(),rz:rand(),phase:rand(),speed:.19+rand()*.15,reactor:i<54}));
- dynamic.push(t=>{drops.forEach((p,i)=>{const f=(p.phase+t*p.speed)%1;transform.position.set(p.reactor?x+(p.rx-.5)*1.38:.62+p.rx*2.35,p.reactor?1.08+f*1.5:(cut?.49:.94)+f*(cut?.62:.27),p.reactor?.45+p.rz*.41:-.44+p.rz*1.9);transform.scale.setScalar(.017+.022*Math.sin(Math.PI*f));transform.updateMatrix();particles.setMatrixAt(i,transform.matrix)});particles.instanceMatrix.needsUpdate=true});
+ route([[x,4.16,0],[x,4.16,-1.55],[-.46,4.16,-1.55],[-.46,.96,-1.55],[-.46,.96,-2.18]],brass,.077,0xffc94a);label('BIOGAS ENGINE',-.4,1.62,-2.18,1.9);
+ group=groups[4];tank(3.2,-1.95,2,1.03,.58,sludge);label('DRYING BED',3.2,1.1,-1.95,1.6);run([[2.95,.5,-.5],[3.1,.5,-.98],[3.1,.7,-1.95]],.07,dark);
+ group=groups[5];mesh(new T.CylinderGeometry(.74,.74,1,60,1,true,start,arc),cement,4.75,.58,.7);solids.push(mesh(new T.CylinderGeometry(.74,.74,1,60,1,true,start+arc,2*Math.PI-arc),cement,4.75,.58,.7),cyl(4.75,1.1,.7,.66,.04,water));cyl(4.75,.22,.7,.69,.16,water);pipe([4.74,.39,.7],[4.74,.94,.7],.085,teal);for(let j=0;j<6;j++)cyl(4.74,.43+j*.074,.7,.12,.026,steel);route([[3.16,.74,.5],[3.96,.74,.5],[3.96,1.18,.5],[4.49,1.18,.5]],teal,.095,0x9fe3d6);label('OUTLET',4.75,1.7,.7,1.1);
+ group=groups[0];route([[-3.44,.57,.91],[-2.82,.57,.91],[x,.57,.91],[x,.57,.48]],teal,.085,0x9a6a38);
+ group=groups[1];route([[x+1.17,3.35,0],[.2,3.35,0],[.2,1.18,0],[.78,1.18,0]],teal,.105,0x8f9a58);
  group=groups[0];
  for(let j=0;j<11;j++){const bar=box(-5.33+j*.153,.66,1.07,.043,.69,.045,steel);bar.rotation.x=-.32}
  group=groups[2];for(let j=0;j<3;j++){const z=-.28+j*.68;pipe([.69,.47,z],[2.94,.47,z],.048,teal);for(let k=0;k<7;k++)cyl(.85+k*.31,.52,z,.073,.055,dark)}
@@ -97,7 +97,15 @@ function build(){
  pipe([2.32,.17,-1.64],[4.18,.17,-1.64],.051,teal);
  batchStations(groups,pickables,solids,movers);
  group=scene;const world=populate(scene,{steel,brass,cement,dark,base});dynamic.push(world.animate);
- const descriptions=['The inlet bars intercept coarse solids before liquid passes to the reactor.','Liquid rises through the granular sludge bed. The upper hoods separate biogas from the effluent.','The lower air header supplies diffusers across the basin floor. Bubbles show where air enters the liquid.','The gas line supplies an engine coupled to a generator shaft. The cutaway exposes the cylinder bank and generator.','The drying bed contains sludge above the filter layers. The underdrain collects drainage for further management.','The outlet chamber shows the draw-off pipe and strainer. Discharge depends on verified effluent quality.'];
+ const flows=reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut:()=>cut});dynamic.push(flows.update);
+ const molecules=view.querySelector('[data-command=molecules]');legend(view.querySelector('.reactor-frame'));
+ const descriptions=[
+  'Inlet and bar screen · Hot raw POME (about 80 °C, COD typically around 50,000 mg/L) pours in from the mill. The bars catch fibre and shell, and the operator rakes them into the skip. Oil floats as droplets, while water, dissolved organics (COD) and ammonium flow on to the reactor.',
+  'UASB reactor · Feed rises through a bed of microbial granules. Organic matter is broken down to acetate, and methanogens turn the acetate into CH₄ + CO₂ with a trace of H₂S. The bubbles lift some granules; the hoods separate the gas, and partly treated water overflows the top weir.',
+  'Aeration basin · Floor diffusers release fine air bubbles. With the dissolved O₂, bacterial flocs oxidise the remaining organics to CO₂ + H₂O and nitrify ammonium (NH₄⁺) to nitrate (NO₃⁻). The bubbles also keep the flocs circulating.',
+  'Biogas engine · Captured biogas burns with air: CH₄ + 2O₂ → CO₂ + 2H₂O. The crankshaft turns the generator, which sends electricity along the cable to the mill grid. The exhaust leaves through the stack.',
+  'Sludge drying bed · Waste sludge is spread over sand and gravel. Water drains to the underdrain or evaporates, and the cracked cake is shovelled out for composting. Check sludge quality before any land use.',
+  'Outlet chamber · Treated water spirals towards the draw-off strainer while the last flocs settle out. Whether it can be discharged or reused depends on verified effluent quality (BOD, COD and suspended solids).'];
  const caption=view.querySelector('.reactor-caption');
  const targets=[[-4.55,.85,.9],[x,1.96,0],[1.8,.91,.5],[-.4,.7,-2.18],[3.2,.55,-1.95],[4.75,.76,.7]];
  let yaw=.18,pitch=.45,dist=14,goal=v(0,1.25,0),focus=goal.clone(),cut=true,paused=matchMedia('(prefers-reduced-motion:reduce)').matches,drag=null,vis=false,last=0,t=0;
@@ -110,7 +118,7 @@ function build(){
  function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}
  const orbit=(dx,dy)=>{yaw-=dx;pitch=T.MathUtils.clamp(pitch+dy,.11,1.4)};
  const visitor=explore(view,canvas,camera,world,orbit,pick,()=>toggle.click(),zoom);
- updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'section':renderer.shadowMap.needsUpdate=true;cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
+ updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'molecules':{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);view.querySelector('.chem-legend').hidden=!on;break}case 'section':renderer.shadowMap.needsUpdate=true;cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
  solids.forEach(m=>m.visible=false);
  canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:0}};
  canvas.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);if(visitor.isWalking())visitor.look(dx*.009,dy*.007);else orbit(dx*.009,dy*.007);drag.x=e.clientX;drag.y=e.clientY};

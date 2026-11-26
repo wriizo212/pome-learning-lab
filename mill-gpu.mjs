@@ -1,5 +1,7 @@
-import {populate} from './process/crew.mjs?v=shift3';
-import {explore} from './process/explore.mjs?v=shift3';
+import {populate} from './process/crew.mjs?v=shift4';
+import {explore} from './process/explore.mjs?v=shift4';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift4';
+import {legend} from './process/molecules.mjs?v=shift4';
 import {frameBudget} from './process/frame-budget.mjs';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
@@ -140,12 +142,13 @@ export function mount(T, host, onPick) {
   const section=document.createElement('button');section.textContent='Cutaway';section.setAttribute('aria-pressed','false');wrapper.append(section);
   const switchSection=()=>{cut=!cut;for(const m of covers)m.visible=!cut;section.setAttribute('aria-pressed',String(cut));renderer.shadowMap.needsUpdate=true};section.onclick=switchSection;
   const world=populate(scene,{steel,brass,cement:concrete,dark,base:gravel},true);
+  let polluted=false;
+  const flows=arcadeProcess(scene,{world,isCut:()=>cut,isPond:()=>pond.visible,isPolluted:()=>polluted});
+  const molecules=document.createElement('button');molecules.textContent='Molecules';molecules.setAttribute('aria-pressed','true');wrapper.append(molecules);
+  const key=legend(viewport);molecules.onclick=()=>{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);key.hidden=!on};
   const orbit=(dx,dy)=>{yaw-=dx;pitch=Math.max(.2,Math.min(1.33,pitch+dy))};
   function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const id=ray.intersectObjects([...Object.values(units),pond],true).find(hit=>hit.object.visible&&hit.object.userData.unit&&hit.object.parent.visible)?.object.userData.unit;if(id)onPick(id)}
   const visitor=explore(wrapper,canvas,camera,world,orbit,pick,switchSection,delta=>zoom(-delta*.16),true);
-  const bubbles=new T.InstancedMesh(new T.SphereGeometry(.039,6,4),solid(0xa6d2c7),64);scene.add(bubbles);
-  const droplet=new T.Object3D(),seeds=Array.from({length:64},()=>[random(),random(),random()]);
-  function aerate(){bubbles.visible=cut;if(!cut)return;seeds.forEach(([a,b,c],i)=>{const t=(time*.32+c)%1;const gas=i<32&&digester.visible;droplet.position.set(gas?-1.72+a*1.6:1.75+a*2.53,gas?.64+t*.68:.16+t*.24,gas?-1.4+b*.52:-1.1+b*1.5);droplet.scale.setScalar(.55+.48*t);droplet.updateMatrix();bubbles.setMatrixAt(i,droplet.matrix)});bubbles.instanceMatrix.needsUpdate=true}
   wrapper.querySelector('.hand-start').addEventListener('click',()=>window.stopCamera?.(true),true);
   window.addEventListener('pome-quiz-camera',()=>visitor.stop());
   let visible=false,lastWater=-1;
@@ -154,7 +157,7 @@ export function mount(T, host, onPick) {
     frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
-    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);aerate();
+    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);flows.update(time);
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
     if(!visitor.frame(dt)){camera.position.set(radius*Math.cos(pitch)*Math.sin(yaw),.6+radius*Math.sin(pitch),radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(0,.5,0)}
@@ -163,5 +166,5 @@ export function mount(T, host, onPick) {
     renderer.render(scene,camera);
   }
   host.replaceWith(wrapper);frame=requestAnimationFrame(draw);
-  return {update(s){if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){renderer.shadowMap.needsUpdate=true;const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s)waters.at(-1).material.color.set(s.success===false?0x756c42:0x436e64);},reset,zoom,spin(s){spin=s;},rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.2,Math.min(1.33,pitch+tilt));},destroy(){visitor.stop();observer.disconnect();cancelAnimationFrame(frame);renderer.dispose();}};
+  return {update(s){if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){renderer.shadowMap.needsUpdate=true;const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s){polluted=s.success===false;waters.at(-1).material.color.set(polluted?0x756c42:0x436e64);}},reset,zoom,spin(s){spin=s;},rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.2,Math.min(1.33,pitch+tilt));},destroy(){visitor.stop();observer.disconnect();cancelAnimationFrame(frame);renderer.dispose();}};
 }
