@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {gestures} from './visitor-hands.mjs';
+import {gestures} from './visitor-hands.mjs?v=perf2';
 export function explore(view,canvas,camera,player,orbit,inspect,cutaway,zoom){
  const controls=document.createElement('div');controls.className='reactor-explore';
  controls.innerHTML='<label>Camera view <select><option value="orbit">Orbit model</option><option value="first">First person</option><option value="third">Third person</option></select></label> <button class="hand-start" aria-pressed="false">Start gesture camera</button> <button class="wide">Fullscreen</button><div class="walkpad" hidden><button data-key="w" aria-label="Walk forward">↑</button><button data-key="a" aria-label="Step left">←</button><button data-key="s" aria-label="Walk backward">↓</button><button data-key="d" aria-label="Step right">→</button></div><details><summary>Movement &amp; gestures</summary><p>Walk with W A S D or the arrows above. Drag the scene to look around. With the camera on, move one finger off centre to look. Show an open palm to move forward and steer, or make a fist to stop. Hold two fingers to change view, three to open or close the equipment, or aim your fingertip and pinch to inspect a unit.</p></details><span class="tracking" role="status"></span>';

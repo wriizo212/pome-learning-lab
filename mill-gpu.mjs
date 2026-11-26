@@ -1,8 +1,9 @@
+import {frameBudget} from './process/frame-budget.mjs';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   const renderer = new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
   const canvas = renderer.domElement;
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+  const budget=frameBudget(renderer);
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=T.PCFSoftShadowMap;
   renderer.toneMapping=T.ACESFilmicToneMapping;
@@ -15,7 +16,7 @@ export function mount(T, host, onPick) {
   scene.fog=new T.FogExp2(0x44574a,.021);
   scene.add(new T.HemisphereLight(0xddeeff,0x91856c,2.05));
   const sun=new T.DirectionalLight(0xffdda6,3.15);
-  sun.position.set(-8,12,5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+  sun.position.set(-8,12,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
   Object.assign(sun.shadow.camera,{left:-11,right:11,top:12,bottom:-12,near:.2,far:38});
   sun.shadow.camera.updateProjectionMatrix();sun.shadow.normalBias=.018;scene.add(sun);
   const rim=new T.DirectionalLight(0xb4e8ec,1.2);rim.position.set(8,5,-7);scene.add(rim);
@@ -128,18 +129,20 @@ export function mount(T, host, onPick) {
   canvas.onwheel=e=>{e.preventDefault();zoom(e.deltaY<0?.12:-.12);};
   canvas.onkeydown=e=>{const actions={ArrowLeft:()=>yaw-=.15,ArrowRight:()=>yaw+=.15,ArrowUp:()=>pitch=Math.min(1.33,pitch+.1),ArrowDown:()=>pitch=Math.max(.2,pitch-.1),'+':()=>zoom(.12),'=':()=>zoom(.12),'-':()=>zoom(-.12),Home:reset};if(actions[e.key]){e.preventDefault();actions[e.key]();}};
   const wrapper=document.createElement('div');wrapper.className='mill-gpu';wrapper.style.cssText='height:clamp(360px,54vh,650px);width:100%;overflow:hidden';wrapper.append(canvas);
+  let visible=false,lastWater=-1;
+  const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting});observer.observe(wrapper);
   function draw(now){
-    frame=requestAnimationFrame(draw);if(document.hidden||now-previous<32||!wrapper.clientWidth)return;
+    frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
     const w=wrapper.clientWidth,h=wrapper.clientHeight;
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
     camera.position.set(radius*Math.cos(pitch)*Math.sin(yaw),.6+radius*Math.sin(pitch),radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(0,.5,0);
-    for(const m of waters){const pos=m.geometry.attributes.position;for(let i=0;i<pos.count;i++){pos.setY(i,.014*Math.sin(pos.getX(i)*5+time*2)+.009*Math.cos(pos.getZ(i)*8+time));}pos.needsUpdate=true;m.geometry.computeVertexNormals();}
+    if(time-lastWater>=1/24){lastWater=time;for(const m of waters){const pos=m.geometry.attributes.position;for(let i=0;i<pos.count;i++){pos.setY(i,.014*Math.sin(pos.getX(i)*5+time*2)+.009*Math.cos(pos.getZ(i)*8+time));}pos.needsUpdate=true;m.geometry.computeVertexNormals();}}
     marker.visible=Boolean(targets[stage]);if(marker.visible){marker.position.copy(targets[stage]);marker.position.y+=.53+Math.sin(time*2)*.045;}
     renderer.render(scene,camera);
   }
   host.replaceWith(wrapper);frame=requestAnimationFrame(draw);
-  return {update(s){if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s)waters.at(-1).material.color.set(s.success===false?0x756c42:0x436e64);},reset,zoom,spin(s){spin=s;},rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.2,Math.min(1.33,pitch+tilt));},destroy(){cancelAnimationFrame(frame);renderer.dispose();}};
+  return {update(s){if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){renderer.shadowMap.needsUpdate=true;const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s)waters.at(-1).material.color.set(s.success===false?0x756c42:0x436e64);},reset,zoom,spin(s){spin=s;},rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.2,Math.min(1.33,pitch+tilt));},destroy(){observer.disconnect();cancelAnimationFrame(frame);renderer.dispose();}};
 }

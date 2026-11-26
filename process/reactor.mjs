@@ -1,7 +1,9 @@
+import {frameBudget} from './frame-budget.mjs';
 import * as T from './three.module.min.js';
 
-import {populate} from './crew.mjs';
-import {explore} from './explore.mjs';
+import {batchStations} from './batch.mjs';
+import {populate} from './crew.mjs?v=perf2';
+import {explore} from './explore.mjs?v=perf2';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -16,10 +18,10 @@ if(renderer) build();
 function build(){
  const scene=new T.Scene(), camera=new T.PerspectiveCamera(37,1,.1,110);
  scene.background=new T.Color(0x203535);scene.fog=new T.FogExp2(0x203535,.028);
- renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
+ renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
  renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;
  scene.add(new T.HemisphereLight(0xf1f6ff,0x999176,2.2));
- const sun=new T.DirectionalLight(0xffe0ad,3.2);sun.position.set(-6,11,8);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+ const sun=new T.DirectionalLight(0xffe0ad,3.2);sun.position.set(-6,11,8);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
  Object.assign(sun.shadow.camera,{left:-10,right:10,top:9,bottom:-9});sun.shadow.camera.updateProjectionMatrix();sun.shadow.normalBias=.012;scene.add(sun);
  const rim=new T.DirectionalLight(0x9adbe9,2);rim.position.set(5,4,-8);scene.add(rim);
  let seed=47;const rand=()=>((seed=Math.imul(1664525,seed)+1013904223>>>0)/4294967296);
@@ -39,7 +41,7 @@ function build(){
  const color=(c,m=0,r=.55)=>new T.MeshStandardMaterial({color:c,metalness:m,roughness:r,side:T.DoubleSide});
  const dark=color(0x263c40,.45), teal=color(0x429997,.33), water=color(0x498f84,.25,.19), foam=color(0xacddd2,.08,.23), amber=color(0xeebb65,.2), brown=color(0x88694c);
  let group=scene;
- const pickables=[], dynamic=[], solids=[];
+ const pickables=[], dynamic=[], solids=[], movers=new Set();
  const groups=units.map((u,i)=>{const g=new T.Group();g.userData.id=i;scene.add(g);return g});
  const v=(x,y,z)=>new T.Vector3(x,y,z);
  function mesh(geo,material,x,y,z){const m=new T.Mesh(geo,material);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);if(group!==scene)pickables.push(m);return m}
@@ -54,7 +56,7 @@ function build(){
   const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;
   const sprite=new T.Sprite(new T.SpriteMaterial({map:tex}));sprite.position.set(x,y,z);sprite.scale.set(w,w*96/512,1);group.add(sprite);
  }
- function route(points,mat,r){run(points,r,mat);const path=new T.CurvePath();points.slice(1).forEach((p,i)=>path.add(new T.LineCurve3(v(...points[i]),v(...p))));const marker=mesh(new T.SphereGeometry(r*1.3,12,8),foam,...points[0]);dynamic.push(t=>marker.position.copy(path.getPoint((t*.16)%1)))}
+ function route(points,mat,r){run(points,r,mat);const path=new T.CurvePath();points.slice(1).forEach((p,i)=>path.add(new T.LineCurve3(v(...points[i]),v(...p))));const marker=mesh(new T.SphereGeometry(r*1.3,12,8),foam,...points[0]);movers.add(marker);dynamic.push(t=>marker.position.copy(path.getPoint((t*.16)%1)))}
  box(0,-.41,0,200,.24,200,base);box(0,-.12,0,12.4,.42,6.5,cement);box(0,.08,2.94,12,.03,.12,brass);
  group=groups[0];tank(-4.55,.9,2.2,1.7,1,brown);for(let i=0;i<14;i++)box(-5.38+i*.13,1.02,.68,.04,.09,1.02,steel).rotation.x=-.17;
  label('INLET',-4.55,1.5,1,1.3);
@@ -79,7 +81,7 @@ function build(){
  group=groups[3];box(-.4,.14,-2.18,1.86,.18,.94,dark);box(-.4,.54,-2.63,1.86,.83,.07,shell);solids.push(box(-.4,.98,-2.18,1.86,.08,.94,shell),box(-.4,.55,-1.73,1.86,.82,.07,shell));for(let j=0;j<13;j++)solids.push(box(-1.19+j*.13,.58,-1.67,.057,.52,.045,steel));
  const axle=pipe([-1.14,.48,-2.16],[.31,.48,-2.16],.08,steel);for(let j=0;j<4;j++){cyl(-1+j*.2,.55,-2.2,.105,.43,teal);cyl(-1+j*.2,.79,-2.2,.113,.06,steel)}
  const rotor=cyl(.1,.5,-2.19,.25,.46,brass);rotor.rotation.z=Math.PI/2;for(let j=0;j<8;j++){const a=j*Math.PI/4;pipe([-.14,.50+Math.cos(a)*.24,-2.19+Math.sin(a)*.24],[.32,.50+Math.cos(a)*.24,-2.19+Math.sin(a)*.24],.024,dark)}
- dynamic.push(t=>{rotor.rotation.x=t*2;axle.rotation.x=t*2});
+ movers.add(rotor);movers.add(axle);dynamic.push(t=>{rotor.rotation.x=t*2;axle.rotation.x=t*2});
  route([[x,4.16,0],[x,4.16,-1.55],[-.46,4.16,-1.55],[-.46,.96,-1.55],[-.46,.96,-2.18]],brass,.077);
  group=groups[4];tank(3.2,-1.95,2,1.03,.58,sludge);run([[2.95,.5,-.5],[3.1,.5,-.98],[3.1,.7,-1.95]],.07,dark);
  group=groups[5];mesh(new T.CylinderGeometry(.74,.74,1,60,1,true,start,arc),cement,4.75,.58,.7);solids.push(mesh(new T.CylinderGeometry(.74,.74,1,60,1,true,start+arc,2*Math.PI-arc),cement,4.75,.58,.7),cyl(4.75,1.1,.7,.66,.04,water));cyl(4.75,.22,.7,.69,.16,water);pipe([4.74,.39,.7],[4.74,.94,.7],.085,teal);for(let j=0;j<6;j++)cyl(4.74,.43+j*.074,.7,.12,.026,steel);route([[3.16,.74,.5],[3.96,.74,.5],[3.96,1.18,.5],[4.49,1.18,.5]],teal,.095);
@@ -93,6 +95,7 @@ function build(){
  group=groups[2];for(let j=0;j<3;j++){const z=-.28+j*.68;pipe([.69,.47,z],[2.94,.47,z],.048,teal);for(let k=0;k<7;k++)cyl(.85+k*.31,.52,z,.073,.055,dark)}
  group=groups[4];for(let j=0;j<3;j++)box(3.2,.24+j*.087,-1.95,1.9,.075,.96,[base,cement,sludge][j]);
  pipe([2.32,.17,-1.64],[4.18,.17,-1.64],.051,teal);
+ batchStations(groups,pickables,solids,movers);
  group=scene;const world=populate(scene,{steel,brass,cement,dark,base});dynamic.push(world.animate);
  const descriptions=['The inlet bars intercept coarse solids before liquid passes to the reactor.','Liquid rises through the granular sludge bed. The upper hoods separate biogas from the effluent.','The lower air header supplies diffusers across the basin floor. Bubbles show where air enters the liquid.','The gas line supplies an engine coupled to a generator shaft. The cutaway exposes the cylinder bank and generator.','The drying bed contains sludge above the filter layers. The underdrain collects drainage for further management.','The outlet chamber shows the draw-off pipe and strainer. Discharge depends on verified effluent quality.'];
  const caption=view.querySelector('.reactor-caption');
@@ -107,7 +110,7 @@ function build(){
  function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}
  const orbit=(dx,dy)=>{yaw-=dx;pitch=T.MathUtils.clamp(pitch+dy,.11,1.4)};
  const visitor=explore(view,canvas,camera,world.player,orbit,pick,()=>toggle.click(),zoom);
- updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'section':cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
+ updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'section':renderer.shadowMap.needsUpdate=true;cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
  solids.forEach(m=>m.visible=false);
  canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:0}};
  canvas.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);if(visitor.isWalking())visitor.look(dx*.009,dy*.007);else orbit(dx*.009,dy*.007);drag.x=e.clientX;drag.y=e.clientY};
@@ -118,9 +121,11 @@ function build(){
  new MutationObserver(sync).observe(document.querySelector('[data-option="1"]'),{attributes:true,attributeFilter:['class']});sync();
  new IntersectionObserver(es=>{vis=es[0].isIntersecting;if(!vis&&!view.getBoundingClientRect().height)visitor.stop()}).observe(canvas);
  let w=0,h=0;
- function frame(now){requestAnimationFrame(frame);const dt=Math.min(.07,(now-last)/1000);last=now;if(!vis||view.hidden||document.hidden)return;
+ const meter=document.createElement('small');meter.title='Rendered frames per second';view.querySelector('.reactor-controls').append(meter);
+ const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'});
+ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.07,(now-last)/1000);last=now;if(!vis||view.hidden||document.hidden){budget.idle();return}
  const width=canvas.clientWidth,height=canvas.clientHeight;if(!width||!height)return;if(w!==width||h!==height){w=width;h=height;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
- if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);
+ budget.tick(now);if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);
  if(!visitor.frame(dt)){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}renderer.render(scene,camera)}
  canvas.addEventListener('webglcontextlost',()=>{visitor.stop();view.remove();diagram.style.display='';panel.classList.add('reactor-fallback');vis=false});requestAnimationFrame(frame);
 }
