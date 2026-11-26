@@ -1,15 +1,15 @@
-import {frameBudget} from './frame-budget.mjs?v=shift7';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift7';
-import {windify,concrete,texture} from './life.mjs?v=shift7';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift7';
-import {hdZoom,hardware} from './hd.mjs?v=shift7';
+import {frameBudget} from './frame-budget.mjs?v=shift8';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift8';
+import {windify,concrete,texture,environment} from './life.mjs?v=shift8';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift8';
+import {hdZoom,hardware} from './hd.mjs?v=shift8';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift7';
-import {explore} from './explore.mjs?v=shift7';
-import {reactorProcess} from './reactor-flows.mjs?v=shift7';
-import {legend} from './molecules.mjs?v=shift7';
+import {populate} from './crew.mjs?v=shift8';
+import {explore} from './explore.mjs?v=shift8';
+import {reactorProcess} from './reactor-flows.mjs?v=shift8';
+import {legend} from './molecules.mjs?v=shift8';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -108,6 +108,7 @@ function build(){
  const world=populate(scene,{steel,brass,cement,dark,base,leaf});dynamic.push(world.animate);
  const flows=reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut:()=>cut,tier});dynamic.push(flows.update);
  const scenery=reactorScenery(scene,{steel,brass,dark,cement,teal,tier});dynamic.push(scenery.update);
+ environment(renderer,scene,{intensity:.45});
  // Fine hardware that appears only when zoomed in: bolt rings, pipe flanges, name plates.
  const flanges=[];for(const [a,b,r] of pipeSegs){const d=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],len=Math.hypot(...d);if(len<.45||r<.04)continue;const axis=Math.abs(d[1])>Math.abs(d[0])&&Math.abs(d[1])>Math.abs(d[2])?'y':Math.abs(d[0])>Math.abs(d[2])?'x':'z';for(const k of [.08,.92])flanges.push([a[0]+d[0]*k,a[1]+d[1]*k,a[2]+d[2]*k,r*1.45,axis])}
  const details=hardware(scene,{

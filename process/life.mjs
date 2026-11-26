@@ -123,3 +123,74 @@ export function sky(scene,{zenith=0x4d7f99,horizon=0xb7c9c0,ground=0x55624f,sunD
  const clouds=Array.from({length:9},(_,i)=>{const sp=new T.Sprite(new T.SpriteMaterial({map:cloudTex,transparent:true,opacity:.75,depthWrite:false,fog:false}));const s=14+rnd()*16;sp.scale.set(s,s*.42,1);sp.userData={a:rnd()*6.28,r:55+rnd()*25,y:20+rnd()*16,sp:.004+rnd()*.004};scene.add(sp);return sp});
  return {dome,update(t){for(const c of clouds){const a=c.userData.a+t*c.userData.sp;c.position.set(Math.cos(a)*c.userData.r,c.userData.y,Math.sin(a)*c.userData.r)}}};
 }
+
+/*
+ Oil palm (Elaeis guineensis) modelled from life: a stout trunk wrapped in the spiral of
+ old frond bases (leaf boots) with a few epiphytic ferns, a crown of long pinnate fronds
+ that arch up then droop (younger fronds upright, oldest ones yellowing and hanging),
+ leaflets inserted in two planes along the rachis, an unopened spear leaf in the centre,
+ and fresh fruit bunches (ripe orange-red and unripe black) tucked in the frond axils.
+ One vertex-coloured geometry, meant for InstancedMesh + windify().
+*/
+export function oilPalm({fronds=30,leaflets=22,height=2.6,trunkR=.19,seed=7,bunches=3,boots=true}={}){
+ let s=seed>>>0;const r=()=>((s=Math.imul(1664525,s)+1013904223>>>0)/4294967296);
+ const pos=[],nor=[],col=[],c=new T.Color(),tmp=new T.Color();
+ function push(geo,color,vary=0){const g=geo.index?geo.toNonIndexed():geo;g.computeVertexNormals();const p=g.attributes.position.array,n=g.attributes.normal.array;
+  for(let i=0;i<p.length;i+=3){pos.push(p[i],p[i+1],p[i+2]);nor.push(n[i],n[i+1],n[i+2]);c.set(color);if(vary)c.offsetHSL(0,0,(r()-.5)*vary);col.push(c.r,c.g,c.b)}}
+ function tri(list,color,vary=.06){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(list,3));push(g,color,vary)}
+ // Trunk: slight taper and lean, rough with ring scars.
+ const trunk=new T.CylinderGeometry(trunkR*.92,trunkR*1.12,height,12,12);trunk.translate(0,height/2,0);
+ const tp=trunk.attributes.position;for(let i=0;i<tp.count;i++){const y=tp.getY(i),k=1+.07*Math.sin(y*22)+.05*(r()-.5);tp.setX(i,tp.getX(i)*k+.04*Math.sin(y*.9));tp.setZ(i,tp.getZ(i)*k)}
+ push(trunk,0x5e5040,.12);
+ // Leaf boots: the cut bases of old fronds spiral up the trunk (137.5° phyllotaxis).
+ if(boots){const n=Math.round(height*15);for(let i=0;i<n;i++){const y=.35+i/n*(height-.45),a=i*2.39996,b=new T.CylinderGeometry(.018,.042,.17,5);b.rotateX(Math.PI/2);b.scale(1,.55,1);b.translate(0,0,.085);b.rotateX(-.75);b.rotateY(a);b.translate(Math.sin(a)*trunkR*.8+.04*Math.sin(y*.9),y,Math.cos(a)*trunkR*.8);push(b,i%3?0x6b5940:0x7c6a4c,.12)}
+  for(let i=0;i<4;i++){const a=r()*6.28,y=.6+r()*(height-1),f=new T.ConeGeometry(.05,.13,5,1,true);f.rotateX(-1.1);f.rotateY(a);f.translate(Math.sin(a)*trunkR*1.15,y,Math.cos(a)*trunkR*1.15);push(f,0x5f8a37,.1)}}
+ const top=height+.04;
+ // Spear leaves: tightly folded young fronds pointing straight up.
+ for(let i=0;i<3;i++){const sp=new T.ConeGeometry(.035,.75+.2*i,5);sp.translate(0,(.75+.2*i)/2,0);sp.rotateX((r()-.5)*.25);sp.rotateZ((r()-.5)*.25);sp.translate(0,top,0);push(sp,0x8fb24a,.05)}
+ // Fronds.
+ for(let j=0;j<fronds;j++){
+  const age=j/(fronds-1),dead=age>.93&&r()<.7,a=j*2.39996+r()*.15;
+  const ca=Math.cos(a),sa=Math.sin(a),side=[-sa,0,ca];
+  const L=(1.75+.35*r())*(.75+.35*Math.min(1,age*1.6))*(height/2.6),phi0=1.15-1.15*age+.12,droop=.7+1.4*age+(dead?1.2:0);
+  const base=[ca*trunkR*.6,top-.22*age,sa*trunkR*.6],pts=[],dirs=[];let p=[...base],segs=14;
+  for(let k=0;k<=segs;k++){const t=k/segs,ph=phi0-droop*t*t,d=[Math.cos(ph)*ca,Math.sin(ph),Math.cos(ph)*sa];pts.push([...p]);dirs.push(d);p=[p[0]+d[0]*L/segs,p[1]+d[1]*L/segs,p[2]+d[2]*L/segs]}
+  const green=dead?0x9a8a4c:age>.8?0x4e6f2d:age<.2?0x7aa543:0x5c8636;
+  // Rachis (midrib) as a tapered ribbon.
+  const rib=[];for(let k=0;k<segs;k++){const w0=.03*(1-k/segs)+.006,w1=.03*(1-(k+1)/segs)+.006,a0=pts[k],a1=pts[k+1];
+   const q=(pt,w,sgn)=>[pt[0]+side[0]*w*sgn,pt[1]+.008,pt[2]+side[2]*w*sgn];rib.push(...q(a0,w0,-1),...q(a0,w0,1),...q(a1,w1,1),...q(a0,w0,-1),...q(a1,w1,1),...q(a1,w1,-1))}
+  tri(rib,dead?0x8a7a44:0x9aa060,.05);
+  // Leaflets (pinnae) in two planes, longest mid-frond, drooping at the tips.
+  const leaf=[];for(let k=0;k<leaflets;k++){const t=.1+.88*k/leaflets,idx=Math.min(segs-1,Math.floor(t*segs)),f=t*segs-idx;
+   const P=pts[idx].map((v,m)=>v+(pts[idx+1][m]-v)*f),D=dirs[idx];const len=(.12+.42*Math.sin(Math.PI*Math.min(1,t*1.05)))*(height/2.6),w=.028+.012*Math.sin(Math.PI*t);
+   for(const sgn of [-1,1]){const up=((k+(sgn>0?1:0))%2?.55:-.25)+(r()-.5)*.2;
+    const dir=[side[0]*sgn*.85+D[0]*.45,up*.6+D[1]*.3,side[2]*sgn*.85+D[2]*.45],dl=Math.hypot(...dir);dir[0]/=dl;dir[1]/=dl;dir[2]/=dl;
+    const tip=[P[0]+dir[0]*len,P[1]+dir[1]*len-(.06+.1*age)*len,P[2]+dir[2]*len],mid=[P[0]+dir[0]*len*.55,P[1]+dir[1]*len*.55-.02*len,P[2]+dir[2]*len*.55];
+    const b1=[P[0]-D[0]*w,P[1]-D[1]*w,P[2]-D[2]*w],b2=[P[0]+D[0]*w,P[1]+D[1]*w,P[2]+D[2]*w],m1=[mid[0]-D[0]*w*.8,mid[1]-D[1]*w*.8,mid[2]-D[2]*w*.8],m2=[mid[0]+D[0]*w*.8,mid[1]+D[1]*w*.8,mid[2]+D[2]*w*.8];
+    leaf.push(...b1,...b2,...m2,...b1,...m2,...m1,...m1,...m2,...tip)}}
+  tri(leaf,green,.1);
+ }
+ // Fresh fruit bunches in the frond axils.
+ for(let b=0;b<bunches;b++){const a=b*2.1+r(),ripe=b%2===0,cx=Math.cos(a)*trunkR*1.25,cz=Math.sin(a)*trunkR*1.25,cy=top-.32-r()*.12;
+  for(let k=0;k<22;k++){const u=r()*6.28,v=r()*3.14,rr=.085+.02*r(),fr=new T.IcosahedronGeometry(.027,1);fr.translate(cx+Math.sin(v)*Math.cos(u)*rr,cy+Math.cos(v)*rr*1.3,cz+Math.sin(v)*Math.sin(u)*rr);
+   push(fr,ripe?(k%3?0xc4461f:0xe0782c):(k%3?0x241513:0x3a1c16),.08)}}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('normal',new T.Float32BufferAttribute(nor,3));g.setAttribute('color',new T.Float32BufferAttribute(col,3));g.computeBoundingSphere();
+ return g;
+}
+export function palmMaterial(strength=.02){return windify(new T.MeshStandardMaterial({vertexColors:true,roughness:.82,metalness:0,side:T.DoubleSide}),{strength,base:1.2})}
+
+// Image-based lighting from the sky dome, so water, glass and steel pick up real reflections.
+export function environment(renderer,scene,{intensity=.55,zenith=0x4d7f99,horizon=0xb7c9c0,ground=0x55624f,sunDir=new T.Vector3(-6,11,8)}={}){
+ const env=new T.Scene();sky(env,{zenith,horizon,ground,sunDir});
+ const pm=new T.PMREMGenerator(renderer);const rt=pm.fromScene(env,.03);pm.dispose();
+ scene.environment=rt.texture;scene.environmentIntensity=intensity;return rt.texture;
+}
+
+// Tileable ripple normal map (sum of waves) for moving water.
+export function rippleNormal(size=256){
+ const c=document.createElement('canvas');c.width=c.height=size;const g=c.getContext('2d'),img=g.createImageData(size,size);
+ const waves=Array.from({length:7},(_,i)=>({kx:Math.round((rnd()-.5)*10)||1,ky:Math.round((rnd()-.5)*10)||2,a:.5/(i+1),p:rnd()*6.28}));
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){let dx=0,dy=0;for(const w of waves){const ph=(w.kx*x+w.ky*y)/size*6.283+w.p,cs=Math.cos(ph)*w.a;dx+=cs*w.kx;dy+=cs*w.ky}
+  const n=[-dx*.05,-dy*.05,1],l=Math.hypot(...n),i=(y*size+x)*4;img.data[i]=(n[0]/l*.5+.5)*255;img.data[i+1]=(n[1]/l*.5+.5)*255;img.data[i+2]=(n[2]/l*.5+.5)*255;img.data[i+3]=255}
+ g.putImageData(img,0,0);const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;return t;
+}

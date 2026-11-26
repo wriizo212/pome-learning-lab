@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {chemistry,seeds,smooth,band,lerpPath,liquidVolume,liquidClock} from './molecules.mjs?v=shift7';
+import {chemistry,seeds,smooth,band,lerpPath,liquidVolume,liquidClock} from './molecules.mjs?v=shift8';
 
 /*
  Molecular process layer for the Mill Arcade diorama (mill-gpu.mjs).
@@ -83,5 +83,7 @@ export function arcadeProcess(scene,{world,isCut,isPond,isPolluted,tier={molecul
   }
   C.end();
  }
- return {update,chem:C,hook:h=>hooks.push(h),setHD(on){hd=on}};
+ // The player can rake the screen: everything stuck on it lifts off.
+ function clearScreen(){let n=0;for(const fb of fibres)if(fb.mode===1){fb.mode=2;fb.k=0;n++}return n}
+ return {update,chem:C,hook:h=>hooks.push(h),setHD(on){hd=on},clearScreen};
 }

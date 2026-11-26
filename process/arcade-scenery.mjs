@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift7';
-import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky} from './life.mjs?v=shift7';
+import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift8';
+import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky} from './life.mjs?v=shift8';
 
 /*
  Extra life for the Mill Arcade diorama: the mill that produces the POME, the hot feed
@@ -18,7 +18,7 @@ export function arcadeScenery(scene,{steel,brass,dark,concrete,teal,roof},{isPon
  function label(text,x,y,z,w,color='#e3ead9'){
   const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');g.fillStyle='rgba(23,45,43,.92)';g.beginPath();g.roundRect(4,4,504,88,14);g.fill();
   g.fillStyle=color;g.font='bold 44px Arial';g.textAlign='center';g.fillText(text,256,63);
-  const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const s=new T.Sprite(new T.SpriteMaterial({map:tex,depthWrite:false}));s.position.set(x,y,z);s.scale.set(w,w*96/512,1);scene.add(s);return s;
+  const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const s=new T.Sprite(new T.SpriteMaterial({map:tex,depthWrite:false}));s.position.set(x,y,z);s.scale.set(w,w*96/512,1);s.userData.info=text.toLowerCase();scene.add(s);return s;
  }
 
  /* ---- palm oil mill: press house, boiler chimney, FFB bin ---- */
@@ -121,7 +121,7 @@ export function arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier){
  const cyl=(x,y,z,r,h,m,p=stat,r2=r)=>add(new T.CylinderGeometry(r,r2,h,16),m,x,y+h/2,z,p);
  function pipe(a,b,r,m,p=stat){const s=new T.Vector3(...a),e=new T.Vector3(...b),d=e.clone().sub(s);const o=add(new T.CylinderGeometry(r,r,d.length(),12),m,...s.clone().lerp(e,.5).toArray(),p);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return o}
  const line=(pts,r,m)=>pts.slice(1).forEach((p,i)=>pipe(pts[i],p,r,m));
- function signPost(spec,x,z,face=0,h=.7){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=face;scene.add(g);add(new T.CylinderGeometry(.02,.02,h,8),steel,0,h/2,0,g);add(new T.BoxGeometry(.5,.32,.02),dark,0,h,.01,g);add(new T.PlaneGeometry(.48,.3),new T.MeshStandardMaterial({map:sign(spec),roughness:.6}),0,h,.022,g,false)}
+ function signPost(spec,x,z,face=0,h=.7){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=face;scene.add(g);add(new T.CylinderGeometry(.02,.02,h,8),steel,0,h/2,0,g);add(new T.BoxGeometry(.5,.32,.02),dark,0,h,.01,g);add(new T.PlaneGeometry(.48,.3),new T.MeshStandardMaterial({map:sign(spec),roughness:.6}),0,h,.022,g,false).userData.info=spec.title.toLowerCase()}
  const atmosphere=sky(scene,{sunDir:new T.Vector3(-8,12,5),horizon:0xb0c3b6});scene.background=null;scene.fog=new T.FogExp2(0xadc0b4,.013);
  // Grass tufts on open ground only.
  const keepOut=[[-5.3,-2.7,-1.95,.55],[-2.65,.8,-3.35,.15],[1.5,4.65,-4.3,-1.95],[.45,4.85,-1.75,1.05],[-4.65,-.55,1.6,3.5],[-6.15,-5.25,-3.75,1.75],[-7.7,-5.75,-3.45,-1.75],[-7.75,-6.55,-1.35,2.35],[4.85,6.05,-.55,1.1],[6.2,7.8,1.85,3.0],[6.25,7.7,-1.15,.05],[-8,8,.78,1.72],[5.85,6.25,-2,3.5]];
@@ -133,7 +133,7 @@ export function arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier){
  box(-7.2,0,-1.0,.8,.18,.55,concrete);box(-7.2,.18,-1.0,.7,.06,.45,dark);
  const conveyorPts=[[-7.2,.24,-1.0],[-7.2,1.05,-1.88]];pipe([-7.45,.2,-1.0],[-7.45,1.05,-1.88],.025,steel);pipe([-6.95,.2,-1.0],[-6.95,1.05,-1.88],.025,steel);
  const belt=pipe([-7.2,.22,-1.0],[-7.2,1.03,-1.88],.2,mat(0x2a2d2c,.9));belt.scale.z=.12;for(const k of [.3,.7])pipe([-7.2,.22+.81*k-.1,-1.0-.88*k],[-7.2,0,-1.0-.88*k],.02,steel);
- const lorry=new T.Group();lorry.position.set(-7.2,0,.95);scene.add(lorry);
+ const lorry=new T.Group();lorry.position.set(-7.2,0,.95);scene.add(lorry);lorry.userData.info='lorry';
  const cab=mat(0x2f6fa6,.4,.4);box(0,.18,.85,.68,.6,.5,cab,lorry);box(0,.48,.6,.6,.24,.02,mat(0x9fd8e6,.15,.4),lorry);box(0,.18,0,.68,.08,1.7,dark,lorry);
  const bedPivot=new T.Group();bedPivot.position.set(0,.3,-.72);lorry.add(bedPivot);const wood=mat(0x8c6a3b,.8);
  box(0,0,.62,.66,.05,1.25,wood,bedPivot);for(const s of [-1,1])box(s*.32,0,.62,.03,.32,1.25,wood,bedPivot);box(0,0,1.23,.66,.32,.03,wood,bedPivot);
@@ -162,9 +162,9 @@ export function arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier){
  signPost({title:'SAMPLE POINT',band:'#1f6fb0',lines:['WEAR GLOVES','AND GOGGLES'],symbol:'i'},4.15,1.12);
  signPost({title:'PPE REQUIRED',band:'#1f6fb0',lines:['HELMET · BOOTS','GLOVES · VEST'],symbol:'✓'},7.45,1.5);
  signPost({title:'FLAMMABLE',lines:['FLARE ZONE','PERMIT ONLY'],symbol:'!'},1.25,-4.0);
- const red=mat(0xc8291f,.35,.3);for(const [x,z] of [[-3.15,-.2],[1.95,-1.95],[5.65,-1.55],[-.4,1.85]]){cyl(x,0,z,.06,.36,red);cyl(x,.36,z,.03,.05,dark)}
+ const red=mat(0xc8291f,.35,.3);for(const [x,z] of [[-3.15,-.2],[1.95,-1.95],[5.65,-1.55]]){cyl(x,0,z,.06,.36,red);cyl(x,.36,z,.03,.05,dark)}
  const green=mat(0x2c9c5a,.5,.3);for(const dx of [-.18,.18])box(4.85+dx,0,-2.3,.04,1.6,.04,green);box(4.85,1.58,-2.3,.4,.04,.04,green);cyl(4.85,1.38,-2.3,.08,.05,steel,stat,.04);
- add(new T.PlaneGeometry(.32,.2),new T.MeshStandardMaterial({map:sign({title:'SAFETY SHOWER',band:'#2c9c5a',lines:['EYE WASH'],symbol:'+'})}),4.85,1.05,-2.27,stat,false);
+ add(new T.PlaneGeometry(.32,.2),new T.MeshStandardMaterial({map:sign({title:'SAFETY SHOWER',band:'#2c9c5a',lines:['EYE WASH'],symbol:'+'})}),4.85,1.05,-2.27,scene,false).userData.info='safety shower';
  const lampHead=mat(0xfff6d8,.4,0,{emissive:0xfff1c4,emissiveIntensity:.6});for(const [x,z] of [[-4,-4.3],[0,-4.3],[4,-4.3],[-7.6,3.5],[7.6,3.5]]){cyl(x,0,z,.035,2.2,dark);box(x,2.1,z+.2,.05,.04,.4,dark);box(x,2.03,z+.38,.18,.05,.1,lampHead)}
  cyl(-7.6,0,-3.9,.025,2.6,mat(0xdfe5e0,.4,.4));const sock=new T.Group();sock.position.set(-7.6,2.62,-3.9);scene.add(sock);
  const sockTex=new T.CanvasTexture((()=>{const c=document.createElement('canvas');c.width=128;c.height=32;const g=c.getContext('2d');for(let k=0;k<5;k++){g.fillStyle=k%2?'#f4f1e6':'#e8642c';g.fillRect(k*25.6,0,25.6,32)}return c})());

@@ -1,5 +1,8 @@
 import * as T from './three.module.min.js';
-import {blobShadow} from './life.mjs?v=shift7';
+import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift8';
+
+// Each worker has a person behind the role (used for name tags and conversations).
+const PEOPLE=['Azlan','Mei Ling','Ravi','Siti','Farid'];
 
 /*
  Mill crew. Each worker follows a looping shift plan made of walking legs and jobs.
@@ -137,7 +140,8 @@ export function populate(scene, materials, arcade=false){
  weave.fillStyle='#f3eada';weave.fillRect(0,0,128,128);
  for(let n=0;n<128;n+=3){weave.fillStyle='rgba(103,94,86,.13)';weave.fillRect(n,0,1,128);weave.fillStyle='rgba(255,255,255,.45)';weave.fillRect(0,n,128,1)}
  const textile=new T.CanvasTexture(cloth);textile.colorSpace=T.SRGBColorSpace;navy.map=textile;navy.roughness=.91;
- const eyeMat=new T.MeshBasicMaterial({color:0x1a1512});
+ const kitDark=mat(0x2a3437,.6,.2),visorMat=mat(0x37525a,.25,.3);
+ const eyeMat=new T.MeshBasicMaterial({color:0x1a1512}),mouthMat=new T.MeshBasicMaterial({color:0x5a2a24}),cuff=mat(0xb5a24f,.85);
  const cube=new T.BoxGeometry(),round=new T.SphereGeometry(1,10,7),tube=new T.CylinderGeometry(1,1,1,10);
  function part(parent,geo,m,x,y,z,w,h,d){const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(w,h,d);o.castShadow=o.receiveShadow=true;parent.add(o);return o}
  const box=(p,m,x,y,z,w,h,d)=>part(p,cube,m,x,y,z,w,h,d);
@@ -183,11 +187,14 @@ export function populate(scene, materials, arcade=false){
  function clipboardProp(hand){const g=pivot(hand,.02,-.03,-.05);box(g,wood,0,0,0,.16,.012,.22);box(g,paper,0,.008,.01,.14,.004,.18);box(g,steel,0,.012,-.1,.06,.01,.02);g.rotation.x=.55;return g}
  function wrenchProp(hand){const g=pivot(hand,0,-.04,-.01);box(g,steel,0,-.05,0,.018,.13,.012);box(g,steel,0,-.12,0,.045,.025,.015);return g}
  function detectorProp(hand){const g=pivot(hand,0,-.03,-.03);box(g,mat(0xe0b52a,.5),0,0,0,.06,.11,.035);const led=box(g,new T.MeshStandardMaterial({color:0x4cff7a,emissive:0x2bff66,emissiveIntensity:1.5}),0,.035,-.019,.035,.02,.004);rod(g,dark,0,.08,0,.006,.06);return {g,led}}
+ function extinguisherProp(hand){const g=pivot(hand,0,-.06,-.02);const red=mat(0xc8291f,.35,.3);rod(g,red,0,-.05,0,.045,.2);rod(g,dark,0,.07,0,.02,.04);box(g,dark,.03,.09,0,.06,.012,.02);const hose=rod(g,dark,0,.06,-.07,.008,.14);hose.rotation.x=1.2;rod(g,dark,0,.03,-.14,.014,.04).rotation.x=Math.PI/2;return g}
  function penProp(hand){const g=pivot(hand,0,-.02,-.02);rod(g,navy,0,0,0,.006,.08).rotation.x=.6;return g}
  function probeProp(hand){const g=pivot(hand,0,-.03,-.02);box(g,mat(0x31363a),0,0,0,.05,.09,.03);rod(g,steel,0,-.09,0,.006,.12);return g}
 
  /* ---------- worker rig ---------- */
  function worker(spec,index){
+  // Body parts use their own solid colours (scene materials may keep colour in a texture).
+  const dark=kitDark;
   const g=pivot(scene,0,.1,0),pelvis=pivot(g,0,.48,0),torso=pivot(pelvis,0,0,0),legs=[],arms=[],hands=[];
   const vest=mat(vests[index%vests.length],.88);vest.map=textile;
   oval(torso,vest,0,.18,0,.149,.218,.092);
@@ -197,18 +204,24 @@ export function populate(scene, materials, arcade=false){
   box(pelvis,navy,0,-.01,0,.242,.09,.15);box(pelvis,dark,0,.03,0,.25,.025,.155);
   const head=pivot(torso,0,.36,0),face=mat(spec.skin),hat=mat(spec.helmet,.45);
   oval(head,face,0,.087,0,.093,.129,.093);oval(head,hat,0,.17,0,.108,.083,.106);oval(head,hat,0,.15,-.011,.122,.017,.134);
-  box(head,dark,0,.103,-.086,.147,.029,.018);
+  box(head,visorMat,0,.103,-.086,.147,.029,.018);
+  // Face and PPE detail: nose, ears, brows, helmet ridge, neck, collar, ID badge.
+  const noseMat=mat(new T.Color(spec.skin).multiplyScalar(.86).getHex());
+  oval(head,noseMat,0,.07,-.09,.014,.022,.018);for(const sx of [-1,1]){oval(head,face,sx*.092,.085,.004,.016,.028,.02);box(head,dark,sx*.033,.124,-.087,.03,.006,.006)}
+  box(head,hat,0,.246,0,.022,.02,.19);oval(torso,face,0,.335,0,.045,.05,.045);oval(torso,navy,0,.305,0,.085,.026,.065);box(torso,paper,-.06,.215,-.094,.028,.036,.004);
   for(const s of [-1,1]){
    const hip=pivot(pelvis,s*.069,0,0),knee=pivot(hip,0,-.196,0);
    oval(hip,navy,0,-.097,0,.069,.133,.066);oval(knee,navy,0,-.089,0,.052,.113,.053);
-   oval(knee,boots,0,-.171,-.025,.059,.053,.093);legs.push([hip,knee]);
+   oval(knee,boots,0,-.171,-.025,.059,.053,.093);box(knee,dark,0,-.222,-.025,.1,.012,.17);oval(knee,stripe,0,-.04,0,.054,.01,.055);legs.push([hip,knee]);
    const shoulder=pivot(torso,s*.143,.31,0),elbow=pivot(shoulder,s*.021,-.145,0);
    oval(shoulder,vest,s*.014,-.064,0,.064,.096,.061);oval(elbow,navy,0,-.054,0,.043,.077,.044);
-   const hand=pivot(elbow,0,-.13,0);oval(hand,glove,0,0,0,.039,.045,.038);arms.push([shoulder,elbow]);hands.push(hand);
+   oval(shoulder,stripe,s*.014,-.03,0,.067,.012,.063);
+   const hand=pivot(elbow,0,-.13,0);oval(hand,glove,0,0,0,.039,.045,.038);oval(hand,cuff,0,.036,0,.043,.02,.042);box(hand,glove,0,-.04,-.012,.032,.028,.022);arms.push([shoulder,elbow]);hands.push(hand);
   }
   const joints=[pelvis,torso,head,...legs.flat(),...arms.flat(),...hands];
   let chest=null;for(const j of joints){const m=mergeJoint(j);if(j===torso)chest=m}
-  const eyes=new T.Group();head.add(eyes);for(const sx of [-.034,.034]){const e=new T.Mesh(round,eyeMat);e.position.set(sx,.1,-.083);e.scale.set(.013,.016,.008);eyes.add(e)}
+  const eyes=new T.Group();head.add(eyes);for(const sx of [-.034,.034]){const e=new T.Mesh(round,eyeMat);e.position.set(sx,.1,-.097);e.scale.set(.012,.014,.004);eyes.add(e)}
+  const mouth=new T.Mesh(round,mouthMat);mouth.position.set(0,.043,-.088);mouth.scale.set(.022,.005,.006);head.add(mouth);let talking=false;
   const blob=blobShadow(.26,.4);blob.position.y=-.005;g.add(blob);
   // Name and task tag floats above the helmet.
   const tagCanvas=document.createElement('canvas');tagCanvas.width=512;tagCanvas.height=128;
@@ -218,7 +231,7 @@ export function populate(scene, materials, arcade=false){
   function setTag(text){if(text===tagText)return;tagText=text;const c=tagCanvas.getContext('2d');c.clearRect(0,0,512,128);
    c.fillStyle='rgba(16,36,33,.86)';c.beginPath();c.roundRect(6,10,500,96,18);c.fill();
    c.fillStyle='#'+vests[index%vests.length].toString(16).padStart(6,'0');c.fillRect(6,10,14,96);
-   c.fillStyle='#e8f6c4';c.font='bold 34px system-ui,Arial';c.fillText(spec.name,34,50);
+   c.fillStyle='#e8f6c4';c.font='bold 34px system-ui,Arial';c.fillText((spec.person?spec.person+' · ':'')+spec.name,34,50);
    c.fillStyle='#cfe1d6';c.font='26px system-ui,Arial';let line=text;while(c.measureText(line).width>456&&line.length>4)line=line.slice(0,-2);if(line!==text)line=line.trimEnd()+'…';c.fillText(line,34,88);
    tagTex.needsUpdate=true}
 
@@ -253,18 +266,27 @@ export function populate(scene, materials, arcade=false){
     const a=stride(extra.phase??time*9,walk);
     L[0].rotation.x=-a*.55;R[0].rotation.x=a*.55;L[1].rotation.x=.22+.25*Math.max(0,a);R[1].rotation.x=.22+.25*Math.max(0,-a);inward(0,.06);inward(1,.06);
     if(walk===0){L[1].rotation.x=R[1].rotation.x=.12;head.rotation.y=.35*Math.sin(time*.37)*Math.max(0,Math.sin(time*.13));pelvis.position.x=.012*Math.sin(time*.45);pelvis.rotation.z=.025*Math.sin(time*.45);torso.rotation.z=-.03*Math.sin(time*.45)}
+    if(extra.run&&walk>0){const r=Math.sin(extra.phase??0);stride(extra.phase??0,Math.min(1.35,walk*1.35));torso.rotation.x=-.22;head.rotation.x=.12;
+     L[0].rotation.x=-r*.95;R[0].rotation.x=r*.95;L[1].rotation.x=R[1].rotation.x=1.25;inward(0,.12);inward(1,.12)}
+    if(extra.landing){pelvis.position.y-=.08*extra.landing;for(const [h,k] of legs){h.rotation.x+=.45*extra.landing;k.rotation.x-=.8*extra.landing}torso.rotation.x-=.15*extra.landing}
     if(extra.carry==='bottle'){show('bottle');R[0].rotation.x=.45;R[1].rotation.x=.75;inward(1,.1)}
-    if(extra.tool){show(extra.tool);const t=tools[extra.tool];t.g.rotation.set(1.15,0,-.25);t.g.position.set(.12,.33,.02);R[0].rotation.x=-.2;R[0].rotation.z=-1.9;R[1].rotation.x=1.4;if(t.load)t.load.visible=extra.tool==='rake'&&extra.loaded}
+    else if(extra.carry){show(extra.carry);R[0].rotation.x=.55;R[1].rotation.x=.85;inward(1,.12)}
+    if(extra.tool&&tools[extra.tool]){show(extra.tool);const t=tools[extra.tool];t.g.rotation.set(1.15,0,-.25);t.g.position.set(.12,.33,.02);R[0].rotation.x=-.2;R[0].rotation.z=-1.9;R[1].rotation.x=1.4;if(t.load)t.load.visible=extra.tool==='rake'&&extra.loaded}
     if(extra.push){torso.rotation.x=-.2;L[0].rotation.x=R[0].rotation.x=.55;L[1].rotation.x=R[1].rotation.x=.12;inward(0,.08);inward(1,.08);head.rotation.x=.12}
     return;
    }
    switch(job){
-    case 'rake':{const c=(τ%2.6)/2.6,s=c<.45?ease(c/.45):1-ease((c-.45)/.55);const t=tools.rake;show('rake');
+    case 'air':{const up=Math.max(-1,Math.min(1,(extra.vy||0)/3.6));for(const [i,[h,k]] of legs.entries()){h.rotation.x=(i?.15:.7)*(1-.4*up);k.rotation.x=-(i?.5:1.2)*(1-.3*up)}
+     L[0].rotation.x=R[0].rotation.x=.4+.6*up;L[0].rotation.z=.6;R[0].rotation.z=-.6;L[1].rotation.x=R[1].rotation.x=.6;torso.rotation.x=-.12;head.rotation.x=.1;if(extra.carry)show(extra.carry);break}
+    case 'talk':{const g1=Math.max(0,Math.sin(τ*1.7)),g2=Math.sin(τ*2.3);R[0].rotation.x=.3+.35*g1;R[1].rotation.x=.95+.25*g2;inward(1,.28);L[0].rotation.x=.12+.15*Math.max(0,Math.sin(τ*1.1+2));L[1].rotation.x=.4;
+     head.rotation.x=.05*Math.sin(τ*3.1);head.rotation.y=.12*Math.sin(τ*.7);pelvis.rotation.z=.02*Math.sin(τ*.5);break}
+    case 'spray':{show('extinguisher');const sw=Math.sin(τ*2.2);R[0].rotation.x=1.15;R[1].rotation.x=.25;R[0].rotation.z=-.1+.25*sw;L[0].rotation.x=.8;L[1].rotation.x=1.1;inward(0,.35);torso.rotation.y=.25*sw;legs[0][0].rotation.x=.3;legs[1][0].rotation.x=-.2;torso.rotation.x=-.1;break}
+    case 'rake':{const c=(τ%2.6)/2.6,s=c<.45?ease(c/.45):1-ease((c-.45)/.55);const t=tools.rake;if(!t)break;show('rake');
      torso.rotation.x=-(.22+.24*s);head.rotation.x=.18;legs[0][0].rotation.x=.32;legs[0][1].rotation.x=-.25;legs[1][0].rotation.x=-.18;
      L[0].rotation.x=.95+.45*s;R[0].rotation.x=.75+.45*s;L[1].rotation.x=.55-.35*s;R[1].rotation.x=.75-.35*s;inward(0,.28);inward(1,.18);
      t.g.rotation.set(0,0,0);t.g.position.set(.02,.2,-.12-.18*s);t.shaft.rotation.x=-(.62-.12*s)-.1*Math.sin(c*Math.PI*2);
      t.load.visible=c>.45;break}
-    case 'dump':{const s=ease(Math.min(1,τ/.8)),shake=τ>.8&&τ<2.4?Math.sin(τ*26)*.07:0;const t=tools.rake;show('rake');
+    case 'dump':{const s=ease(Math.min(1,τ/.8)),shake=τ>.8&&τ<2.4?Math.sin(τ*26)*.07:0;const t=tools.rake;if(!t)break;show('rake');
      L[0].rotation.x=R[0].rotation.x=.9+.6*s;L[1].rotation.x=R[1].rotation.x=.4;inward(0,.25);inward(1,.2);torso.rotation.x=-.1;
      t.g.rotation.set(0,0,0);t.g.position.set(.02,.24,-.12);t.shaft.rotation.x=-.75+.55*s+shake;t.load.visible=τ<1.4;break}
     case 'valve':{const turn=τ*2.2;show('');
@@ -279,7 +301,7 @@ export function populate(scene, materials, arcade=false){
      L[0].rotation.x=.82;L[1].rotation.x=1.05;inward(0,.35);
      R[0].rotation.x=.72;R[1].rotation.x=1.05+.12*Math.max(0,Math.sin(τ*8));inward(1,.4);
      head.rotation.x=look?.18:-.36;if(tools.tablet)tools.tablet.s.material.emissiveIntensity=.6+.4*Math.max(0,Math.sin(τ*3));break}
-    case 'dip':{const c=(τ%6)/6;const s=c<.3?ease(c/.3):c<.62?1:1-ease((c-.62)/.38);const t=tools.dipper;show('dipper');
+    case 'dip':{const c=(τ%6)/6;const s=c<.3?ease(c/.3):c<.62?1:1-ease((c-.62)/.38);const t=tools.dipper;if(!t)break;show('dipper');
      torso.rotation.x=-(.12+.25*s);head.rotation.x=.1;legs[0][0].rotation.x=.25;legs[0][1].rotation.x=-.2;
      R[0].rotation.x=.75+.35*s;R[1].rotation.x=.3;L[0].rotation.x=.6+.3*s;L[1].rotation.x=.5;inward(0,.3);inward(1,.05);
      t.shaft.rotation.x=-.25-.75*s+(c>.3&&c<.62?.04*Math.sin(τ*9):0);t.fill.visible=c>.45;break}
@@ -287,13 +309,13 @@ export function populate(scene, materials, arcade=false){
      L[0].rotation.x=.65;L[1].rotation.x=.75;inward(0,.3);
      if(c<.45){const p=ease(c/.2)-ease((c-.3)/.15);R[0].rotation.x=.75+.35*p;R[1].rotation.x=.75;hands[1].rotation.z=-1.3*p;inward(1,.35)}
      else{R[0].rotation.x=.7;R[1].rotation.x=.95+.05*Math.sin(τ*6);inward(1,.45);head.rotation.y=.15*Math.sin(τ*.8)}
-     props.probe.visible=c>=.45;break}
+     if(props.probe)props.probe.visible=c>=.45;break}
     case 'kneel':{show('wrench');pelvis.position.y=.31;
      legs[0][0].rotation.x=1.38;legs[0][1].rotation.x=-1.42;legs[1][0].rotation.x=-.05;legs[1][1].rotation.x=-1.52;
      torso.rotation.x=-.28;head.rotation.x=-.22;
      R[0].rotation.x=1.15+.08*Math.sin(τ*2);R[1].rotation.x=.55+.35*Math.max(0,Math.sin(τ*5));inward(1,.18);hands[1].rotation.z=.5*Math.sin(τ*5);
      L[0].rotation.x=.55;L[1].rotation.x=.95;inward(0,.1);break}
-    case 'shovel':{const c=(τ%3.2)/3.2,t=tools.shovel;show('shovel');
+    case 'shovel':{const c=(τ%3.2)/3.2,t=tools.shovel;if(!t)break;show('shovel');
      const drive=c<.35?ease(c/.35):1,lift=c<.35?0:c<.65?ease((c-.35)/.3):1,toss=c<.65?0:c<.85?ease((c-.65)/.2):1-ease((c-.85)/.15);
      const dir=spec.toss||1;
      torso.rotation.x=-(.5*drive-.32*lift);torso.rotation.y=dir*.95*toss;pelvis.position.y=.48-.06*drive+.05*lift;
@@ -318,13 +340,15 @@ export function populate(scene, materials, arcade=false){
    memY+=(pelvis.position.y-memY)*k;memX+=(pelvis.position.x-memX)*k;pelvis.position.y=memY;pelvis.position.x=memX;
    const b=Math.sin(time*1.9+index);if(chest)chest.scale.set(1+.012*b,1+.006*b,1+.018*b);
    const blink=((time+index*1.3)%3.9)<.13;eyes.scale.y=blink?.12:1;
+   mouth.scale.y=talking?.004+.014*Math.abs(Math.sin(time*17)*Math.sin(time*5.3+index)):.005;
   }
-  const actor={g,pose,arms,hands,torso,head,setTag,tag,tools,props,spec,heading:0};
+  const actor={g,pose,arms,hands,torso,head,setTag,tag,tools,props,spec,heading:0,lookYaw:0,talkingNow:false,talk(on){talking=on;this.talkingNow=on}};
   return actor;
  }
 
  // Build the crew and their personal kit.
  const roles=layout.roles.map((spec,i)=>{
+  spec.person=PEOPLE[i];
   const actor=worker(spec,i),{props,tools,hands,torso}=actor;
   if(i===0){tools.rake=rakeTool(torso);props.rake=tools.rake.g;props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.walkie=box(torso,dark,.09,.32,-.09,.03,.07,.02)}
   if(i===1){tools.dipper=dipperTool(torso);props.dipper=tools.dipper.g;props.bottle=bottleProp(hands[1]);props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.probe=probeProp(hands[1])}
@@ -332,7 +356,7 @@ export function populate(scene, materials, arcade=false){
   if(i===3){tools.shovel=shovelTool(torso);props.shovel=tools.shovel.g}
   if(i===4){tools.detector=detectorProp(hands[1]);props.detector=tools.detector.g;props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1])}
   const plan=compile(spec);actor.heading=plan.steps[0].h1??0;
-  return {name:spec.name,actor,spec,...plan,offset:i*3.7,state:{job:'',label:'',τ:0}};
+  return {name:spec.name,person:spec.person,actor,spec,...plan,offset:i*3.7,phase0:i*3.7,hold:null,state:{job:'',label:'',τ:0}};
  });
  const player=roles[0].actor;
 
@@ -375,14 +399,10 @@ export function populate(scene, materials, arcade=false){
  for(let i=0;i<4;i++){repeat(cube,dark,-7.55+i*.88,1.25,-5.77,.54,.46,.08);for(let k=0;k<5;k++)repeat(cube,steel,-7.55+i*.88,1.08+k*.076,-5.72,.51,.019,.035)}
  for(const z of [-5.9,-6.48]){repeat(cube,steel,1.52,.53,z,.09,1.1,.09);repeat(cube,steel,4.18,.53,z,.09,1.1,.09);repeat(cube,brass,2.85,.71,z,2.83,.055,.065)}
  for(let k=0;k<5;k++)repeat(tube,steel,2.85,.84,-5.88-k*.145,.07,3.4,.07,0,0,Math.PI/2);
- const frond=new T.OctahedronGeometry(1,0);
- for(let i=0;i<22;i++){
-  const x=-18+(i%11)*3.5,z=-11-Math.floor(i/11)*5-Math.sin(i*3)*1.3,h=2.8+.48*Math.sin(i*5.2);
-  repeat(round,bark,x,h*.46,z,.15,h*.55,.15);
-  for(let j=0;j<10;j++){const a=j*.628+i,dx=Math.sin(a),dz=Math.cos(a);
-   for(let k=1;k<=6;k++){const f=k/6;repeat(frond,leaf,x+dx*1.5*f,h+.48*Math.sin(f*3.6)-.32*f,z+dz*1.5*f,.19*(1.2-f*.6),.054,.38,0,a,.12)}
-  }
- }
+ // Background oil palms (instanced, sway in the wind).
+ const backPalms=new T.InstancedMesh(oilPalm({fronds:20,leaflets:13,height:2.9,seed:31,bunches:2}),palmMaterial(.012),22),po=new T.Object3D();
+ for(let i=0;i<22;i++){const x=-18+(i%11)*3.5,z=-11-Math.floor(i/11)*5-Math.sin(i*3)*1.3,h=2.8+.48*Math.sin(i*5.2);po.position.set(x,0,z);po.rotation.set(0,i*1.7,0);po.scale.setScalar(h/2.9);po.updateMatrix();backPalms.setMatrixAt(i,po.matrix)}
+ backPalms.castShadow=true;backPalms.receiveShadow=true;backPalms.userData.info='palm';scene.add(backPalms);
  // Sampling bench with capped vials, a pH meter with a live display and a wash bottle.
  const [bx,bz]=layout.bench;
  repeat(cube,steel,bx,.58,bz,.82,.055,.47);
@@ -407,7 +427,7 @@ export function populate(scene, materials, arcade=false){
  for(const {geo,m,list} of batches.values()){const o=new T.InstancedMesh(geo,m,list.length);list.forEach((matrix,i)=>o.setMatrixAt(i,matrix));o.castShadow=o.receiveShadow=true;scene.add(o)}
 
  /* ---------- shift scheduler ---------- */
- let controlled=null,tagsOn=true,lastDial=-1;
+ let controlled=null,tagsOn=true,lastDial=-1,playerPos=null,valveSpin=0,lastAnim=null;const events=[];
  function pointAt(step,d){let seg=step.segs[0];for(const s of step.segs)if(d>=s.from)seg=s;const f=seg.l?Math.min(1,(d-seg.from)/seg.l):1;return [seg.a[0]+(seg.b[0]-seg.a[0])*f,seg.a[1]+(seg.b[1]-seg.a[1])*f,seg.a[2]+(seg.b[2]-seg.a[2])*f]}
  function locate(r,t){
   const local=((t+r.offset)%r.total+r.total)%r.total;
@@ -415,26 +435,46 @@ export function populate(scene, materials, arcade=false){
   return {step,τ:local-step.start};
  }
  function animate(t){
+  const gdt=lastAnim===null?0:Math.max(0,Math.min(.2,t-lastAnim));lastAnim=t;
   for(const r of roles){
-   const {step,τ}=locate(r,t),a=r.actor;
-   r.state.job=step.kind==='do'?step.job:'walk';r.state.label=step.label;r.state.τ=τ;r.state.step=step;
-   if(a===controlled){a.tag.visible=false;continue}
-   a.tag.visible=tagsOn;a.setTag(step.label);
+   let {step,τ}=locate(r,t);const a=r.actor;
+   if(a===controlled){r.state.job=step.kind==='do'?step.job:'walk';r.state.label=step.label;r.state.τ=τ;r.state.step=step;a.tag.visible=false;continue}
    const dt=a.lastT===undefined?1:t-a.lastT;a.lastT=t;const k=dt<0||dt>.5?1:1-Math.exp(-dt*7);
+   // Awareness of the player: wait if they block the path, stop to talk, glance at them.
+   let blocked=false,near=Infinity;
+   if(playerPos){near=Math.hypot(playerPos.x-a.g.position.x,playerPos.z-a.g.position.z);
+    if(step.kind==='go'){const d=walkDistance(step,τ),ahead=pointAt(step,Math.min(step.len,d+.45));blocked=Math.hypot(playerPos.x-ahead[0],playerPos.z-ahead[1])<.5||near<.42}}
+   if(r.hold||blocked){
+    r.offset-=gdt;({step,τ}=locate(r,t));
+    if(blocked&&!r.blockedSaid){r.blockedSaid=true;events.push({type:'blocked',i:roles.indexOf(r)})}
+    const want=playerPos&&(r.hold||near<1.6)?faceTo([a.g.position.x,a.g.position.z],[playerPos.x,playerPos.z]):a.heading;
+    a.heading+=wrapAngle(want-a.heading)*(1-Math.exp(-Math.max(0,dt)*5));a.g.rotation.y=a.heading;
+    r.state.job=step.kind==='do'?step.job:'walk';r.state.label=r.hold==='talk'?'Talking with you':'Waiting for you to pass';r.state.τ=τ;r.state.step=step;
+    a.tag.visible=tagsOn;a.setTag(r.state.label);
+    a.pose(t+r.phase0,0,r.hold==='talk'&&a.talkingNow?'talk':'',t,{});continue;
+   }
+   if(!blocked)r.blockedSaid=false;
+   r.state.job=step.kind==='do'?step.job:'walk';r.state.label=step.label;r.state.τ=τ;r.state.step=step;
+   a.tag.visible=tagsOn;a.setTag(step.label);
    if(step.kind==='go'){
     const d=walkDistance(step,τ),p=pointAt(step,d),ahead=pointAt(step,Math.min(step.len,d+.35)),speed=walkSpeed(step,τ);
     a.g.position.set(p[0],.11+p[2],p[1]);
     const want=Math.hypot(ahead[0]-p[0],ahead[1]-p[1])>.02?faceTo(p,ahead):faceTo(step.segs.at(-1).a,step.segs.at(-1).b);
     a.heading+=wrapAngle(want-a.heading)*k;a.g.rotation.y=a.heading;
-    a.pose(t+r.offset,.25+.75*speed,'',τ,{...step.opts,phase:d/STRIDE*Math.PI*2,loaded:step.opts.tool==='rake'&&step===r.steps[1]});
+    a.pose(t+r.phase0,.25+.75*speed,'',τ,{...step.opts,phase:d/STRIDE*Math.PI*2,loaded:step.opts.tool==='rake'&&step===r.steps[1]});
    }else{
     a.g.position.set(step.at[0],.11+(step.at[2]||0),step.at[1]);
-    a.heading+=wrapAngle(step.h1-a.heading)*(dt<0||dt>.5?1:1-Math.exp(-dt*4.5));a.g.rotation.y=a.heading;
-    a.pose(t+r.offset,0,step.job,τ);
+    const turn=wrapAngle(step.h1-a.heading);a.heading+=turn*(dt<0||dt>.5?1:1-Math.exp(-dt*4.5));a.g.rotation.y=a.heading;
+    // Small shuffling steps while turning on the spot, then the job pose.
+    if(Math.abs(turn)>.16){a.turnPhase=(a.turnPhase||0)+Math.abs(turn)*Math.max(0,dt)*9;a.pose(t+r.phase0,Math.min(.45,Math.abs(turn)),'',τ,{phase:a.turnPhase})}
+    else a.pose(t+r.phase0,0,step.job,τ);
    }
+   // Glance at the player when they are close.
+   const look=playerPos&&near<2.6?Math.max(-1.1,Math.min(1.1,wrapAngle(faceTo([a.g.position.x,a.g.position.z],[playerPos.x,playerPos.z])-a.heading))):0;
+   a.lookYaw+=(look*(step.kind==='do'?.55:.8)-a.lookYaw)*(1-Math.exp(-Math.max(0,dt)*4));a.head.rotation.y+=a.lookYaw;
   }
   // Valve wheel spins while the operator turns it.
-  const op=roles[0].state;if(op.job==='valve')wheel.rotation.z=-op.τ*2.2;
+  const op=roles[0].state;wheel.rotation.z=(op.job==='valve'&&!roles[0].hold?-op.τ*2.2:0)-valveSpin;
   // Skip fills a little each time screenings are tipped.
   skipFill.scale.y=.06+.05*((t/40)%1);
   // Field meter cycles through readings while the sampler tests.
@@ -459,6 +499,21 @@ export function populate(scene, materials, arcade=false){
   roles,animate,
   control(actor){if(controlled)controlled.tag.visible=tagsOn;controlled=actor},
   activity(i){return roles[i]?.state},
+  setPlayer(p){playerPos=p},
+  hold(i,mode){const r=roles[i];if(r)r.hold=mode||null},
+  turnValve(dt){valveSpin+=dt*2.6},
+  valvePosition:new T.Vector3(...layout.valve),
+  takeEvents(){return events.splice(0)},
+  // Give any worker a tool or hand prop (used when the player picks something up).
+  equip(actor,name){const {tools,props,hands,torso}=actor;if(props[name])return props[name];
+   if(name==='rake'){tools.rake=rakeTool(torso);props.rake=tools.rake.g}
+   else if(name==='dipper'){tools.dipper=dipperTool(torso);props.dipper=tools.dipper.g}
+   else if(name==='shovel'){tools.shovel=shovelTool(torso);props.shovel=tools.shovel.g}
+   else if(name==='detector'){tools.detector=detectorProp(hands[1]);props.detector=tools.detector.g}
+   else if(name==='bottle')props.bottle=bottleProp(hands[1]);
+   else if(name==='probe')props.probe=probeProp(hands[1]);
+   else if(name==='extinguisher')props.extinguisher=extinguisherProp(hands[1]);
+   if(props[name])props[name].visible=false;return props[name]},
   status(){return roles.map(r=>({name:r.name,label:r.actor===controlled?'Controlled by you':r.state.label,job:r.state.job}))},
   tags(on){tagsOn=on;for(const r of roles)r.actor.tag.visible=on&&r.actor!==controlled}
  };

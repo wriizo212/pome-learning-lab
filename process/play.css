@@ -1,0 +1,39 @@
+/* Play layer HUD for the Mill Arcade. */
+.play-hud{position:absolute;inset:0;pointer-events:none;font:13px/1.4 system-ui,sans-serif;color:#eef6e6;z-index:3}
+.play-hud [hidden]{display:none!important}
+.play-hud button{pointer-events:auto}
+.play-toast{position:absolute;top:12px;left:50%;transform:translate(-50%,-8px);max-width:min(560px,80%);padding:8px 14px;border-radius:10px;background:#0f2622e6;border:1px solid #4c7a68;opacity:0;transition:opacity .25s,transform .25s;text-align:center}
+.play-toast.show{opacity:1;transform:translate(-50%,0)}
+.play-prompt{position:absolute;bottom:16%;left:50%;transform:translateX(-50%);padding:7px 14px;border-radius:999px;background:#102b27e8;border:1px solid #d9f58a;color:#e9fbb8;font-weight:650;white-space:nowrap;box-shadow:0 4px 14px #0007}
+.play-status{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:5px;padding:7px 10px;border-radius:10px;background:#0f2622d9;border:1px solid #3f6458;min-width:150px}
+.play-stamina{display:block;height:6px;border-radius:4px;background:#2a463e;overflow:hidden}.play-stamina i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#9be36a,#d9f58a);transition:width .1s}
+.play-quests{position:absolute;right:10px;top:42px;width:min(270px,44%);padding:6px 10px;border-radius:10px;background:#0f2622e0;border:1px solid #3f6458;pointer-events:auto}
+.play-quests summary{cursor:pointer;font-weight:700;color:#d9f58a}.play-quests summary b{color:#eef6e6;font-weight:600}
+.play-quests ol{margin:6px 0 2px;padding-left:18px;display:grid;gap:5px}.play-quests li b{display:block;font-weight:650}.play-quests li small{color:#a9c0b6}.play-quests li.done b{text-decoration:line-through;color:#9bd88a}
+.play-card{position:absolute;right:10px;bottom:12px;width:min(360px,70%);max-height:60%;overflow:auto;padding:12px 14px;border-radius:12px;background:#f4f1e6;color:#1d2423;box-shadow:0 8px 26px #0009;pointer-events:auto}
+.play-card h4{margin:0 34px 6px 0;font-size:15px}.play-card p{margin:0;white-space:pre-line;color:#2c3836}
+.play-card .close,.play-card .speak{position:absolute;top:6px;width:26px;height:26px;padding:0;border-radius:50%;border:0;background:#1f4d3f;color:#fff;cursor:pointer;line-height:1}
+.play-card .close{right:8px}.play-card .speak{right:40px;background:#2d6fb0}
+.play-talk{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:min(620px,94%);padding:10px 14px;border-radius:14px;background:#0f2622f2;border:1px solid #d9f58a;box-shadow:0 10px 30px #000a;pointer-events:auto}
+.play-talk header{display:flex;align-items:center;gap:8px}.play-talk header b{color:#d9f58a;font-size:14px;flex:1}.play-talk header i{width:10px;height:10px;border-radius:50%;background:#e97835}
+.play-talk[data-crew="1"] header i{background:#e2c13a}.play-talk[data-crew="2"] header i{background:#4f9fd8}.play-talk[data-crew="3"] header i{background:#6fc06b}.play-talk[data-crew="4"] header i{background:#d8473b}
+.play-talk .close{border:0;background:none;color:#cfe1d6;font-size:20px;cursor:pointer}
+.play-talk .line{margin:6px 0 8px;font-size:14.5px;min-height:3.2em}
+.play-talk .choices{display:grid;gap:5px}.play-talk .choices button{text-align:left;padding:6px 10px;border-radius:8px;border:1px solid #3f6458;background:#173a32;color:#eef6e6;cursor:pointer;font-size:13px}
+.play-talk .choices button:hover,.play-talk .choices button:focus-visible{background:#d9f58a;color:#102b27}
+.play-talk kbd{font:600 11px monospace;padding:1px 5px;border-radius:4px;background:#2a463e;color:#d9f58a}
+.play-cross{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;display:none}.play-cross.show{display:block}
+.play-cross:before,.play-cross:after{content:'';position:absolute;background:#ffffffd9;box-shadow:0 0 2px #000}.play-cross:before{left:6px;top:0;width:2px;height:14px}.play-cross:after{top:6px;left:0;width:14px;height:2px}
+.play-tip{position:absolute;padding:3px 8px;border-radius:6px;background:#0f2622ee;border:1px solid #4c7a68;font-size:12px;white-space:nowrap}
+.play-actions{position:absolute;right:10px;bottom:12px;display:flex;gap:6px}.play-actions button{padding:10px 12px;border-radius:50%;min-width:58px;min-height:58px;border:1px solid #d9f58a;background:#102b27d9;color:#e9fbb8;font-weight:700;touch-action:none}
+.play-bar{flex:1 0 100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:4px}
+.play-bar .play-go{font-weight:700}.play-bar .play-keys{font-size:12px;color:#a9c0b6}
+.play-bar button[aria-pressed=true]{background:#d3ec9d;color:#172d24}
+.reactor-frame.locked{cursor:none}
+.walkpad .run,.walkpad .jump{min-width:56px}
+@media (max-width:720px){.play-bar .play-keys{display:none}.play-card{width:min(320px,88%)}.play-prompt{bottom:30%}}
+.play-talk header{padding:0;margin:0;max-width:none;border:0;justify-content:flex-start}
+.play-talk{max-height:62%;overflow:auto;padding:8px 12px}
+.play-talk .line{min-height:0;margin:4px 0 6px}
+@media (min-width:560px){.play-talk .choices{grid-template-columns:1fr 1fr}}
+.play-talk .choices button{padding:5px 9px;margin:0;width:auto}

@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky} from './life.mjs?v=shift7';
+import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift8';
 
 /*
  Surroundings for the main UASB + aerobic simulator: ground, road and plantation,
@@ -54,8 +54,8 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  const free=(x,z)=>!(Math.abs(x)<11.5&&z>-9&&z<9)&&!(Math.abs(x)<30&&z>4)&&!(z>4.6&&z<8.4)&&!(Math.abs(x)<19&&z>-17.5&&z<-9.5);
  for(let gx=-46;gx<=46;gx+=4.6)for(let gz=-40;gz<=34;gz+=4.6){const x=gx+(rnd()-.5)*1.6+(Math.round(gz/4.6)%2)*2.3,z=gz+(rnd()-.5)*1.6;if(free(x,z)&&Math.hypot(x,z)<52)spots.push([x,z])}
  spots.sort(()=>rnd()-.5);const palmCount=Math.round(spots.length*Math.min(1,.25+.75*q));
- const palmMat=windify(new T.MeshStandardMaterial({vertexColors:true,roughness:.85,side:T.DoubleSide}),{strength:.0035,base:-.3});
- const palms=new T.InstancedMesh(palmGeometry(),palmMat,palmCount),o=new T.Object3D();
+ // Realistic oil palms; frond and leaflet counts follow the quality tier.
+ const palms=new T.InstancedMesh(oilPalm({fronds:Math.round(14+12*tier.detail),leaflets:Math.round(9+9*tier.detail),height:3.4,seed:9,bunches:2,boots:tier.detail>.6}),palmMaterial(.006),palmCount),o=new T.Object3D();palms.userData.info='palm';
  for(let i=0;i<palmCount;i++){const [x,z]=spots[i];o.position.set(x,-.29,z);o.rotation.set((rnd()-.5)*.06,rnd()*6.28,(rnd()-.5)*.06);o.scale.setScalar(.85+rnd()*.45);o.updateMatrix();palms.setMatrixAt(i,o.matrix)}
  palms.castShadow=tier.shadows&&q>.6;palms.receiveShadow=true;scene.add(palms);
  // Grass tufts around the yard.

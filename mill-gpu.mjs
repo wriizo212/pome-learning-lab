@@ -1,13 +1,14 @@
-import {populate} from './process/crew.mjs?v=shift7';
-import {explore} from './process/explore.mjs?v=shift7';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift7';
-import {legend} from './process/molecules.mjs?v=shift7';
-import {arcadeScenery,arcadeExtras} from './process/arcade-scenery.mjs?v=shift7';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift7';
-import {windify,texture,concrete as concreteCanvas,grass} from './process/life.mjs?v=shift7';
-import {addWaves} from './process/molecules.mjs?v=shift7';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift7';
-import {frameBudget} from './process/frame-budget.mjs?v=shift7';
+import {populate} from './process/crew.mjs?v=shift8';
+import {explore} from './process/explore.mjs?v=shift8';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift8';
+import {legend} from './process/molecules.mjs?v=shift8';
+import {arcadeScenery,arcadeExtras} from './process/arcade-scenery.mjs?v=shift8';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift8';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal} from './process/life.mjs?v=shift8';
+import {arcadePlay} from './process/play.mjs?v=shift8';
+import {addWaves} from './process/molecules.mjs?v=shift8';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift8';
+import {frameBudget} from './process/frame-budget.mjs?v=shift8';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];
@@ -67,7 +68,10 @@ export function mount(T, host, onPick) {
       line([point(0,0,0),point(.45,0,0),point(1,0,0)],.016,leaf);}
   }
   box(0,-.65,0,16,.65,12,soil);box(0,.009,1.25,15,.024,.86,gravel);box(-5.7,.009,-1,.8,.026,5.4,gravel);
-  for(let i=0;i<13;i++)palm(-7+i*1.16,-5.1+random()*.45,1.7+random()*.8);
+  // Realistic oil palms along the back of the board (instanced, sway in the wind).
+  const palmRow=new T.InstancedMesh(oilPalm({fronds:30,leaflets:22,height:2.3,seed:5,bunches:3}),palmMaterial(.022),13),pr=new T.Object3D();
+  for(let i=0;i<13;i++){pr.position.set(-7+i*1.16,0,-5.1+random()*.45);pr.rotation.set((random()-.5)*.05,random()*6.28,(random()-.5)*.05);pr.scale.setScalar(.85+random()*.35);pr.updateMatrix();palmRow.setMatrixAt(i,pr.matrix)}
+  palmRow.castShadow=palmRow.receiveShadow=true;palmRow.userData.info='palm';scene.add(palmRow);
   function water(x,y,z,w,d,color){const geo=new T.PlaneGeometry(w,d,32,16);geo.rotateX(-Math.PI/2);const m=mesh(geo,solid(color,.22,.24),x,y,z);m.castShadow=false;waters.push(m);return m;}
   function basin(x,z,w,d,color){box(x,.02,z,w,.08,d,concrete);covers.add(water(x,.38,z,w-.14,d-.14,color));for(const s of [-1,1]){const wall=box(x,.09,z+s*d/2,w,.41,.09,concrete);if(s===1)covers.add(wall);box(x+s*w/2,.09,z,.09,.41,d,concrete);}}
   unit('intake',-4,.5,-.7);basin(-4,-.7,2,2,0x664d30);for(let i=0;i<12;i++)pipe([-4.85+i*.14,.53,-1.6],[-4.85+i*.14,.58,-1],.023,steel);
@@ -141,7 +145,7 @@ export function mount(T, host, onPick) {
   canvas.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,moved:0};canvas.setPointerCapture(e.pointerId);};
   canvas.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);drag.x=e.clientX;drag.y=e.clientY;if(visitor.isWalking())visitor.look(dx*.008,dy*.006);else orbit(dx*.008,dy*.006);};
   canvas.onpointercancel=()=>{drag=null;};
-  canvas.onpointerup=e=>{if(drag&&drag.moved<5){const rect=canvas.getBoundingClientRect();pick((e.clientX-rect.left)/rect.width,(e.clientY-rect.top)/rect.height);}drag=null;};
+  canvas.onpointerup=e=>{if(drag&&drag.moved<5&&document.pointerLockElement!==canvas){const rect=canvas.getBoundingClientRect(),u=(e.clientX-rect.left)/rect.width,v=(e.clientY-rect.top)/rect.height;if(!play.handleClick(u,v))pick(u,v);}drag=null;};
   canvas.onwheel=e=>{e.preventDefault();zoom(e.deltaY<0?.12:-.12);};
   canvas.onkeydown=e=>{const actions={ArrowLeft:()=>yaw-=.15,ArrowRight:()=>yaw+=.15,ArrowUp:()=>pitch=Math.min(1.33,pitch+.1),ArrowDown:()=>pitch=Math.max(.2,pitch-.1),'+':()=>zoom(.12),'=':()=>zoom(.12),'-':()=>zoom(-.12),Home:reset};if(actions[e.key]){e.preventDefault();actions[e.key]();}};
   const wrapper=document.createElement('div');wrapper.className='mill-gpu';wrapper.style.cssText='width:100%';
@@ -153,6 +157,10 @@ export function mount(T, host, onPick) {
   const flows=arcadeProcess(scene,{world,isCut:()=>cut,isPond:()=>pond.visible,isPolluted:()=>polluted,tier});
   const scenery=arcadeScenery(scene,{steel,brass,dark,concrete,teal,roof},{isPond:()=>pond.visible,isPolluted:()=>polluted});flows.hook(scenery.hook);
   const extras=arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier);
+  // Sky reflections on water, glass and steel; moving ripple normals on all water.
+  environment(renderer,scene,{intensity:.5,horizon:0xb0c3b6,sunDir:new T.Vector3(-8,12,5)});
+  const ripples=rippleNormal(256);ripples.repeat.set(4,4);
+  for(const m of waters){m.material.normalMap=ripples;m.material.normalScale=new T.Vector2(.35,.35);m.material.roughness=.08;m.material.metalness=.05;m.material.needsUpdate=true}
   // Water ripples run on the GPU (no per-frame CPU work).
   waters.forEach((m,i)=>addWaves(m.material,i===0?{spot:[-4.85,-.1,.6,1],calm:.2}:m.position.z>4?{amp:.7,calm:.2}:Math.abs(m.position.x-3)<.1?{calm:.5,rows:[-.91,-.35,.19]}:{calm:.3}));
   const flanges=[];for(const [a,b,r] of pipeSegs){const d=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],len=Math.hypot(...d);if(len<.45||r<.04)continue;const axis=Math.abs(d[1])>Math.abs(d[0])&&Math.abs(d[1])>Math.abs(d[2])?'y':Math.abs(d[0])>Math.abs(d[2])?'x':'z';for(const k of [.1,.9])flanges.push([a[0]+d[0]*k,a[1]+d[1]*k,a[2]+d[2]*k,r*1.45,axis])}
@@ -168,8 +176,10 @@ export function mount(T, host, onPick) {
   qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
   const key=legend(viewport,{open:false});molecules.onclick=()=>{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);key.hidden=!on};
   const orbit=(dx,dy)=>{yaw-=dx;pitch=Math.max(.2,Math.min(1.33,pitch+dy))};
-  function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const id=ray.intersectObjects([...Object.values(units),pond],true).find(hit=>hit.object.visible&&hit.object.userData.unit&&hit.object.parent.visible)?.object.userData.unit;if(id)onPick(id)}
+  function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const id=ray.intersectObjects([...Object.values(units),pond],true).find(hit=>hit.object.visible&&hit.object.userData.unit&&hit.object.parent.visible)?.object.userData.unit;if(id){onPick(id);play?.showInfo(id)}}
   const visitor=explore(wrapper,canvas,camera,world,orbit,pick,switchSection,delta=>zoom(-delta*.16),true);
+  const play=arcadePlay({scene,camera,canvas,viewport,wrapper,world,visitor,flows,isPond:()=>pond.visible,isPolluted:()=>polluted});
+  if(new URLSearchParams(location.search).has('debug'))window.__arcade={visitor,world,play,renderer,scene,camera};
   wrapper.querySelector('.hand-start').addEventListener('click',()=>window.stopCamera?.(true),true);
   window.addEventListener('pome-quiz-camera',()=>visitor.stop());
   let visible=false;const center=new T.Vector3(0,.5,0);
@@ -178,7 +188,7 @@ export function mount(T, host, onPick) {
     frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
-    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);extras.update(time);flows.update(time);
+    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);extras.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
     const walking=visitor.frame(dt);if(!walking){camera.position.set(radius*Math.cos(pitch)*Math.sin(yaw),.6+radius*Math.sin(pitch),radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(0,.5,0)}
