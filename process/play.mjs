@@ -1,5 +1,6 @@
 import * as T from './three.module.min.js';
-import {createSound} from './sound.mjs?v=shift10';
+import {createSound} from './sound.mjs?v=shift11';
+import {createLearning} from './learn.mjs?v=shift11';
 
 /*
  Interactive play layer shared by the Mill Arcade and the main UASB simulator: walk as a
@@ -62,11 +63,24 @@ const INFO={
  'shovel':['Shovel','Use it at the sludge drying area to turn the cake so it dries evenly.'],
  'extinguisher-item':['Fire extinguisher','Press F to spray. Point at the base of a fire and sweep.']
 };
+// Quick questions each crew member can ask ("Quiz me!").
+const QUIZ=[
+ [{q:'Which sign tells you the reactor is being overfed?',options:['Volatile fatty acids rise and gas production drops','More fish appear in the river','The flare gets brighter'],answer:0,why:'Too much feed makes acids faster than methanogens can use them, so pH falls and gas drops.'},
+  {q:'About how hot is raw POME when it leaves the mill?',options:['About 80 °C','About 25 °C','About 150 °C'],answer:0,why:'It comes from steam sterilisation and clarification, so it arrives hot — around 70–90 °C.'}],
+ [{q:'A high COD means…',options:['A lot of organic pollution is still in the water','The water is very clean','The pH is exactly neutral'],answer:0,why:'COD is the oxygen the pollution would use up — higher COD, dirtier water.'},
+  {q:'What do fish need in river water?',options:['Dissolved oxygen','Methane','Acetate'],answer:0,why:'Fish breathe dissolved oxygen; organic pollution lets bacteria use it up.'}],
+ [{q:'Roughly how much electricity does 1 m³ of biogas give?',options:['About 2 kWh','About 200 kWh','About 0.01 kWh'],answer:0,why:'With about 60 % methane, a gas engine makes roughly 1.8–2 kWh per cubic metre.'},
+  {q:'Why is H₂S removed before the gas engine?',options:['It forms acid that corrodes engine parts','It makes the engine stronger','It cools the gas'],answer:0,why:'Burning H₂S makes sulphur acids that eat metal parts.'}],
+ [{q:'What can dried sludge cake become after quality checks?',options:['Compost or soil conditioner','Drinking water','Car fuel'],answer:0,why:'Mixed with empty fruit bunches it composts into a soil conditioner for the plantation.'},
+  {q:'How does sludge dry on the drying bed?',options:['Water drains through sand and gravel and evaporates','It is boiled in a kettle','Fish drink the water'],answer:0,why:'The bed lets water drain to the underdrain while the sun evaporates the rest.'}],
+ [{q:'Methane can explode in air at about…',options:['5–15 %','50–60 %','0.1 %'],answer:0,why:'Between the lower and upper explosive limits (about 5–15 %), a spark can ignite it.'},
+  {q:'In a gas leak you should move…',options:['Upwind — check the windsock','Downwind','Into the digester'],answer:0,why:'Moving upwind keeps you out of the gas cloud.'}]
+];
 const VOICE=[{pitch:.92,rate:1},{pitch:1.35,rate:1.04},{pitch:.78,rate:.97},{pitch:1.22,rate:1.02},{pitch:1,rate:.95}];
 const JOBTALK={rake:'raking fibre off the screen so it does not choke the pumps',dump:'tipping the screenings into the skip',valve:'trimming the feed valve so the reactor is not overloaded',clipboard:'writing readings in the log',dip:'taking a water sample',test:'testing pH, DO and COD at the bench',tablet:'checking readings on my tablet',kneel:'servicing the engine — plugs and the gas filter',shovel:'shovelling dried sludge cake',tip:'tipping cake on the compost heap',detector:'sniffing the gas line for leaks',walk:'walking to my next job'};
 
 export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isPond=()=>false,isPolluted=()=>false},cfg){
- const sound=createSound();
+ const sound=createSound();let learn=null;
  Object.assign(INFO,cfg.info||{});
  const mat=(c,r=.5,m=.1,x={})=>new T.MeshStandardMaterial({color:c,roughness:r,metalness:m,...x});
  const quests=Object.fromEntries(Object.entries(cfg.quests).map(([k,q])=>[k,{...q,done:false,on:false}]));
@@ -87,12 +101,12 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
  viewport.append(hud);
  const $=s=>hud.querySelector(s),toast=$('.play-toast'),prompt=$('.play-prompt'),status=$('.play-status'),staminaBar=$('.play-stamina i'),heldEl=$('.play-held'),card=$('.play-card'),talkEl=$('.play-talk'),questEl=$('.play-quests'),tip=$('.play-tip'),cross=$('.play-cross'),actions=$('.play-actions');
  let toastTimer=0;function say(msg,ms=3200){toast.textContent=msg;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),ms)}
- function showCard(key,custom){const d=custom||INFO[key];if(!d)return false;card.querySelector('h4').textContent=d[0];card.querySelector('p').textContent=d[1];card.hidden=false;sound.fx.ui();return true}
+ function showCard(key,custom,found){const d=custom||INFO[key];if(!d)return false;if(found||key)learn?.discover(found||key,d[0],d[1]);card.querySelector('h4').textContent=d[0];card.querySelector('p').textContent=d[1];card.hidden=false;sound.fx.ui();return true}
  card.querySelector('.close').onclick=()=>{card.hidden=true;canvas.focus({preventScroll:true})};
  card.querySelector('.speak').onclick=()=>{if(!sound.enabled)setSound(true);sound.say(card.querySelector('h4').textContent+'. '+card.querySelector('p').textContent,{pitch:1,rate:1})};
  function renderQuests(){const list=Object.values(quests);const ol=questEl.querySelector('ol');ol.replaceChildren(...list.filter(q=>q.on||q.done).map(q=>{const li=document.createElement('li');li.className=q.done?'done':'';li.innerHTML=`<b></b><small></small>`;li.querySelector('b').textContent=q.title;li.querySelector('small').textContent=q.done?'Done':q.hint;return li}));
   questEl.querySelector('summary b').textContent=list.filter(q=>q.done).length+'/'+list.length;}
- function complete(id){const q=quests[id];if(!q||q.done)return;q.done=true;q.on=true;renderQuests();sound.fx.success();say('Job done: '+q.title+' ✓',4200)}
+ function complete(id){const q=quests[id];if(!q||q.done)return;q.done=true;q.on=true;renderQuests();sound.fx.success();say('Job done: '+q.title+' ✓ (+30 XP)',4200);learn?.award(30,'job');if(Object.values(quests).every(x=>x.done))learn?.badge('jobs')}
  for(const b of actions.querySelectorAll('button'))b.onclick=()=>key(b.dataset.k);
 
  /* ---------- controls bar: play and sound ---------- */
@@ -102,6 +116,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
  soundBtn.onclick=()=>setSound(!sound.enabled);
  bar.querySelector('.play-go').onclick=()=>{setSound(true);visitor.setMode('third');say('You are '+who()+'. Walk up to a worker and press E to talk.',5200)};
  const who=()=>{const r=world.roles[visitor.roleIndex()];return r.person+', '+r.name.toLowerCase()};
+ learn=createLearning({viewport,bar,sound,scene,camera,visitor,key:cfg.key,trail:cfg.trail,stages:cfg.stages,say});
  let held=null,sample=null,lastPrompt='',tick=0;
  visitor.on('mode',m=>{const walking=m!=='orbit';status.hidden=!walking;prompt.hidden=true;lastPrompt='';questEl.hidden=!walking;actions.hidden=!walking||!matchMedia('(pointer:coarse)').matches;cross.classList.toggle('show',m==='first');if(!walking)endTalk();else viewport.querySelector('.chem-legend')?.removeAttribute('open');renderQuests()});
  visitor.on('role-change',()=>{if(held)drop(true);endTalk()});
@@ -134,9 +149,10 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
  function npcSay(i,text,done){const a=world.roles[i].actor;sound.say(text,{...VOICE[i%VOICE.length],voice:i,onstart:()=>a.talk(true),onend:()=>{a.talk(false);done?.()}})}
  function openTalk(i){if(talking!==null)endTalk();talking=i;world.hold(i,'talk');const a=world.roles[i].actor;visitor.faceTowards(a.g.position.x,a.g.position.z);
   talkEl.hidden=false;talkEl.querySelector('header b').textContent=world.roles[i].person+' · '+world.roles[i].name;talkEl.dataset.crew=i;node(i,'start');if(document.pointerLockElement===canvas)document.exitPointerLock()}
- function node(i,id){const tree=TREES[i];if(id==='end'){npcSay(i,['Take care!','See you around.','Stay safe out there.'][Math.floor(Math.random()*3)]);endTalk();return}
+ function node(i,id){const tree=TREES[i];if(id==='quizme'){const bank=QUIZ[i%QUIZ.length],item=bank[Math.floor(Math.random()*bank.length)],who=world.roles[i].person;endTalk();learn.quiz(item,{by:who+' asks you',reward:15});return}
+  if(id==='end'){npcSay(i,['Take care!','See you around.','Stay safe out there.'][Math.floor(Math.random()*3)]);endTalk();return}
   const n=tree[id];const text=typeof n==='function'?n():n;const line=talkEl.querySelector('.line');line.textContent='';let k=0;const typer=setInterval(()=>{line.textContent=text.slice(0,k+=2);if(k>=text.length)clearInterval(typer)},18);
-  npcSay(i,text);const choices=talkEl.querySelector('.choices');choices.replaceChildren(...tree.options().map(([label,next],j)=>{const b=document.createElement('button');b.innerHTML=`<kbd>${j+1}</kbd> `;b.append(label);b.onclick=()=>{sound.fx.click();node(i,next)};return b}));}
+  npcSay(i,text);const choices=talkEl.querySelector('.choices');choices.replaceChildren(...[...tree.options().slice(0,-1),['Quiz me!','quizme'],tree.options().at(-1)].map(([label,next],j)=>{const b=document.createElement('button');b.innerHTML=`<kbd>${j+1}</kbd> `;b.append(label);b.onclick=()=>{sound.fx.click();node(i,next)};return b}));}
  function endTalk(){if(talking===null)return;const i=talking;talking=null;setTimeout(()=>{world.hold(i,null);world.roles[i].actor.talk(false)},600);talkEl.hidden=true;canvas.focus({preventScroll:true})}
  talkEl.querySelector('.close').onclick=()=>{sound.hush();endTalk()};
 
@@ -180,6 +196,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
   if(cfg.gasQuest&&cfg.gasQuest(p))complete('gas')}
 
  function key(code){
+  if(learn?.handleKey(code))return;
   if(code.startsWith('Digit')&&talking!==null){const b=talkEl.querySelectorAll('.choices button')[Number(code.slice(5))-1];b?.click();return}
   if(code==='KeyE'){if(talking!==null){endTalk();return}const t=target();if(t)t.run();else if(held&&useLabel())use();return}
   if(code==='KeyF'){use();return}
@@ -199,7 +216,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
   const npcMeshes=[];world.roles.forEach(r=>{if(r.actor!==visitor.player)r.actor.g.traverse(o=>{if(o.isMesh&&o.visible)npcMeshes.push(o)})});
   const hits=ray.intersectObjects([...list,...npcMeshes],false).filter(h=>h.object.visible!==false&&(h.object.parent?.visible!==false));return hits[0]?.object}
  function infoFor(o){if(o.userData.npc!==undefined){const i=o.userData.npc,r=world.roles[i];return [r.person+' · '+r.name,`${cfg.roleInfo[i]} Right now: ${r.state.label.toLowerCase()}. Walk up and press E to talk.`]}return INFO[o.userData.info]}
- function handleClick(u,v){const o=hitAt(u,v);if(!o)return false;const d=infoFor(o);if(!d)return false;showCard(null,d);return true}
+ function handleClick(u,v){const o=hitAt(u,v);if(!o)return false;const d=infoFor(o);if(!d)return false;showCard(null,d,o.userData.npc!==undefined?'crew-'+o.userData.npc:o.userData.info);return true}
  let hoverT=0;
  canvas.addEventListener('pointermove',e=>{if(e.buttons||document.pointerLockElement===canvas)return;const now=performance.now();if(now-hoverT<120)return;hoverT=now;const r=canvas.getBoundingClientRect();
   const o=hitAt((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height,false),d=o&&infoFor(o);if(d){tip.textContent=d[0];tip.hidden=false;tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+12)+'px';canvas.style.cursor='help'}else{tip.hidden=true;canvas.style.cursor=''}});
@@ -215,6 +232,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
  flows.hook?.((C,t)=>{if(spray>0){const p=visitor.position,h=visitor.heading;for(let k=0;k<26;k++){const f=((t*3+k/26)%1),r=.25+f*1.6;C.put('steam',p.x-Math.sin(h)*r+(Math.sin(k*7.3)*.25*f),p.y+.64-f*.35+Math.sin(k)*.1*f,p.z-Math.cos(h)*r+(Math.cos(k*5.1)*.25*f),.04+.18*f,k)}}
   if(dig>0&&((dig*1.25)%1)<.3){const p=visitor.position,h=visitor.heading;for(let k=0;k<5;k++)C.put('floc',p.x-Math.sin(h)*(.9+k*.05),p.y+.14+.2*Math.sin(k),p.z-Math.cos(h)*(.9+k*.05),.035,k)}});
  function update(dt){
+  learn?.update(dt);
   const walking=visitor.isWalking();for(const a of amb)if(a.tag==='gas')a.on=!isPond();
   camera.getWorldDirection(fwd);sound.listen(camera.position.x,camera.position.z,-Math.atan2(fwd.x,-fwd.z),dt);
   spray=Math.max(0,spray-dt);dig=Math.max(0,dig-dt);if(valveTurning>0){valveTurning-=dt;world.turnValve(dt)}
@@ -285,6 +303,15 @@ function controlLog({isPond,isPolluted,t}){const pond=isPond(),dirty=isPolluted(
 export function arcadePlay(env){
  const {world}=env;
  return createPlay(env,{
+  key:'arcade',
+  trail:[
+   {at:[-4,.78],title:'Intake',fact:'Hot raw POME from the mill is screened here: fibre and shell come out, oil floats.',quiz:{q:'Why is raw POME screened before treatment?',options:['Fibre and shell would clog pumps and the digester','To make it hotter','To add oxygen'],answer:0,why:'Solids are removed early so the pumps and digester keep working.'}},
+   {at:[-.9,.42],title:'Covered digester',fact:'Microbes without oxygen turn organics into biogas — mostly methane and CO₂.',quiz:{q:'Which gas do methanogens mainly produce?',options:['Methane (CH₄)','Oxygen (O₂)','Nitrogen (N₂)'],answer:0,why:'Methanogens turn acetate into methane, the fuel in biogas.'}},
+   {at:[2.4,-1.83],title:'Gas engine house',fact:'Biogas burns in the engine to make electricity for the mill.',quiz:{q:'When methane burns in the engine it becomes…',options:['Carbon dioxide and water','Hydrogen sulphide','Ammonia'],answer:0,why:'CH₄ + 2O₂ → CO₂ + 2H₂O, releasing energy.'}},
+   {at:[2.6,1.2],title:'Polishing basin',fact:'Blowers bubble air through the water so bacteria can clean up what is left.',quiz:{q:'Why do the blowers push air into the basin?',options:['Bacteria need dissolved oxygen to break down the leftover organics','To cool the water down','To make more biogas'],answer:0,why:'Aerobic bacteria use oxygen to oxidise organics to CO₂ and water.'}},
+   {at:[5.2,3.4],title:'River outfall',fact:'Treated water joins the river here — the oil boom catches any sheen.',quiz:{q:'What happens to fish if poorly treated POME reaches the river?',options:['Oxygen drops and the fish die or leave','The fish grow faster','Nothing changes'],answer:0,why:'Bacteria feeding on the pollution use up the dissolved oxygen fish need.'}},
+   {at:[-2.6,1.45],title:'Sludge yard',fact:'Waste sludge dries on sand beds and is composted with empty fruit bunches.',quiz:{q:'How does the sludge cake dry?',options:['Water drains through sand and gravel and evaporates','It is boiled','Bacteria drink the water'],answer:0,why:'The underdrain removes water and the sun evaporates the rest.'}}],
+  stages:[{name:'Raw POME (intake)',at:[-4,-.7],cod:()=>50000},{name:'After the digester',at:[-.9,-1.65],cod:()=>env.isPond()?12000:7500},{name:'After polishing',at:[3,-.35],cod:()=>env.isPolluted()?340:120},{name:'River below outfall',at:[5.2,4.2],cod:()=>env.isPolluted()?140:18}],
   items:{bottle:{name:'Sample bottle',at:[5.3,.615,.62]},rake:{name:'Screen rake',at:[-2.95,.02,.58]},detector:{name:'Gas detector',at:[6.55,.43,1.72]},shovel:{name:'Shovel',at:[-.7,.02,3.5]},extinguisher:{name:'Fire extinguisher',at:[-.4,0,1.85]}},
   crates:[[6.55,0,1.72]],
   quests:{screen:{giver:0,title:'Clear the intake screen',hint:'Take the rake by the intake, stand at the screen and press F.'},
@@ -326,7 +353,19 @@ export function arcadePlay(env){
 export function reactorPlay(env){
  const {world}=env;
  const onPlatform=(x,z)=>Math.abs(x)<6.2&&Math.abs(z)<3.25;
+ const num=id=>Number(String(document.getElementById(id)?.value??document.getElementById(id)?.textContent??'').replace(/[^0-9.]/g,''))||0;
+ const codIn=()=>num('cod')||50000,codOut=()=>num('residual')||Math.round(codIn()*.05);
  return createPlay(env,{
+  key:'reactor',
+  trail:[
+   {at:[-4.6,2.3],title:'Inlet and bar screen',fact:'Raw POME pours in hot; the bar screen catches fibre and shell before the reactor.',quiz:{q:'Why is raw POME screened before treatment?',options:['Fibre and shell would clog pumps and the reactor','To make it hotter','To add oxygen'],answer:0,why:'Solids are removed early so the pumps and UASB keep working.'}},
+   {at:[-1.4,1.95],title:'UASB reactor',fact:'Feed rises through a blanket of microbial granules that turn organics into biogas.',quiz:{q:'What keeps the granules inside a UASB reactor?',options:['Hoods at the top separate gas, liquid and sludge','A fine sieve at the bottom','Freezing them'],answer:0,why:'The three-phase separator lets gas out and drops the granules back into the blanket.'}},
+   {at:[-2.4,-2.3],title:'Biogas engine',fact:'Biogas from the UASB dome is burnt to make electricity for the mill.',quiz:{q:'When methane burns in the engine it becomes…',options:['Carbon dioxide and water','Hydrogen sulphide','Ammonia'],answer:0,why:'CH₄ + 2O₂ → CO₂ + 2H₂O, releasing energy.'}},
+   {at:[1.6,2.2],title:'Aeration basin',fact:'Air from the blowers lets floc bacteria finish the clean-up and turn ammonium into nitrate.',quiz:{q:'Why do the blowers push air into the basin?',options:['Bacteria need dissolved oxygen to break down the leftover organics','To cool the water down','To make more biogas'],answer:0,why:'Aerobic bacteria use oxygen to oxidise organics to CO₂ and water.'}},
+   {at:[4.75,1.95],title:'Outlet chamber',fact:'Treated water is checked here before it is reused or discharged.',quiz:{q:'Which test shows how much oxygen the remaining pollution would use up?',options:['COD','Temperature','Colour'],answer:0,why:'Chemical oxygen demand measures the oxygen needed to oxidise what is left.'}},
+   {at:[4.8,-1.05],title:'Sludge drying bed',fact:'Excess sludge dries on sand and gravel; the cake is composted.',quiz:{q:'How does the sludge cake dry?',options:['Water drains through sand and gravel and evaporates','It is boiled','Bacteria drink the water'],answer:0,why:'The underdrain removes water and the sun evaporates the rest.'}},
+   {at:[8.45,.55],y:-.26,title:'Reuse water tank',fact:'Water that passes its tests is reused for washing and cooling.',quiz:{q:'Why reuse treated water at the mill?',options:['It saves river water and cuts discharge','It makes more biogas','It is required to cool the flare'],answer:0,why:'Every cubic metre reused is one less taken from, or sent to, the river.'}}],
+  stages:[{name:'Raw POME (inlet)',at:[-4.55,.9],cod:codIn},{name:'After UASB',at:[-1.4,0],cod:()=>Math.round(codIn()*.15)},{name:'After aeration',at:[1.8,.5],cod:()=>Math.round(codOut()*1.3)},{name:'Outlet',at:[4.75,.7],cod:codOut}],
   walk:{bounds:{x:10.2,z0:-4.35,z1:4.25},ground:(x,z)=>onPlatform(x,z)?.11:-.27,
    obstacles:[[-5.83,-3.26,-.13,1.94],[-2.91,.1,-1.55,1.55],[.32,3.3,-.83,1.87],[-1.57,.76,-2.9,-1.47],[2,4.44,-2.68,-1.22],[3.8,5.68,-.23,1.65],[5.34,6.16,1.5,1.98],
     [-9.95,-7.15,-1.1,.28],[6.4,8.7,-2.55,-.95],[7.55,9.35,.85,2.65],[6.4,7.9,2.75,3.45],[-7.45,-6.95,.6,1.3],[-6.1,-5.4,2.55,3.0],[.75,1.5,-3.2,-2.45]]},

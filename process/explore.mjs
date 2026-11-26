@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {gestures} from './visitor-hands.mjs?v=shift10';
+import {gestures} from './visitor-hands.mjs?v=shift11';
 
 /*
  Walk the plant as one of the workers. Orbit, first-person and third-person views;
@@ -43,7 +43,7 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
  canvas.addEventListener('keydown',e=>{if(picker.value==='orbit')return;const k=codeKey[e.code];
   if(k){keys.add(k);e.preventDefault();return}
   if(e.code==='Space'){if(!e.repeat)jumpQueued=true;e.preventDefault();return}
-  if(!e.repeat&&/^(KeyE|KeyF|KeyQ|KeyR|Digit[1-5])$/.test(e.code)){emit('key',e.code);e.preventDefault()}});
+  if(!e.repeat&&/^(KeyE|KeyF|KeyQ|KeyR|Digit[1-6])$/.test(e.code)){emit('key',e.code);e.preventDefault()}});
  window.addEventListener('keyup',e=>{const k=codeKey[e.code];if(k)keys.delete(k)});window.addEventListener('blur',()=>keys.clear());canvas.addEventListener('blur',()=>keys.clear());
  for(const b of pad.querySelectorAll('button')){const k=b.dataset.key;b.onpointerdown=e=>{b.setPointerCapture(e.pointerId);if(k==='jump')jumpQueued=true;else keys.add(k)};b.onlostpointercapture=()=>keys.delete(k);b.onpointerup=b.onpointercancel=()=>keys.delete(k)}
  function look(dx,dy){heading-=dx;tilt=T.MathUtils.clamp(tilt-dy,-1.08,1.08)}

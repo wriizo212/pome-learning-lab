@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift10';
-import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky} from './life.mjs?v=shift10';
+import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift11';
+import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky} from './life.mjs?v=shift11';
 
 /*
  Extra life for the Mill Arcade diorama: the mill that produces the POME, the hot feed
@@ -16,7 +16,7 @@ export function arcadeScenery(scene,{steel,brass,dark,concrete,teal,roof},{isPon
  function pipe(a,b,r,m,p){const s=new T.Vector3(...a),e=new T.Vector3(...b),d=e.clone().sub(s);const o=add(new T.CylinderGeometry(r,r,d.length(),12),m,...s.clone().lerp(e,.5).toArray(),p);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return o}
  const line=(pts,r,m,p)=>pts.slice(1).forEach((q,i)=>pipe(pts[i],q,r,m,p));
  function label(text,x,y,z,w,color='#e3ead9'){
-  const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');g.fillStyle='rgba(23,45,43,.92)';g.beginPath();g.roundRect(4,4,504,88,14);g.fill();
+  const c=document.createElement('canvas');c.width=1024;c.height=192;const g=c.getContext('2d');g.scale(2,2);g.fillStyle='rgba(23,45,43,.92)';g.beginPath();g.roundRect(4,4,504,88,14);g.fill();
   g.fillStyle=color;g.font='bold 44px Arial';g.textAlign='center';g.fillText(text,256,63);
   const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const s=new T.Sprite(new T.SpriteMaterial({map:tex,depthWrite:false}));s.position.set(x,y,z);s.scale.set(w,w*96/512,1);s.userData.info=text.toLowerCase();scene.add(s);return s;
  }

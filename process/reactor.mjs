@@ -1,16 +1,16 @@
-import {frameBudget} from './frame-budget.mjs?v=shift10';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift10';
-import {windify,concrete,texture,environment} from './life.mjs?v=shift10';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift10';
-import {hdZoom,hardware} from './hd.mjs?v=shift10';
-import {reactorPlay} from './play.mjs?v=shift10';
+import {frameBudget} from './frame-budget.mjs?v=shift11';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift11';
+import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift11';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift11';
+import {hdZoom,hardware} from './hd.mjs?v=shift11';
+import {reactorPlay} from './play.mjs?v=shift11';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift10';
-import {explore} from './explore.mjs?v=shift10';
-import {reactorProcess} from './reactor-flows.mjs?v=shift10';
-import {legend} from './molecules.mjs?v=shift10';
+import {populate} from './crew.mjs?v=shift11';
+import {explore} from './explore.mjs?v=shift11';
+import {reactorProcess} from './reactor-flows.mjs?v=shift11';
+import {legend} from './molecules.mjs?v=shift11';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -61,7 +61,7 @@ function build(){
  function run(points,r,mat){points.slice(1).forEach((p,i)=>pipe(points[i],p,r,mat))}
  function tank(x,z,w,d,h,liquid){box(x,.16,z,w,.32,d,cement);for(const s of [-1,1]){box(x+s*w/2,h/2,z,.1,h,d,cement);const wall=box(x,h/2,z+s*d/2,w,h,.1,cement);if(s===1)solids.push(wall)}solids.push(box(x,h-.13,z,w-.1,.07,d-.1,liquid));box(x,.34,z,w-.14,.1,d-.14,liquid)}
  function label(text,x,y,z,w){
-  const c=document.createElement('canvas');c.width=512;c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#172d2b';ctx.fillRect(0,0,512,96);ctx.fillStyle='#e3ead9';ctx.font='bold 45px Arial';ctx.textAlign='center';ctx.fillText(text,256,64);
+  const c=document.createElement('canvas');c.width=1024;c.height=192;const ctx=c.getContext('2d');ctx.scale(2,2);ctx.fillStyle='#172d2b';ctx.fillRect(0,0,512,96);ctx.fillStyle='#e3ead9';ctx.font='bold 45px Arial';ctx.textAlign='center';ctx.fillText(text,256,64);
   const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;
   const sprite=new T.Sprite(new T.SpriteMaterial({map:tex}));sprite.position.set(x,y,z);sprite.scale.set(w,w*96/512,1);sprite.userData.info=text.toLowerCase();group.add(sprite);
  }
@@ -110,6 +110,10 @@ function build(){
  const flows=reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut:()=>cut,tier});dynamic.push(flows.update);
  const scenery=reactorScenery(scene,{steel,brass,dark,cement,teal,tier});dynamic.push(scenery.update);
  environment(renderer,scene,{intensity:.45});
+ // Premium finish: normal-mapped relief, sharper texture filtering, contact shadows under equipment.
+ premiumSurfaces(scene,tier,renderer);
+ for(const [cx,cz,w,d] of [[-4.55,.9,2.9,2.4],[-1.4,0,3.6,3.6],[1.8,.5,3.3,3.0],[-.4,-2.18,2.6,1.6],[3.2,-1.95,2.7,1.7],[4.75,.7,2.1,2.1]])contactShadow(scene,cx,.094,cz,w,d,.38);
+ for(const [cx,cz,w,d] of [[-8.55,-.4,3.4,2],[7.55,-1.75,2.9,2.2],[8.45,1.75,2.4,2.4]])contactShadow(scene,cx,-.27,cz,w,d,.4);
  // Fine hardware that appears only when zoomed in: bolt rings, pipe flanges, name plates.
  const flanges=[];for(const [a,b,r] of pipeSegs){const d=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],len=Math.hypot(...d);if(len<.45||r<.04)continue;const axis=Math.abs(d[1])>Math.abs(d[0])&&Math.abs(d[1])>Math.abs(d[2])?'y':Math.abs(d[0])>Math.abs(d[2])?'x':'z';for(const k of [.08,.92])flanges.push([a[0]+d[0]*k,a[1]+d[1]*k,a[2]+d[2]*k,r*1.45,axis])}
  const details=hardware(scene,{

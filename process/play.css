@@ -38,3 +38,36 @@
 @media (min-width:560px){.play-talk .choices{grid-template-columns:1fr 1fr}}
 .play-talk .choices button{padding:5px 9px;margin:0;width:auto}
 .mill-gpu .fps-meter{margin-left:8px;color:#a9c0b6;font-size:12px}
+/* Learning layer */
+.learn-hud{position:absolute;inset:0;pointer-events:none;font:13px/1.4 system-ui,sans-serif;color:#eef6e6;z-index:3}
+.learn-hud [hidden]{display:none!important}.learn-hud button{pointer-events:auto}
+.learn-guide{position:absolute;top:52px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 14px 6px 10px;border-radius:999px;background:linear-gradient(135deg,#123a31ee,#0e2a25ee);border:1px solid #d9f58a;box-shadow:0 6px 18px #0008;font-weight:650;white-space:nowrap}
+.learn-guide .arrow{display:inline-block;color:#d9f58a;font-style:normal;font-size:18px;transition:transform .15s linear}
+.learn-level{position:absolute;left:12px;bottom:74px;min-width:170px;padding:6px 10px;border-radius:10px;background:#0f2622d9;border:1px solid #3f6458;display:grid;gap:3px}
+.learn-level b{color:#d9f58a}.learn-level small{color:#a9c0b6;font-size:11px}
+.learn-level .bar{display:block;height:6px;border-radius:4px;background:#2a463e;overflow:hidden}.learn-level .bar i{display:block;height:100%;background:linear-gradient(90deg,#f2c14e,#d9f58a);transition:width .4s}
+.learn-stages{position:absolute;left:10px;top:46px;margin:0;padding:7px 10px;list-style:none;width:min(250px,42%);border-radius:10px;background:#0f2622d9;border:1px solid #3f6458;display:grid;gap:4px}
+.learn-stages li{display:grid;grid-template-columns:1fr auto;gap:0 6px;font-size:11.5px;color:#cfe1d6;padding:2px 4px;border-radius:6px}
+.learn-stages li.on{background:#d9f58a22;outline:1px solid #d9f58a88}
+.learn-stages .n{font-weight:650}.learn-stages .v{color:#d9f58a;font-variant-numeric:tabular-nums}
+.learn-stages .b{grid-column:1/-1;height:4px;border-radius:3px;background:#2a463e;overflow:hidden}.learn-stages .b i{display:block;height:100%;background:linear-gradient(90deg,#7c5a33,#c49a4a)}
+.learn-stages li:nth-child(n+3) .b i{background:linear-gradient(90deg,#4f8a6a,#9fe3d6)}
+.learn-stages .note{color:#8fa79c;font-size:10.5px;font-style:italic;display:block}
+.learn-quiz,.learn-book{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92%);max-height:86%;overflow:auto;padding:14px 16px;border-radius:16px;background:linear-gradient(160deg,#f6f3e8,#ebe6d6);color:#1d2423;box-shadow:0 18px 50px #000b;pointer-events:auto}
+.learn-quiz .by{color:#5c6b66;font-weight:600}.learn-quiz h4{margin:4px 0 10px;font-size:16px}
+.learn-quiz .opts{display:grid;gap:6px}.learn-quiz .opts button{text-align:left;padding:8px 10px;border-radius:9px;border:1px solid #c9c3b0;background:#fff;color:#1d2423;cursor:pointer;font-size:13.5px}
+.learn-quiz .opts button:hover:not(:disabled){background:#e9f6c6}.learn-quiz .opts button[data-state=right]{background:#cdeec0;border-color:#5aa34a}.learn-quiz .opts button[data-state=wrong]{background:#f6d2c8;border-color:#c45a3a}
+.learn-quiz kbd{font:600 11px monospace;padding:1px 5px;border-radius:4px;background:#1f4d3f;color:#d9f58a}
+.learn-quiz .why{margin:10px 0 0;color:#2c3836}.learn-quiz .next{margin-top:10px;padding:8px 14px;border-radius:9px;border:0;background:#1f4d3f;color:#e9fbb8;font-weight:700;cursor:pointer}
+.learn-book header{display:flex;justify-content:space-between;align-items:center;margin:0;padding:0;border:0;max-width:none}.learn-book header b{font-size:16px}
+.learn-book .close{border:0;background:#1f4d3f;color:#fff;border-radius:50%;width:26px;height:26px;padding:0;cursor:pointer}
+.learn-book h5{margin:12px 0 4px;color:#1f4d3f}.learn-book ul{margin:0;padding-left:18px;display:grid;gap:4px}.learn-book li b{display:block}.learn-book li small{color:#4a5754}
+.learn-book .badges li{list-style:none;margin-left:-18px;opacity:.55}.learn-book .badges li.got{opacity:1}
+.learn-book .summary{color:#3a4744;font-weight:600}.learn-book .reset{margin-top:12px;padding:6px 10px;border-radius:8px;border:1px solid #b9b2a0;background:#fff;color:#7a3a2a;cursor:pointer}
+.play-bar .learn-trail-btn{font-weight:650}
+/* Premium finish: soft vignette and a gentle fade-in of the 3D view. */
+.reactor-frame::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 58%,rgba(6,16,14,.32) 100%);z-index:1}
+.reactor-frame canvas{animation:pome-fade .9s ease-out}
+@keyframes pome-fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.reactor-frame canvas{animation:none}}
+@media (max-width:720px){.learn-stages{display:none!important}.learn-level{bottom:66px}}

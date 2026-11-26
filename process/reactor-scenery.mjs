@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift10';
+import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift11';
 
 /*
  Surroundings for the main UASB + aerobic simulator: ground, road and plantation,
@@ -18,7 +18,7 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  function pipe(a,b,r,m,p){const s=new T.Vector3(...a),e=new T.Vector3(...b),d=e.clone().sub(s);const o=add(new T.CylinderGeometry(r,r,d.length(),12),m,...s.clone().lerp(e,.5).toArray(),p);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return o}
  const run=(pts,r,m,p)=>pts.slice(1).forEach((q,i)=>pipe(pts[i],q,r,m,p));
  function plane(w,d,m,x,y,z,p=stat){const o=add(new T.PlaneGeometry(w,d),m,x,y,z,p,false);o.rotation.x=-Math.PI/2;return o}
- function label(text,x,y,z,w,color='#e3ead9'){const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');g.fillStyle='#172d2b';g.fillRect(0,0,512,96);g.fillStyle=color;g.font='bold 42px Arial';g.textAlign='center';g.fillText(text,256,62);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;const s=new T.Sprite(new T.SpriteMaterial({map:t}));s.position.set(x,y,z);s.scale.set(w,w*96/512,1);s.userData.info=text.toLowerCase();scene.add(s);return s}
+ function label(text,x,y,z,w,color='#e3ead9'){const c=document.createElement('canvas');c.width=1024;c.height=192;const g=c.getContext('2d');g.scale(2,2);g.fillStyle='#172d2b';g.fillRect(0,0,512,96);g.fillStyle=color;g.font='bold 42px Arial';g.textAlign='center';g.fillText(text,256,62);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;const s=new T.Sprite(new T.SpriteMaterial({map:t}));s.position.set(x,y,z);s.scale.set(w,w*96/512,1);s.userData.info=text.toLowerCase();scene.add(s);return s}
  function signPost(spec,x,z,face=0,h=.78){const t=sign(spec);const g=new T.Group();g.position.set(x,.09,z);g.rotation.y=face;scene.add(g);
   add(new T.CylinderGeometry(.022,.022,h,8),steel,0,h/2,0,g);const p=add(new T.PlaneGeometry(.56,.35),new T.MeshStandardMaterial({map:t,roughness:.6}),0,h,.026,g);p.castShadow=false;p.userData.info=spec.title.toLowerCase();add(new T.BoxGeometry(.58,.37,.02),dark,0,h,.012,g);return g}
  const dynamic=[];

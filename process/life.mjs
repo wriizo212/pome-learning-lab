@@ -195,3 +195,38 @@ export function rippleNormal(size=256){
   const n=[-dx*.05,-dy*.05,1],l=Math.hypot(...n),i=(y*size+x)*4;img.data[i]=(n[0]/l*.5+.5)*255;img.data[i+1]=(n[1]/l*.5+.5)*255;img.data[i+2]=(n[2]/l*.5+.5)*255;img.data[i+3]=255}
  g.putImageData(img,0,0);const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;return t;
 }
+
+/*
+ Premium surfaces: turn every bump-mapped material into a normal-mapped one (crisper relief,
+ cheaper than bump mapping on the GPU). Normal maps are derived once from the existing
+ procedural textures with a Sobel filter and cached. Lite tier drops relief entirely.
+*/
+const normalCache=new Map();
+export function normalFromImage(img,strength=2.2,max=512){
+ const w=Math.min(max,img.width||max),h=Math.min(max,img.height||max),c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.drawImage(img,0,0,w,h);
+ const src=g.getImageData(0,0,w,h).data,out=g.createImageData(w,h),L=new Float32Array(w*h);
+ for(let i=0;i<w*h;i++)L[i]=(src[i*4]*.3+src[i*4+1]*.59+src[i*4+2]*.11)/255;
+ const at=(x,y)=>L[((y+h)%h)*w+((x+w)%w)];
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const dx=(at(x+1,y-1)+2*at(x+1,y)+at(x+1,y+1))-(at(x-1,y-1)+2*at(x-1,y)+at(x-1,y+1)),dy=(at(x-1,y+1)+2*at(x,y+1)+at(x+1,y+1))-(at(x-1,y-1)+2*at(x,y-1)+at(x+1,y-1));
+  let nx=-dx*strength,ny=-dy*strength,nz=1;const l=Math.hypot(nx,ny,nz);const i=(y*w+x)*4;out.data[i]=(nx/l*.5+.5)*255;out.data[i+1]=(ny/l*.5+.5)*255;out.data[i+2]=(nz/l*.5+.5)*255;out.data[i+3]=255}
+ g.putImageData(out,0,0);const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;return t;
+}
+export function premiumSurfaces(scene,tier,renderer){
+ const aniso=Math.min(tier.detail>=.9?16:8,renderer?.capabilities.getMaxAnisotropy?.()||8);
+ scene.traverse(o=>{const list=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
+  for(const m of list){
+   if(m.map&&m.map.anisotropy<aniso){m.map.anisotropy=aniso;m.map.needsUpdate=true}
+   if(!m.bumpMap)continue;
+   if(tier.detail<.5){m.bumpMap=null;m.needsUpdate=true;continue}
+   const src=m.bumpMap;let n=normalCache.get(src.uuid);
+   if(!n&&src.image){n=normalFromImage(src.image,2.2,tier.detail>=.9?512:256);normalCache.set(src.uuid,n)}
+   if(!n)continue;const nm=n.clone();nm.repeat.copy(src.repeat);nm.offset.copy(src.offset);nm.needsUpdate=true;
+   m.normalMap=nm;const s=Math.min(1.4,Math.max(.25,(m.bumpScale||.02)*28));m.normalScale=new T.Vector2(s,s);m.bumpMap=null;m.needsUpdate=true}});
+}
+// Soft ambient-occlusion pad under heavy equipment so it sits on the ground.
+export function contactShadow(scene,x,y,z,w,d,opacity=.42){
+ blobTex||=new T.CanvasTexture(canvas(64,(g,s)=>{const gr=g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);gr.addColorStop(0,'rgba(0,0,0,1)');gr.addColorStop(.55,'rgba(0,0,0,.55)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,s,s)}));
+ const m=new T.Mesh(new T.PlaneGeometry(w,d),new T.MeshBasicMaterial({map:blobTex,transparent:true,opacity,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3}));
+ m.rotation.x=-Math.PI/2;m.position.set(x,y,z);m.renderOrder=1;scene.add(m);return m;
+}

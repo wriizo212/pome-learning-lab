@@ -1,14 +1,14 @@
-import {populate} from './process/crew.mjs?v=shift10';
-import {explore} from './process/explore.mjs?v=shift10';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift10';
-import {legend} from './process/molecules.mjs?v=shift10';
-import {arcadeScenery,arcadeExtras,arcadeDetails} from './process/arcade-scenery.mjs?v=shift10';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift10';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal} from './process/life.mjs?v=shift10';
-import {arcadePlay} from './process/play.mjs?v=shift10';
-import {addWaves} from './process/molecules.mjs?v=shift10';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift10';
-import {frameBudget} from './process/frame-budget.mjs?v=shift10';
+import {populate} from './process/crew.mjs?v=shift11';
+import {explore} from './process/explore.mjs?v=shift11';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift11';
+import {legend} from './process/molecules.mjs?v=shift11';
+import {arcadeScenery,arcadeExtras,arcadeDetails} from './process/arcade-scenery.mjs?v=shift11';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift11';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift11';
+import {arcadePlay} from './process/play.mjs?v=shift11';
+import {addWaves} from './process/molecules.mjs?v=shift11';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift11';
+import {frameBudget} from './process/frame-budget.mjs?v=shift11';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];
@@ -160,6 +160,9 @@ export function mount(T, host, onPick) {
   const siteDetail=arcadeDetails(scene,{steel,dark,concrete},tier,{isPolluted:()=>polluted});flows.hook(siteDetail.hook);
   // Sky reflections on water, glass and steel; moving ripple normals on all water.
   environment(renderer,scene,{intensity:.5,horizon:0xb0c3b6,sunDir:new T.Vector3(-8,12,5)});
+  // Premium finish: normal-mapped relief, sharper filtering, contact shadows under equipment.
+  premiumSurfaces(scene,tier,renderer);
+  for(const [cx,cz,w,d] of [[-4,-.7,2.6,2.6],[-.9,-1.65,3.6,3.6],[3.1,-3.1,3,2.3],[3,-.35,3.6,2.7],[-2.6,2.55,4.1,2],[-6.7,-2.6,2.2,2],[7,2.4,1.8,1.3],[6.95,-.55,1.5,1.3],[-7.2,.6,1.2,2.6]])contactShadow(scene,cx,.014,cz,w,d,.4);
   const ripples=rippleNormal(256);ripples.repeat.set(4,4);
   for(const m of waters){m.material.normalMap=ripples;m.material.normalScale=new T.Vector2(.35,.35);m.material.roughness=.08;m.material.metalness=.05;m.material.needsUpdate=true}
   // Water ripples run on the GPU (no per-frame CPU work).
