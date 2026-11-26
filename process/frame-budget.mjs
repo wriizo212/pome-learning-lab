@@ -4,7 +4,8 @@
  to a lighter quality tier. Shadows are static: call refreshShadows() after a change.
 */
 export function frameBudget(renderer,report,{cap=1.5,onStruggle}={}){
- let maxRatio=Math.min(devicePixelRatio,cap),ratio=Math.min(maxRatio,1),start=0,frames=0,fastWindows=0,slowWindows=0;
+ // Start sharp at the tier cap; never drop below FLOOR (a lighter tier is used instead).
+ const FLOOR=.8;let maxRatio=Math.min(devicePixelRatio,cap),ratio=Math.max(Math.min(maxRatio,FLOOR),maxRatio),start=0,frames=0,fastWindows=0,slowWindows=0;
  renderer.setPixelRatio(ratio);
  renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
  return {
@@ -21,10 +22,10 @@ export function frameBudget(renderer,report,{cap=1.5,onStruggle}={}){
     const fps=frames*1000/(now-start);report?.(Math.round(fps));start=now;frames=0;
     fastWindows=fps>70?fastWindows+1:0;
     // Climb faster when there is clear headroom (zoomed-in HD on a strong GPU).
-    const next=fps<56?Math.max(.55,ratio*(fps<35?.75:.9)):fastWindows>=(fps>100?1:3)?Math.min(maxRatio,ratio+(fps>100?.2:.1)):ratio;
+    const next=fps<52?Math.max(Math.min(FLOOR,maxRatio),ratio*(fps<35?.8:.92)):fastWindows>=(fps>100?1:3)?Math.min(maxRatio,ratio+(fps>100?.2:.1)):ratio;
     if(next!==ratio){ratio=next;renderer.setPixelRatio(ratio);fastWindows=0}
-    slowWindows=fps<48&&ratio<=.6?slowWindows+1:0;
-    if(slowWindows>=3&&onStruggle){slowWindows=0;if(onStruggle()){ratio=Math.min(maxRatio,.8);renderer.setPixelRatio(ratio)}}
+    slowWindows=fps<50&&ratio<=Math.min(FLOOR,maxRatio)+.02?slowWindows+1:0;
+    if(slowWindows>=3&&onStruggle){slowWindows=0;if(onStruggle()){ratio=Math.min(maxRatio,Math.max(FLOOR,ratio));renderer.setPixelRatio(ratio)}}
    }
   }
  };

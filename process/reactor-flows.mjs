@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume,liquidClock} from './molecules.mjs?v=shift8';
+import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume,liquidClock} from './molecules.mjs?v=shift9';
 
 /*
  Molecular process layer for the UASB + aerobic cutaway (index.html simulator).
@@ -212,5 +212,7 @@ export function reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut
   }
   C.end();
  }
- return {update,chem:C,setHD(on){hd=on}};
+ // The player can rake the screen: everything stuck on it lifts off.
+ function clearScreen(){let n=0;for(const fb of fibres)if(fb.mode===1){fb.mode=2;fb.k=0;n++}return n}
+ return {update,chem:C,setHD(on){hd=on},clearScreen};
 }

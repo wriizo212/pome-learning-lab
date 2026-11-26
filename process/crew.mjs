@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift8';
+import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift9';
 
 // Each worker has a person behind the role (used for name tags and conversations).
 const PEOPLE=['Azlan','Mei Ling','Ravi','Siti','Farid'];
@@ -400,7 +400,7 @@ export function populate(scene, materials, arcade=false){
  for(const z of [-5.9,-6.48]){repeat(cube,steel,1.52,.53,z,.09,1.1,.09);repeat(cube,steel,4.18,.53,z,.09,1.1,.09);repeat(cube,brass,2.85,.71,z,2.83,.055,.065)}
  for(let k=0;k<5;k++)repeat(tube,steel,2.85,.84,-5.88-k*.145,.07,3.4,.07,0,0,Math.PI/2);
  // Background oil palms (instanced, sway in the wind).
- const backPalms=new T.InstancedMesh(oilPalm({fronds:20,leaflets:13,height:2.9,seed:31,bunches:2}),palmMaterial(.012),22),po=new T.Object3D();
+ const backPalms=new T.InstancedMesh(oilPalm({fronds:16,leaflets:9,height:2.9,seed:31,bunches:1,lod:1}),palmMaterial(.012),22),po=new T.Object3D();
  for(let i=0;i<22;i++){const x=-18+(i%11)*3.5,z=-11-Math.floor(i/11)*5-Math.sin(i*3)*1.3,h=2.8+.48*Math.sin(i*5.2);po.position.set(x,0,z);po.rotation.set(0,i*1.7,0);po.scale.setScalar(h/2.9);po.updateMatrix();backPalms.setMatrixAt(i,po.matrix)}
  backPalms.castShadow=true;backPalms.receiveShadow=true;backPalms.userData.info='palm';scene.add(backPalms);
  // Sampling bench with capped vials, a pH meter with a live display and a wash bottle.

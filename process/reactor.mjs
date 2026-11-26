@@ -1,15 +1,16 @@
-import {frameBudget} from './frame-budget.mjs?v=shift8';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift8';
-import {windify,concrete,texture,environment} from './life.mjs?v=shift8';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift8';
-import {hdZoom,hardware} from './hd.mjs?v=shift8';
+import {frameBudget} from './frame-budget.mjs?v=shift9';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift9';
+import {windify,concrete,texture,environment} from './life.mjs?v=shift9';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift9';
+import {hdZoom,hardware} from './hd.mjs?v=shift9';
+import {reactorPlay} from './play.mjs?v=shift9';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift8';
-import {explore} from './explore.mjs?v=shift8';
-import {reactorProcess} from './reactor-flows.mjs?v=shift8';
-import {legend} from './molecules.mjs?v=shift8';
+import {populate} from './crew.mjs?v=shift9';
+import {explore} from './explore.mjs?v=shift9';
+import {reactorProcess} from './reactor-flows.mjs?v=shift9';
+import {legend} from './molecules.mjs?v=shift9';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -62,7 +63,7 @@ function build(){
  function label(text,x,y,z,w){
   const c=document.createElement('canvas');c.width=512;c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#172d2b';ctx.fillRect(0,0,512,96);ctx.fillStyle='#e3ead9';ctx.font='bold 45px Arial';ctx.textAlign='center';ctx.fillText(text,256,64);
   const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;
-  const sprite=new T.Sprite(new T.SpriteMaterial({map:tex}));sprite.position.set(x,y,z);sprite.scale.set(w,w*96/512,1);group.add(sprite);
+  const sprite=new T.Sprite(new T.SpriteMaterial({map:tex}));sprite.position.set(x,y,z);sprite.scale.set(w,w*96/512,1);sprite.userData.info=text.toLowerCase();group.add(sprite);
  }
  // Pipe runs carry several glowing parcels tinted by what flows inside them.
  const parcels=[];
@@ -139,11 +140,15 @@ function build(){
  function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}
  const orbit=(dx,dy)=>{yaw-=dx;pitch=T.MathUtils.clamp(pitch+dy,.11,1.4)};
  const visitor=explore(view,canvas,camera,world,orbit,pick,()=>toggle.click(),zoom);
+ // Play as a worker: tools, talking crew, clickable labels, sound.
+ const play=reactorPlay({scene,camera,canvas,viewport:view.querySelector('.reactor-frame'),world,visitor,flows});
+ const UNIT_INFO=['inlet','uasb','aeration','biogas engine','drying bed','outlet'];
  updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'molecules':{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);view.querySelector('.chem-legend').hidden=!on;break}case 'section':budget.refreshShadows();cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
  solids.forEach(m=>m.visible=false);
  canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:0}};
  canvas.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);if(visitor.isWalking())visitor.look(dx*.009,dy*.007);else orbit(dx*.009,dy*.007);drag.x=e.clientX;drag.y=e.clientY};
- canvas.onpointercancel=()=>drag=null;canvas.onpointerup=e=>{if(drag&&drag.moved<6){const r=canvas.getBoundingClientRect();ray.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}drag=null};
+ canvas.onpointercancel=()=>drag=null;canvas.onpointerup=e=>{if(drag&&drag.moved<6&&document.pointerLockElement!==canvas){const r=canvas.getBoundingClientRect(),u=(e.clientX-r.left)/r.width,v=(e.clientY-r.top)/r.height;
+  if(!play.handleClick(u,v)){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit){const id=hit.object.parent.userData.id;if(visitor.isWalking())play.showInfo(UNIT_INFO[id]);else inspect(id)}}}drag=null};
  canvas.onwheel=e=>{e.preventDefault();zoom(Math.sign(e.deltaY)*.6)};
  canvas.onkeydown=e=>{const actions={ArrowLeft:()=>yaw-=.13,ArrowRight:()=>yaw+=.13,ArrowUp:()=>pitch=Math.min(1.4,pitch+.1),ArrowDown:()=>pitch=Math.max(.11,pitch-.1),'+':()=>zoom(-1),'-':()=>zoom(1),Home:home};if(actions[e.key]){e.preventDefault();actions[e.key]()}};
  function sync(){const active=document.querySelector('[data-option="1"]').classList.contains('active');if(!active)visitor.stop();view.hidden=!active;diagram.style.display=active?'none':''}
@@ -152,7 +157,7 @@ function build(){
  let w=0,h=0;
  const meter=document.createElement('small');meter.title='Rendered frames per second';view.querySelector('.reactor-controls').append(meter);
  const qualitySelect=view.querySelector('[data-quality]');qualitySelect.value=savedChoice();
- function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();
+ function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();
   scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
  const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'},{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
  qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
@@ -161,8 +166,8 @@ function build(){
  function frame(now){requestAnimationFrame(frame);const dt=Math.min(.07,(now-last)/1000);last=now;if(!vis||view.hidden||document.hidden){budget.idle();return}
  const width=canvas.clientWidth,height=canvas.clientHeight;if(!width||!height)return;if(w!==width||h!==height){w=width;h=height;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  budget.tick(now);if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);
- const walking=visitor.frame(dt);if(!walking){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}
+ const walking=visitor.frame(dt);play.update(dt);if(!walking){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}
  hd.update(walking?0:d,walking?camera.position:focus);renderer.render(scene,camera)}
  canvas.addEventListener('webglcontextlost',()=>{visitor.stop();view.remove();diagram.style.display='';panel.classList.add('reactor-fallback');vis=false});requestAnimationFrame(frame);
- if(new URLSearchParams(location.search).has('debug'))window.__pome={renderer,scene,camera,hd,flows,details,sun,budget,frame:()=>{dynamic.forEach(fn=>fn(t));renderer.render(scene,camera)},setT:v=>{t=v}};
+ if(new URLSearchParams(location.search).has('debug'))window.__pome={renderer,scene,camera,play,visitor,world,hd,flows,details,sun,budget,frame:()=>{dynamic.forEach(fn=>fn(t));renderer.render(scene,camera)},setT:v=>{t=v}};
 }

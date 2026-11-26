@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {gestures} from './visitor-hands.mjs?v=shift8';
+import {gestures} from './visitor-hands.mjs?v=shift9';
 
 /*
  Walk the plant as one of the workers. Orbit, first-person and third-person views;
@@ -21,14 +21,14 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
  let player=world.roles[0].actor,pos=player.g.position;
  const label=document.createElement('label');label.textContent='Play as ';const role=document.createElement('select');world.roles.forEach((r,i)=>role.add(new Option((r.person?r.person+' · ':'')+r.name,i)));label.append(role);picker.parentElement.after(label);
  const listeners={};const on=(name,fn)=>(listeners[name]||=[]).push(fn),emit=(name,...a)=>(listeners[name]||[]).forEach(fn=>fn(...a));
- role.onchange=()=>{emit('role-change',player);player.g.visible=true;player.g.position.y=.11;player=world.roles[Number(role.value)].actor;pos=player.g.position;heading=bodyYaw=player.g.rotation.y;setMode(picker.value==='orbit'?'third':picker.value)};
+ role.onchange=()=>{emit('role-change',player);player.g.visible=true;player.g.position.y=.11;baseY=.11;player=world.roles[Number(role.value)].actor;pos=player.g.position;heading=bodyYaw=player.g.rotation.y;setMode(picker.value==='orbit'?'third':picker.value)};
  let heading=0,bodyYaw=0,tilt=.03,forward=0,turn=0,vertical=0,walkTime=0,stridePhase=0,lastStep=0,jumpY=0,vy=0,grounded=true,landing=0,stamina=1,action=null,held=null,jumpQueued=false;
  const vel=new T.Vector2(),baseFov=camera.fov,camPos=new T.Vector3(),camReady={v:false};
- const obstacles=arcade?[[-7.6,-5.8,-3.4,-1.8],[.75,1.05,-3.75,-3.45],[4.9,5.1,-3.4,-3.2],[-5.98,-5.9,-2.25,-.05],[-2.53,.7,-3.25,.02],[.53,4.73,-1.63,.96],[1.59,4.57,-4.21,-2.04],[-4.54,-.67,1.67,3.44],[4.95,5.45,-.42,1.02],
+ let obstacles=arcade?[[-7.6,-5.8,-3.4,-1.8],[.75,1.05,-3.75,-3.45],[4.9,5.1,-3.4,-3.2],[-5.98,-5.9,-2.25,-.05],[-2.53,.7,-3.25,.02],[.53,4.73,-1.63,.96],[1.59,4.57,-4.21,-2.04],[-4.54,-.67,1.67,3.44],[4.95,5.45,-.42,1.02],
   [-7.62,-6.78,.05,2.1],[-7.65,-6.75,-1.95,-.7],[6.35,7.55,-1.05,-.05],[6.3,7.7,1.9,2.9],[4.62,5.08,-2.45,-2.15]]
   :[[-5.83,-3.26,-.13,1.94],[-2.91,.1,-1.55,1.55],[.32,3.3,-.83,1.87],[-1.57,.76,-2.9,-1.47],[2,4.44,-2.68,-1.22],[3.8,5.68,-.23,1.65]];
- let extraBlock=()=>false;
- function solid(x,z){return !(Math.abs(x)<(arcade?7.6:6.03)&&z>(arcade?-4.36:-3.02)&&z<(arcade?3.67:3.02))||obstacles.some(([a,b,c,d])=>x>a&&x<b&&z>c&&z<d)}
+ let extraBlock=()=>false,bounds=arcade?{x:7.6,z0:-4.36,z1:3.67}:{x:6.03,z0:-3.02,z1:3.02},ground=()=>.11,baseY=.11;
+ function solid(x,z){return !(Math.abs(x)<bounds.x&&z>bounds.z0&&z<bounds.z1)||obstacles.some(([a,b,c,d])=>x>a&&x<b&&z>c&&z<d)}
  function workerAt(x,z){return world.roles.some(r=>r.actor!==player&&Math.hypot(r.actor.g.position.x-x,r.actor.g.position.z-z)<.34)}
  function allowed(x,z){return !solid(x,z)&&!workerAt(x,z)&&!extraBlock(x,z)}
  function setMode(mode){
@@ -88,7 +88,9 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
   if(action){action.t+=dt;player.pose(walkTime,0,action.job,action.t,{carry});if(action.t>=action.dur){const done=action.done;action=null;done?.()}}
   else if(!grounded)player.pose(walkTime,0,'air',walkTime,{vy,carry});
   else player.pose(walkTime,moved>1e-4?Math.min(1,speed/1.5):0,'',walkTime,{phase:stridePhase,run,landing,carry,tool});
-  player.heading=bodyYaw;player.g.rotation.y=bodyYaw;pos.y=.11+jumpY;world.setPlayer?.(pos);
+  // Ground height can change (platform to yard); step smoothly between levels.
+  baseY+=(ground(pos.x,pos.z)-baseY)*(1-Math.exp(-dt*12));
+  player.heading=bodyYaw;player.g.rotation.y=bodyYaw;pos.y=baseY+jumpY;world.setPlayer?.(pos);
   // Camera: head-bob in first person, smooth over-the-shoulder follow in third person.
   const bob=grounded&&moved>1e-4?Math.sin(stridePhase*2)*(run?.03:.015):0;
   eye.copy(pos);eye.y+=.83+bob-landing*.06;direction.set(-Math.sin(heading)*Math.cos(tilt),Math.sin(tilt),-Math.cos(heading)*Math.cos(tilt));
@@ -104,7 +106,9 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
  return {frame,look,setMode,on,isWalking:()=>picker.value!=='orbit',mode:()=>picker.value,stop:()=>{stop();keys.clear()},
   get player(){return player},get position(){return pos},get heading(){return bodyYaw},get viewHeading(){return heading},get stamina(){return stamina},
   act(job,dur,done){if(action)return false;action={job,dur,t:0,done};vel.set(0,0);return true},busy:()=>!!action,
-  setHeld(name){held=name},get held(){return held},blockWith(fn){extraBlock=fn},controls,
+  setHeld(name){held=name},
+  // A scene can widen the walkable area, add obstacles and give the ground a height.
+  configure(o){if(o.bounds)bounds=o.bounds;if(o.obstacles)obstacles=o.obstacles;if(o.ground)ground=o.ground},get held(){return held},blockWith(fn){extraBlock=fn},controls,
   roleIndex:()=>Number(role.value),selectRole(i){role.value=String(i);role.onchange()},
   faceTowards(x,z){bodyYaw=Math.atan2(-(x-pos.x),-(z-pos.z));if(picker.value==='first')heading=bodyYaw}};
 }

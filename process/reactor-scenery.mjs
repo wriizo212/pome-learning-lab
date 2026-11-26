@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift8';
+import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift9';
 
 /*
  Surroundings for the main UASB + aerobic simulator: ground, road and plantation,
@@ -18,9 +18,9 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  function pipe(a,b,r,m,p){const s=new T.Vector3(...a),e=new T.Vector3(...b),d=e.clone().sub(s);const o=add(new T.CylinderGeometry(r,r,d.length(),12),m,...s.clone().lerp(e,.5).toArray(),p);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return o}
  const run=(pts,r,m,p)=>pts.slice(1).forEach((q,i)=>pipe(pts[i],q,r,m,p));
  function plane(w,d,m,x,y,z,p=stat){const o=add(new T.PlaneGeometry(w,d),m,x,y,z,p,false);o.rotation.x=-Math.PI/2;return o}
- function label(text,x,y,z,w,color='#e3ead9'){const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');g.fillStyle='#172d2b';g.fillRect(0,0,512,96);g.fillStyle=color;g.font='bold 42px Arial';g.textAlign='center';g.fillText(text,256,62);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;const s=new T.Sprite(new T.SpriteMaterial({map:t}));s.position.set(x,y,z);s.scale.set(w,w*96/512,1);scene.add(s);return s}
+ function label(text,x,y,z,w,color='#e3ead9'){const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');g.fillStyle='#172d2b';g.fillRect(0,0,512,96);g.fillStyle=color;g.font='bold 42px Arial';g.textAlign='center';g.fillText(text,256,62);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;const s=new T.Sprite(new T.SpriteMaterial({map:t}));s.position.set(x,y,z);s.scale.set(w,w*96/512,1);s.userData.info=text.toLowerCase();scene.add(s);return s}
  function signPost(spec,x,z,face=0,h=.78){const t=sign(spec);const g=new T.Group();g.position.set(x,.09,z);g.rotation.y=face;scene.add(g);
-  add(new T.CylinderGeometry(.022,.022,h,8),steel,0,h/2,0,g);const p=add(new T.PlaneGeometry(.56,.35),new T.MeshStandardMaterial({map:t,roughness:.6}),0,h,.026,g);p.castShadow=false;add(new T.BoxGeometry(.58,.37,.02),dark,0,h,.012,g);return g}
+  add(new T.CylinderGeometry(.022,.022,h,8),steel,0,h/2,0,g);const p=add(new T.PlaneGeometry(.56,.35),new T.MeshStandardMaterial({map:t,roughness:.6}),0,h,.026,g);p.castShadow=false;p.userData.info=spec.title.toLowerCase();add(new T.BoxGeometry(.58,.37,.02),dark,0,h,.012,g);return g}
  const dynamic=[];
 
  /* ---------- sky, ground, road ---------- */
@@ -55,9 +55,13 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  for(let gx=-46;gx<=46;gx+=4.6)for(let gz=-40;gz<=34;gz+=4.6){const x=gx+(rnd()-.5)*1.6+(Math.round(gz/4.6)%2)*2.3,z=gz+(rnd()-.5)*1.6;if(free(x,z)&&Math.hypot(x,z)<52)spots.push([x,z])}
  spots.sort(()=>rnd()-.5);const palmCount=Math.round(spots.length*Math.min(1,.25+.75*q));
  // Realistic oil palms; frond and leaflet counts follow the quality tier.
- const palms=new T.InstancedMesh(oilPalm({fronds:Math.round(14+12*tier.detail),leaflets:Math.round(9+9*tier.detail),height:3.4,seed:9,bunches:2,boots:tier.detail>.6}),palmMaterial(.006),palmCount),o=new T.Object3D();palms.userData.info='palm';
- for(let i=0;i<palmCount;i++){const [x,z]=spots[i];o.position.set(x,-.29,z);o.rotation.set((rnd()-.5)*.06,rnd()*6.28,(rnd()-.5)*.06);o.scale.setScalar(.85+rnd()*.45);o.updateMatrix();palms.setMatrixAt(i,o.matrix)}
- palms.castShadow=tier.shadows&&q>.6;palms.receiveShadow=true;scene.add(palms);
+ // Two levels of detail: fuller palms in the first rows, very light ones further out.
+ const nearSpots=[],farSpots=[];for(let i=0;i<palmCount;i++)(Math.hypot(spots[i][0],spots[i][1]*1.3)<20?nearSpots:farSpots).push(spots[i]);
+ const pm=palmMaterial(.006),o=new T.Object3D(),palmSets=[];
+ for(const [list,opts] of [[nearSpots,{fronds:Math.round(14+8*tier.detail),leaflets:Math.round(8+6*tier.detail),lod:1,boots:tier.detail>.6,bunches:2}],[farSpots,{fronds:10,leaflets:5,lod:2,boots:false,bunches:1}]]){
+  if(!list.length)continue;const m=new T.InstancedMesh(oilPalm({height:3.4,seed:9,...opts}),pm,list.length);m.userData.info='palm';
+  list.forEach(([x,z],i)=>{o.position.set(x,-.29,z);o.rotation.set((rnd()-.5)*.06,rnd()*6.28,(rnd()-.5)*.06);o.scale.setScalar(.85+rnd()*.45);o.updateMatrix();m.setMatrixAt(i,o.matrix)});
+  m.castShadow=false;m.receiveShadow=true;scene.add(m);palmSets.push(m)}
  // Grass tufts around the yard.
  const tuftGeo=new T.ConeGeometry(.035,.22,4,1,true);tuftGeo.translate(0,.11,0);
  const tuftMat=windify(new T.MeshStandardMaterial({color:0x6f8f45,roughness:.9,side:T.DoubleSide}),{strength:1.1,base:-.29});
@@ -123,7 +127,7 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  const green=mat(0x2c9c5a,.5,.3);const sh=new T.Group();sh.position.set(6.0,.09,-2.9);scene.add(sh);
  for(const dx of [-.22,.22])box(dx,0,0,.05,1.9,.05,green,sh);box(0,1.85,0,.5,.05,.05,green,sh);cyl(0,1.62,0,.1,.06,steel,sh,.05);box(0,.75,-.05,.26,.04,.2,green,sh);
  add(new T.PlaneGeometry(.36,.22),new T.MeshStandardMaterial({map:sign({title:'SAFETY SHOWER',band:'#2c9c5a',lines:['EYE WASH'],symbol:'+'})}),0,1.25,.03,sh,false);
- const red=mat(0xc8291f,.35,.3);for(const [x,z] of [[-2.85,-2.95],[5.95,2.9],[-6.0,2.0]]){cyl(x,.09,z,.07,.42,red);cyl(x,.51,z,.035,.06,dark);box(x,.09,z+.09,.14,.65,.02,mat(0xf4f1e6,.6))}
+ const red=mat(0xc8291f,.35,.3);for(const [x,z] of [[-2.85,-2.95],[5.95,2.9]]){cyl(x,.09,z,.07,.42,red);cyl(x,.51,z,.035,.06,dark);box(x,.09,z+.09,.14,.65,.02,mat(0xf4f1e6,.6))}
  // Windsock on a mast: points downwind and flutters.
  cyl(-6.0,.09,-3.0,.03,3.1,mat(0xdfe5e0,.4,.4));const sock=new T.Group();sock.position.set(-6.0,3.12,-3.0);scene.add(sock);
  const sockTex=new T.CanvasTexture((()=>{const c=document.createElement('canvas');c.width=128;c.height=32;const g=c.getContext('2d');for(let k=0;k<5;k++){g.fillStyle=k%2?'#f4f1e6':'#e8642c';g.fillRect(k*25.6,0,25.6,32)}return c})());
@@ -137,7 +141,7 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  const puffs=Array.from({length:Math.round(14*Math.max(.5,q))},(_,i)=>{const s=new T.Sprite(new T.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false}));s.userData.o=i/14;scene.add(s);return s});
 
  /* ---------- moving life: lorry, birds, butterflies ---------- */
- const lorry=new T.Group();scene.add(lorry);
+ const lorry=new T.Group();lorry.userData.info='lorry';scene.add(lorry);
  const cabPaint=mat(0x2f6fa6,.4,.4);box(1.35,.25,0,.95,.85,1.05,cabPaint,lorry);box(1.83,.6,0,.02,.36,.9,glass,lorry);box(-.55,.25,0,2.9,.12,1.1,dark,lorry);
  for(const s of [-1,1])box(-.55,.37,s*.53,2.9,.5,.04,mat(0x8c6a3b,.8),lorry);box(-1.98,.37,0,.04,.5,1.1,mat(0x8c6a3b,.8),lorry);
  const ffb=new T.InstancedMesh(new T.IcosahedronGeometry(.17,1),mat(0x6a1f15,.7),36);for(let k=0;k<36;k++){o.position.set(-1.8+(k%9)*.38,.62+Math.floor(k/18)*.18+(rnd()-.5)*.06,-.32+(Math.floor(k/9)%2)*.64);o.rotation.set(rnd()*3,rnd()*3,0);o.scale.setScalar(.9+rnd()*.3);o.updateMatrix();ffb.setMatrixAt(k,o.matrix)}ffb.castShadow=false;lorry.add(ffb);
@@ -148,6 +152,8 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  const flyMat=mat(0xf2b93a,.6,0,{side:T.DoubleSide});const wingGeo=new T.PlaneGeometry(.06,.05);wingGeo.translate(.03,0,0);
  const flies=Array.from({length:Math.round(5*Math.max(.4,q))},()=>{const g=new T.Group();const l=new T.Mesh(wingGeo,flyMat),r=new T.Mesh(wingGeo,flyMat);r.rotation.y=Math.PI;g.add(l,r);scene.add(g);return {g,l,r,cx:(rnd()-.5)*14,cz:4+rnd()*.3,ph:rnd()*9}});
 
+ // Steps down from the platform to the yard on both sides and at the front.
+ const stepMat=mat(0xb9b3a4,.85);for(const [x,z,ax] of [[-6.38,.7,'x'],[6.38,-.4,'x'],[-2.2,3.42,'z'],[2.6,3.42,'z']])for(let k=0;k<3;k++){const o2=(k+.5)*.12;const w=ax==='x'?.12:.9,d=ax==='x'?.9:.12;box(x+(ax==='x'?Math.sign(x)*(o2-.18):0),-.29,z+(ax==='z'?Math.sign(z)*(o2-.18):0),w,.38-k*.12,d,stepMat)}
  mergeStatic(stat);
  function update(t){
   wind.value=t;atmosphere.update(t);

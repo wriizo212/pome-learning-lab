@@ -132,18 +132,19 @@ export function sky(scene,{zenith=0x4d7f99,horizon=0xb7c9c0,ground=0x55624f,sunD
  and fresh fruit bunches (ripe orange-red and unripe black) tucked in the frond axils.
  One vertex-coloured geometry, meant for InstancedMesh + windify().
 */
-export function oilPalm({fronds=30,leaflets=22,height=2.6,trunkR=.19,seed=7,bunches=3,boots=true}={}){
+// lod: 0 = full detail, 1 = mid-distance, 2 = far (very light, for plantation rows).
+export function oilPalm({fronds=30,leaflets=22,height=2.6,trunkR=.19,seed=7,bunches=3,boots=true,lod=0}={}){
  let s=seed>>>0;const r=()=>((s=Math.imul(1664525,s)+1013904223>>>0)/4294967296);
  const pos=[],nor=[],col=[],c=new T.Color(),tmp=new T.Color();
  function push(geo,color,vary=0){const g=geo.index?geo.toNonIndexed():geo;g.computeVertexNormals();const p=g.attributes.position.array,n=g.attributes.normal.array;
   for(let i=0;i<p.length;i+=3){pos.push(p[i],p[i+1],p[i+2]);nor.push(n[i],n[i+1],n[i+2]);c.set(color);if(vary)c.offsetHSL(0,0,(r()-.5)*vary);col.push(c.r,c.g,c.b)}}
  function tri(list,color,vary=.06){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(list,3));push(g,color,vary)}
  // Trunk: slight taper and lean, rough with ring scars.
- const trunk=new T.CylinderGeometry(trunkR*.92,trunkR*1.12,height,12,12);trunk.translate(0,height/2,0);
+ const trunk=new T.CylinderGeometry(trunkR*.92,trunkR*1.12,height,lod>1?6:lod?8:12,lod>1?3:lod?6:12);trunk.translate(0,height/2,0);
  const tp=trunk.attributes.position;for(let i=0;i<tp.count;i++){const y=tp.getY(i),k=1+.07*Math.sin(y*22)+.05*(r()-.5);tp.setX(i,tp.getX(i)*k+.04*Math.sin(y*.9));tp.setZ(i,tp.getZ(i)*k)}
  push(trunk,0x5e5040,.12);
  // Leaf boots: the cut bases of old fronds spiral up the trunk (137.5° phyllotaxis).
- if(boots){const n=Math.round(height*15);for(let i=0;i<n;i++){const y=.35+i/n*(height-.45),a=i*2.39996,b=new T.CylinderGeometry(.018,.042,.17,5);b.rotateX(Math.PI/2);b.scale(1,.55,1);b.translate(0,0,.085);b.rotateX(-.75);b.rotateY(a);b.translate(Math.sin(a)*trunkR*.8+.04*Math.sin(y*.9),y,Math.cos(a)*trunkR*.8);push(b,i%3?0x6b5940:0x7c6a4c,.12)}
+ if(boots){const n=Math.round(height*(lod?7:15));for(let i=0;i<n;i++){const y=.35+i/n*(height-.45),a=i*2.39996,b=new T.CylinderGeometry(.018,.042,.17,5);b.rotateX(Math.PI/2);b.scale(1,.55,1);b.translate(0,0,.085);b.rotateX(-.75);b.rotateY(a);b.translate(Math.sin(a)*trunkR*.8+.04*Math.sin(y*.9),y,Math.cos(a)*trunkR*.8);push(b,i%3?0x6b5940:0x7c6a4c,.12)}
   for(let i=0;i<4;i++){const a=r()*6.28,y=.6+r()*(height-1),f=new T.ConeGeometry(.05,.13,5,1,true);f.rotateX(-1.1);f.rotateY(a);f.translate(Math.sin(a)*trunkR*1.15,y,Math.cos(a)*trunkR*1.15);push(f,0x5f8a37,.1)}}
  const top=height+.04;
  // Spear leaves: tightly folded young fronds pointing straight up.
@@ -153,7 +154,7 @@ export function oilPalm({fronds=30,leaflets=22,height=2.6,trunkR=.19,seed=7,bunc
   const age=j/(fronds-1),dead=age>.93&&r()<.7,a=j*2.39996+r()*.15;
   const ca=Math.cos(a),sa=Math.sin(a),side=[-sa,0,ca];
   const L=(1.75+.35*r())*(.75+.35*Math.min(1,age*1.6))*(height/2.6),phi0=1.15-1.15*age+.12,droop=.7+1.4*age+(dead?1.2:0);
-  const base=[ca*trunkR*.6,top-.22*age,sa*trunkR*.6],pts=[],dirs=[];let p=[...base],segs=14;
+  const base=[ca*trunkR*.6,top-.22*age,sa*trunkR*.6],pts=[],dirs=[];let p=[...base],segs=lod>1?6:lod?9:14;
   for(let k=0;k<=segs;k++){const t=k/segs,ph=phi0-droop*t*t,d=[Math.cos(ph)*ca,Math.sin(ph),Math.cos(ph)*sa];pts.push([...p]);dirs.push(d);p=[p[0]+d[0]*L/segs,p[1]+d[1]*L/segs,p[2]+d[2]*L/segs]}
   const green=dead?0x9a8a4c:age>.8?0x4e6f2d:age<.2?0x7aa543:0x5c8636;
   // Rachis (midrib) as a tapered ribbon.
@@ -172,7 +173,7 @@ export function oilPalm({fronds=30,leaflets=22,height=2.6,trunkR=.19,seed=7,bunc
  }
  // Fresh fruit bunches in the frond axils.
  for(let b=0;b<bunches;b++){const a=b*2.1+r(),ripe=b%2===0,cx=Math.cos(a)*trunkR*1.25,cz=Math.sin(a)*trunkR*1.25,cy=top-.32-r()*.12;
-  for(let k=0;k<22;k++){const u=r()*6.28,v=r()*3.14,rr=.085+.02*r(),fr=new T.IcosahedronGeometry(.027,1);fr.translate(cx+Math.sin(v)*Math.cos(u)*rr,cy+Math.cos(v)*rr*1.3,cz+Math.sin(v)*Math.sin(u)*rr);
+  for(let k=0;k<(lod>1?7:lod?12:22);k++){const u=r()*6.28,v=r()*3.14,rr=.085+.02*r(),fr=new T.IcosahedronGeometry(lod?.034:.027,lod?0:1);fr.translate(cx+Math.sin(v)*Math.cos(u)*rr,cy+Math.cos(v)*rr*1.3,cz+Math.sin(v)*Math.sin(u)*rr);
    push(fr,ripe?(k%3?0xc4461f:0xe0782c):(k%3?0x241513:0x3a1c16),.08)}}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('normal',new T.Float32BufferAttribute(nor,3));g.setAttribute('color',new T.Float32BufferAttribute(col,3));g.computeBoundingSphere();
  return g;

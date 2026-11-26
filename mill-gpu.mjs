@@ -1,14 +1,14 @@
-import {populate} from './process/crew.mjs?v=shift8';
-import {explore} from './process/explore.mjs?v=shift8';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift8';
-import {legend} from './process/molecules.mjs?v=shift8';
-import {arcadeScenery,arcadeExtras} from './process/arcade-scenery.mjs?v=shift8';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift8';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal} from './process/life.mjs?v=shift8';
-import {arcadePlay} from './process/play.mjs?v=shift8';
-import {addWaves} from './process/molecules.mjs?v=shift8';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift8';
-import {frameBudget} from './process/frame-budget.mjs?v=shift8';
+import {populate} from './process/crew.mjs?v=shift9';
+import {explore} from './process/explore.mjs?v=shift9';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift9';
+import {legend} from './process/molecules.mjs?v=shift9';
+import {arcadeScenery,arcadeExtras} from './process/arcade-scenery.mjs?v=shift9';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift9';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal} from './process/life.mjs?v=shift9';
+import {arcadePlay} from './process/play.mjs?v=shift9';
+import {addWaves} from './process/molecules.mjs?v=shift9';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift9';
+import {frameBudget} from './process/frame-budget.mjs?v=shift9';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];
@@ -170,7 +170,7 @@ export function mount(T, host, onPick) {
   const qualityLabel=document.createElement('label');qualityLabel.className='quality';qualityLabel.innerHTML='Quality <select aria-label="Rendering quality"><option value="auto">Auto</option><option value="high">High</option><option value="balanced">Balanced</option><option value="lite">Lite</option></select>';wrapper.append(qualityLabel);
   const qualitySelect=qualityLabel.querySelector('select');qualitySelect.value=savedChoice();
   const hdBadge=document.createElement('span');hdBadge.className='hd-badge';hdBadge.textContent='HD';hdBadge.hidden=true;viewport.append(hdBadge);
-  function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
+  function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
   const budget=frameBudget(renderer,null,{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
   const hd=hdZoom({budget,chem:flows.chem,sun,flows,details,getTier:()=>tier,near:9.5,far:11.5,onChange:on=>{hdBadge.hidden=!on}});
   qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
