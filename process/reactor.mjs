@@ -1,5 +1,7 @@
 import * as T from './three.module.min.js';
 
+import {populate} from './crew.mjs';
+import {explore} from './explore.mjs';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -25,6 +27,11 @@ function build(){
   const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');
   ctx.fillStyle=base;ctx.fillRect(0,0,256,256);
   for(let i=0;i<8500;i++){ctx.fillStyle=rand()>.48?'rgba(245,244,220,.13)':'rgba(37,29,21,.16)';ctx.fillRect(rand()*256,rand()*256,grain?1+rand()*22:1+rand()*3,grain?.65:1.6)}
+  if(grain){
+   for(let i=0;i<45;i++){const x=rand()*256,y=rand()*256;ctx.fillStyle='rgba(39,48,41,.17)';ctx.fillRect(x,y,rand()*9+.4,.7)}
+   ctx.fillStyle='rgba(40,43,39,.22)';ctx.fillRect(0,251,256,2);
+   for(const x of [8,120,246]){ctx.fillStyle='#515c56';ctx.fillRect(x,245,3,3);ctx.fillStyle='#d4dcd2';ctx.fillRect(x,245,2,1)}
+  }else{for(let k=0;k<20;k++){const px=rand()*256,py=rand()*256;const g=ctx.createRadialGradient(px,py,0,px,py,22);g.addColorStop(0,'rgba(58,50,30,.10)');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(px-22,py-22,44,44)}}
   const tex=new T.CanvasTexture(c);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(2,2);tex.colorSpace=T.SRGBColorSpace;
   return new T.MeshStandardMaterial({map:tex,bumpMap:tex,bumpScale:grain?.012:.04,metalness:metal,roughness:rough,side:T.DoubleSide});
  }
@@ -41,7 +48,7 @@ function build(){
  function cyl(x,y,z,r,h,mat,r2=r){return mesh(new T.CylinderGeometry(r,r2,h,48),mat,x,y,z)}
  function pipe(a,b,r,mat){const start=v(...a),end=v(...b),dir=end.clone().sub(start);const m=mesh(new T.CylinderGeometry(r,r,dir.length(),12),mat,...start.lerp(end,.5).toArray());m.quaternion.setFromUnitVectors(v(0,1,0),dir.normalize());return m}
  function run(points,r,mat){points.slice(1).forEach((p,i)=>pipe(points[i],p,r,mat))}
- function tank(x,z,w,d,h,liquid){box(x,.16,z,w,.32,d,cement);for(const s of [-1,1]){box(x+s*w/2,h/2,z,.1,h,d,cement);box(x,h/2,z+s*d/2,w,h,.1,cement)}box(x,h-.13,z,w-.1,.07,d-.1,liquid)}
+ function tank(x,z,w,d,h,liquid){box(x,.16,z,w,.32,d,cement);for(const s of [-1,1]){box(x+s*w/2,h/2,z,.1,h,d,cement);const wall=box(x,h/2,z+s*d/2,w,h,.1,cement);if(s===1)solids.push(wall)}solids.push(box(x,h-.13,z,w-.1,.07,d-.1,liquid));box(x,.34,z,w-.14,.1,d-.14,liquid)}
  function label(text,x,y,z,w){
   const c=document.createElement('canvas');c.width=512;c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#172d2b';ctx.fillRect(0,0,512,96);ctx.fillStyle='#e3ead9';ctx.font='bold 45px Arial';ctx.textAlign='center';ctx.fillText(text,256,64);
   const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;
@@ -69,37 +76,51 @@ function build(){
  for(const z of [-.42,.46,1.35]){pipe([.64,1.07,z],[2.95,1.07,z],.042,steel);for(let j=0;j<6;j++)cyl(.85+j*.36,1.04,z,.095,.055,dark)}
  for(const xx of [.51,3.09]){for(const z of [-.7,.5,1.7])pipe([xx,1.05,z],[xx,1.52,z],.027,brass);pipe([xx,1.51,-.7],[xx,1.51,1.7],.027,brass)}
  label('AERATION',1.8,2.12,.5,1.85);
- group=groups[3];box(-.4,.52,-2.18,1.86,.92,.94,dark);for(let j=0;j<13;j++)box(-1.19+j*.13,.58,-1.69,.057,.52,.045,steel);
+ group=groups[3];box(-.4,.14,-2.18,1.86,.18,.94,dark);box(-.4,.54,-2.63,1.86,.83,.07,shell);solids.push(box(-.4,.98,-2.18,1.86,.08,.94,shell),box(-.4,.55,-1.73,1.86,.82,.07,shell));for(let j=0;j<13;j++)solids.push(box(-1.19+j*.13,.58,-1.67,.057,.52,.045,steel));
+ const axle=pipe([-1.14,.48,-2.16],[.31,.48,-2.16],.08,steel);for(let j=0;j<4;j++){cyl(-1+j*.2,.55,-2.2,.105,.43,teal);cyl(-1+j*.2,.79,-2.2,.113,.06,steel)}
+ const rotor=cyl(.1,.5,-2.19,.25,.46,brass);rotor.rotation.z=Math.PI/2;for(let j=0;j<8;j++){const a=j*Math.PI/4;pipe([-.14,.50+Math.cos(a)*.24,-2.19+Math.sin(a)*.24],[.32,.50+Math.cos(a)*.24,-2.19+Math.sin(a)*.24],.024,dark)}
+ dynamic.push(t=>{rotor.rotation.x=t*2;axle.rotation.x=t*2});
  route([[x,4.16,0],[x,4.16,-1.55],[-.46,4.16,-1.55],[-.46,.96,-1.55],[-.46,.96,-2.18]],brass,.077);
  group=groups[4];tank(3.2,-1.95,2,1.03,.58,sludge);run([[2.95,.5,-.5],[3.1,.5,-.98],[3.1,.7,-1.95]],.07,dark);
- group=groups[5];cyl(4.75,.58,.7,.74,1,cement);cyl(4.75,1.1,.7,.66,.04,water);route([[3.16,.74,.5],[3.96,.74,.5],[3.96,1.18,.5],[4.49,1.18,.5]],teal,.095);
+ group=groups[5];mesh(new T.CylinderGeometry(.74,.74,1,60,1,true,start,arc),cement,4.75,.58,.7);solids.push(mesh(new T.CylinderGeometry(.74,.74,1,60,1,true,start+arc,2*Math.PI-arc),cement,4.75,.58,.7),cyl(4.75,1.1,.7,.66,.04,water));cyl(4.75,.22,.7,.69,.16,water);pipe([4.74,.39,.7],[4.74,.94,.7],.085,teal);for(let j=0;j<6;j++)cyl(4.74,.43+j*.074,.7,.12,.026,steel);route([[3.16,.74,.5],[3.96,.74,.5],[3.96,1.18,.5],[4.49,1.18,.5]],teal,.095);
  group=groups[0];route([[-3.44,.57,.91],[-2.82,.57,.91],[x,.57,.91],[x,.57,.48]],teal,.085);
  group=groups[1];route([[x+1.17,3.35,0],[.2,3.35,0],[.2,1.18,0],[.78,1.18,0]],teal,.105);
  const particles=new T.InstancedMesh(new T.SphereGeometry(1,8,5),foam,140);scene.add(particles);
  const drops=Array.from({length:140},(_,i)=>({rx:rand(),rz:rand(),phase:rand(),speed:.19+rand()*.15,reactor:i<54}));
- dynamic.push(t=>{drops.forEach((p,i)=>{const f=(p.phase+t*p.speed)%1;transform.position.set(p.reactor?x+(p.rx-.5)*1.38:.62+p.rx*2.35,p.reactor?1.08+f*1.5:.94+f*.27,p.reactor?.45+p.rz*.41:-.44+p.rz*1.9);transform.scale.setScalar(.017+.022*Math.sin(Math.PI*f));transform.updateMatrix();particles.setMatrixAt(i,transform.matrix)});particles.instanceMatrix.needsUpdate=true});
+ dynamic.push(t=>{drops.forEach((p,i)=>{const f=(p.phase+t*p.speed)%1;transform.position.set(p.reactor?x+(p.rx-.5)*1.38:.62+p.rx*2.35,p.reactor?1.08+f*1.5:(cut?.49:.94)+f*(cut?.62:.27),p.reactor?.45+p.rz*.41:-.44+p.rz*1.9);transform.scale.setScalar(.017+.022*Math.sin(Math.PI*f));transform.updateMatrix();particles.setMatrixAt(i,transform.matrix)});particles.instanceMatrix.needsUpdate=true});
+ group=groups[0];
+ for(let j=0;j<11;j++){const bar=box(-5.33+j*.153,.66,1.07,.043,.69,.045,steel);bar.rotation.x=-.32}
+ group=groups[2];for(let j=0;j<3;j++){const z=-.28+j*.68;pipe([.69,.47,z],[2.94,.47,z],.048,teal);for(let k=0;k<7;k++)cyl(.85+k*.31,.52,z,.073,.055,dark)}
+ group=groups[4];for(let j=0;j<3;j++)box(3.2,.24+j*.087,-1.95,1.9,.075,.96,[base,cement,sludge][j]);
+ pipe([2.32,.17,-1.64],[4.18,.17,-1.64],.051,teal);
+ group=scene;const world=populate(scene,{steel,brass,cement,dark,base});dynamic.push(world.animate);
+ const descriptions=['The inlet bars intercept coarse solids before liquid passes to the reactor.','Liquid rises through the granular sludge bed. The upper hoods separate biogas from the effluent.','The lower air header supplies diffusers across the basin floor. Bubbles show where air enters the liquid.','The gas line supplies an engine coupled to a generator shaft. The cutaway exposes the cylinder bank and generator.','The drying bed contains sludge above the filter layers. The underdrain collects drainage for further management.','The outlet chamber shows the draw-off pipe and strainer. Discharge depends on verified effluent quality.'];
+ const caption=view.querySelector('.reactor-caption');
  const targets=[[-4.55,.85,.9],[x,1.96,0],[1.8,.91,.5],[-.4,.7,-2.18],[3.2,.55,-1.95],[4.75,.76,.7]];
  let yaw=.18,pitch=.45,dist=14,goal=v(0,1.25,0),focus=goal.clone(),cut=true,paused=matchMedia('(prefers-reduced-motion:reduce)').matches,drag=null,vis=false,last=0,t=0;
  const ray=new T.Raycaster();
- function home(){select.value='';goal.set(0,1.25,0);dist=14;yaw=.18;pitch=.45}
- function inspect(i){if(i===''){home();return}select.value=String(i);goal.set(...targets[i]);dist=i===1?7.2:6;units[i].dispatchEvent(new Event('click'))}
+ function home(){visitor.setMode('orbit');caption.textContent='UASB section · aerobic basin';select.value='';goal.set(0,1.25,0);dist=14;yaw=.18;pitch=.45}
+ function inspect(i){if(i===''){home();return}visitor.setMode('orbit');select.value=String(i);caption.textContent=descriptions[i];goal.set(...targets[i]);dist=i===1?7.2:6;units[i].dispatchEvent(new Event('click'))}
  select.onchange=()=>inspect(select.value===''?'':Number(select.value));
  function zoom(delta){dist=T.MathUtils.clamp(dist+delta,3.4,24)}
  function updateMotion(){motion.textContent=paused?'Resume flow':'Pause flow'}
+ function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}
+ const orbit=(dx,dy)=>{yaw-=dx;pitch=T.MathUtils.clamp(pitch+dy,.11,1.4)};
+ const visitor=explore(view,canvas,camera,world.player,orbit,pick,()=>toggle.click(),zoom);
  updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'section':cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
  solids.forEach(m=>m.visible=false);
  canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:0}};
- canvas.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);yaw-=dx*.009;pitch=T.MathUtils.clamp(pitch+dy*.007,.11,1.4);drag.x=e.clientX;drag.y=e.clientY};
+ canvas.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);if(visitor.isWalking())visitor.look(dx*.009,dy*.007);else orbit(dx*.009,dy*.007);drag.x=e.clientX;drag.y=e.clientY};
  canvas.onpointercancel=()=>drag=null;canvas.onpointerup=e=>{if(drag&&drag.moved<6){const r=canvas.getBoundingClientRect();ray.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}drag=null};
  canvas.onwheel=e=>{e.preventDefault();zoom(Math.sign(e.deltaY)*.6)};
  canvas.onkeydown=e=>{const actions={ArrowLeft:()=>yaw-=.13,ArrowRight:()=>yaw+=.13,ArrowUp:()=>pitch=Math.min(1.4,pitch+.1),ArrowDown:()=>pitch=Math.max(.11,pitch-.1),'+':()=>zoom(-1),'-':()=>zoom(1),Home:home};if(actions[e.key]){e.preventDefault();actions[e.key]()}};
- function sync(){const active=document.querySelector('[data-option="1"]').classList.contains('active');view.hidden=!active;diagram.style.display=active?'none':''}
+ function sync(){const active=document.querySelector('[data-option="1"]').classList.contains('active');if(!active)visitor.stop();view.hidden=!active;diagram.style.display=active?'none':''}
  new MutationObserver(sync).observe(document.querySelector('[data-option="1"]'),{attributes:true,attributeFilter:['class']});sync();
- new IntersectionObserver(es=>{vis=es[0].isIntersecting}).observe(canvas);
+ new IntersectionObserver(es=>{vis=es[0].isIntersecting;if(!vis&&!view.getBoundingClientRect().height)visitor.stop()}).observe(canvas);
  let w=0,h=0;
  function frame(now){requestAnimationFrame(frame);const dt=Math.min(.07,(now-last)/1000);last=now;if(!vis||view.hidden||document.hidden)return;
  const width=canvas.clientWidth,height=canvas.clientHeight;if(!width||!height)return;if(w!==width||h!==height){w=width;h=height;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);
- camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus);renderer.render(scene,camera)}
- canvas.addEventListener('webglcontextlost',()=>{view.remove();diagram.style.display='';panel.classList.add('reactor-fallback');vis=false});requestAnimationFrame(frame);
+ if(!visitor.frame(dt)){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}renderer.render(scene,camera)}
+ canvas.addEventListener('webglcontextlost',()=>{visitor.stop();view.remove();diagram.style.display='';panel.classList.add('reactor-fallback');vis=false});requestAnimationFrame(frame);
 }
