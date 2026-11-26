@@ -1,27 +1,31 @@
-import {populate} from './process/crew.mjs?v=shift6';
-import {explore} from './process/explore.mjs?v=shift6';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift6';
-import {legend} from './process/molecules.mjs?v=shift6';
-import {arcadeScenery} from './process/arcade-scenery.mjs?v=shift6';
-import {frameBudget} from './process/frame-budget.mjs?v=shift6';
+import {populate} from './process/crew.mjs?v=shift7';
+import {explore} from './process/explore.mjs?v=shift7';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift7';
+import {legend} from './process/molecules.mjs?v=shift7';
+import {arcadeScenery,arcadeExtras} from './process/arcade-scenery.mjs?v=shift7';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift7';
+import {windify,texture,concrete as concreteCanvas,grass} from './process/life.mjs?v=shift7';
+import {addWaves} from './process/molecules.mjs?v=shift7';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift7';
+import {frameBudget} from './process/frame-budget.mjs?v=shift7';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
-  const renderer = new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+  let tierName=resolveTier(),tier=TIERS[tierName];
+  const renderer = new T.WebGLRenderer({antialias:tierName!=='lite',alpha:false,powerPreference:'high-performance'});
   const canvas = renderer.domElement;
-  const budget=frameBudget(renderer);
-  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.enabled=tier.shadows;
   renderer.shadowMap.type=T.PCFSoftShadowMap;
   renderer.toneMapping=T.ACESFilmicToneMapping;
   renderer.toneMappingExposure=1.12;
   canvas.tabIndex=0;
   canvas.setAttribute('aria-label','Interactive 3D treatment plant');
   canvas.style.cssText='display:block;width:100%;height:100%;touch-action:none;cursor:grab';
-  const scene=new T.Scene(), camera=new T.PerspectiveCamera(36,1,.1,150);
+  const scene=new T.Scene(), camera=new T.PerspectiveCamera(36,1,.1,190);
   scene.background=new T.Color(0x243833);
   scene.fog=new T.FogExp2(0x44574a,.021);
   scene.add(new T.HemisphereLight(0xddeeff,0x91856c,2.05));
   const sun=new T.DirectionalLight(0xffdda6,3.15);
-  sun.position.set(-8,12,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
+  sun.position.set(-8,12,5);sun.castShadow=true;sun.shadow.mapSize.set(tier.shadowSize,tier.shadowSize);
   Object.assign(sun.shadow.camera,{left:-11,right:11,top:12,bottom:-12,near:.2,far:38});
   sun.shadow.camera.updateProjectionMatrix();sun.shadow.normalBias=.018;scene.add(sun);
   const rim=new T.DirectionalLight(0xb4e8ec,1.2);rim.position.set(8,5,-7);scene.add(rim);
@@ -40,8 +44,9 @@ export function mount(T, host, onPick) {
   const steel=finish('#a4ada9',.35,.66,'metal'), dark=finish('#34463d',.54,.42,'panel'), concrete=finish('#a49e89',.88,.02,'stone'),
     soil=finish('#777d56',.96,0,'soil'),gravel=finish('#908574',.95,0,'soil'), roof=finish('#647b6a',.5,.4,'panel'),
     bark=finish('#78684a',.92,0,'soil'), compost=finish('#7d5c3b',.98,0,'soil');
+  {const ct=texture(concreteCanvas(tier.texture,{base:'#a49e89'}),{repeat:[2,2]});concrete.map=ct;concrete.bumpMap=ct;concrete.bumpScale=.02;const gt=texture(grass(tier.texture),{repeat:[10,8]});soil.map=gt;soil.bumpMap=gt;soil.color.set(0xd9dcc8);}
   const solid=(color,roughness=.52,metalness=.2)=>new T.MeshStandardMaterial({color,roughness,metalness});
-  const brass=solid(0xd8a24e), teal=solid(0x50857c), red=solid(0xb85035), leaf=solid(0x466938,.85,0);leaf.side=T.DoubleSide;
+  const brass=solid(0xd8a24e), teal=solid(0x50857c), red=solid(0xb85035), leaf=windify(solid(0x466938,.85,0),{strength:.02,base:1.1});leaf.side=T.DoubleSide;
   const units={}, targets={}, movers=[],waters=[],covers=new Set();let cut=false;
   let currentUnit='', parent=scene;
   function unit(id,x,y,z){currentUnit=id;parent=new T.Group();scene.add(parent);units[id]=parent;targets[id]=new T.Vector3(x,y,z);}
@@ -49,7 +54,8 @@ export function mount(T, host, onPick) {
   const boxGeo=new T.BoxGeometry(1,1,1);
   function box(x,y,z,w,h,d,mat){const m=mesh(boxGeo,mat,x,y+h/2,z);m.scale.set(w,h,d);return m;}
   function cyl(x,y,z,rt,rb,h,mat,n=36){return mesh(new T.CylinderGeometry(rt,rb,h,n),mat,x,y+h/2,z);}
-  function pipe(a,b,r,mat){const v=new T.Vector3(...a),d=new T.Vector3(...b).sub(v);const m=mesh(new T.CylinderGeometry(r,r,d.length(),10),mat,...v.addScaledVector(d,.5).toArray());m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return m;}
+  const pipeSegs=[];
+  function pipe(a,b,r,mat){pipeSegs.push([a,b,r]);const v=new T.Vector3(...a),d=new T.Vector3(...b).sub(v);const m=mesh(new T.CylinderGeometry(r,r,d.length(),10),mat,...v.addScaledVector(d,.5).toArray());m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return m;}
   function line(points,r,mat){points.slice(1).forEach((p,i)=>pipe(points[i],p,r,mat));}
   function ring(x,y,z,r,t,mat,horizontal=true){const m=mesh(new T.TorusGeometry(r,t,6,48),mat,x,y,z);if(horizontal)m.rotation.x=Math.PI/2;return m;}
   function palm(x,z,h){
@@ -141,29 +147,42 @@ export function mount(T, host, onPick) {
   const wrapper=document.createElement('div');wrapper.className='mill-gpu';wrapper.style.cssText='width:100%';
   const viewport=document.createElement('div');viewport.className='reactor-frame';viewport.style.cssText='height:clamp(360px,54vh,650px);position:relative';viewport.append(canvas);wrapper.append(viewport);
   const section=document.createElement('button');section.textContent='Cutaway';section.setAttribute('aria-pressed','false');wrapper.append(section);
-  const switchSection=()=>{cut=!cut;for(const m of covers)m.visible=!cut;section.setAttribute('aria-pressed',String(cut));renderer.shadowMap.needsUpdate=true};section.onclick=switchSection;
+  const switchSection=()=>{cut=!cut;for(const m of covers)m.visible=!cut;section.setAttribute('aria-pressed',String(cut));budget.refreshShadows()};section.onclick=switchSection;
   const world=populate(scene,{steel,brass,cement:concrete,dark,base:gravel},true);
   let polluted=false;
-  const flows=arcadeProcess(scene,{world,isCut:()=>cut,isPond:()=>pond.visible,isPolluted:()=>polluted});
+  const flows=arcadeProcess(scene,{world,isCut:()=>cut,isPond:()=>pond.visible,isPolluted:()=>polluted,tier});
   const scenery=arcadeScenery(scene,{steel,brass,dark,concrete,teal,roof},{isPond:()=>pond.visible,isPolluted:()=>polluted});flows.hook(scenery.hook);
+  const extras=arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier);
+  // Water ripples run on the GPU (no per-frame CPU work).
+  waters.forEach((m,i)=>addWaves(m.material,i===0?{spot:[-4.85,-.1,.6,1],calm:.2}:m.position.z>4?{amp:.7,calm:.2}:Math.abs(m.position.x-3)<.1?{calm:.5,rows:[-.91,-.35,.19]}:{calm:.3}));
+  const flanges=[];for(const [a,b,r] of pipeSegs){const d=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],len=Math.hypot(...d);if(len<.45||r<.04)continue;const axis=Math.abs(d[1])>Math.abs(d[0])&&Math.abs(d[1])>Math.abs(d[2])?'y':Math.abs(d[0])>Math.abs(d[2])?'x':'z';for(const k of [.1,.9])flanges.push([a[0]+d[0]*k,a[1]+d[1]*k,a[2]+d[2]*k,r*1.45,axis])}
+  const details=hardware(scene,{rings:[...[.28,.72,1.18,1.78].map(y=>({x:-.9,y,z:-1.65,r:1.41,n:60,a0:1.25,sweep:3.84})),{x:-.9,y:.18,z:-1.65,r:1.48,n:44,vertical:true,s:.016}],flanges,
+   plates:[{title:'D-101 DIGESTER',sub:'covered · 35 °C',at:[-.9,.1,-.11],w:.36},{title:'T-301 POLISHING',sub:'DO 2 mg/L',at:[4.555,.3,-.35],ry:Math.PI/2,w:.34},{title:'G-401 GENSET',sub:'biogas · 400 V',at:[4.37,.65,-3.1],ry:Math.PI/2,w:.3},{title:'T-001 INTAKE',sub:'POME 80 °C',at:[-5.055,.3,-.7],ry:-Math.PI/2,w:.3}]});
   const molecules=document.createElement('button');molecules.textContent='Molecules';molecules.setAttribute('aria-pressed','true');wrapper.append(molecules);
-  const key=legend(viewport);molecules.onclick=()=>{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);key.hidden=!on};
+  const qualityLabel=document.createElement('label');qualityLabel.className='quality';qualityLabel.innerHTML='Quality <select aria-label="Rendering quality"><option value="auto">Auto</option><option value="high">High</option><option value="balanced">Balanced</option><option value="lite">Lite</option></select>';wrapper.append(qualityLabel);
+  const qualitySelect=qualityLabel.querySelector('select');qualitySelect.value=savedChoice();
+  const hdBadge=document.createElement('span');hdBadge.className='hd-badge';hdBadge.textContent='HD';hdBadge.hidden=true;viewport.append(hdBadge);
+  function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
+  const budget=frameBudget(renderer,null,{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
+  const hd=hdZoom({budget,chem:flows.chem,sun,flows,details,getTier:()=>tier,near:9.5,far:11.5,onChange:on=>{hdBadge.hidden=!on}});
+  qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
+  const key=legend(viewport,{open:false});molecules.onclick=()=>{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);key.hidden=!on};
   const orbit=(dx,dy)=>{yaw-=dx;pitch=Math.max(.2,Math.min(1.33,pitch+dy))};
   function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const id=ray.intersectObjects([...Object.values(units),pond],true).find(hit=>hit.object.visible&&hit.object.userData.unit&&hit.object.parent.visible)?.object.userData.unit;if(id)onPick(id)}
   const visitor=explore(wrapper,canvas,camera,world,orbit,pick,switchSection,delta=>zoom(-delta*.16),true);
   wrapper.querySelector('.hand-start').addEventListener('click',()=>window.stopCamera?.(true),true);
   window.addEventListener('pome-quiz-camera',()=>visitor.stop());
-  let visible=false,lastWater=-1;
+  let visible=false;const center=new T.Vector3(0,.5,0);
   const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting});observer.observe(wrapper);
   function draw(now){
     frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
-    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);flows.update(time);
+    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);extras.update(time);flows.update(time);
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
-    if(!visitor.frame(dt)){camera.position.set(radius*Math.cos(pitch)*Math.sin(yaw),.6+radius*Math.sin(pitch),radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(0,.5,0)}
-    if(time-lastWater>=1/24){lastWater=time;for(const m of waters){const pos=m.geometry.attributes.position;for(let i=0;i<pos.count;i++){pos.setY(i,.014*Math.sin(pos.getX(i)*5+time*2)+.009*Math.cos(pos.getZ(i)*8+time));}pos.needsUpdate=true;m.geometry.computeVertexNormals();}}
+    const walking=visitor.frame(dt);if(!walking){camera.position.set(radius*Math.cos(pitch)*Math.sin(yaw),.6+radius*Math.sin(pitch),radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(0,.5,0)}
+    hd.update(walking?0:distance,walking?camera.position:center);
     marker.visible=Boolean(targets[stage]);if(marker.visible){marker.position.copy(targets[stage]);marker.position.y+=.53+Math.sin(time*2)*.045;}
     renderer.render(scene,camera);
   }

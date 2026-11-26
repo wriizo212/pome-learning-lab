@@ -52,21 +52,22 @@ function buildGeometries(){
  for(let i=0;i<6;i++){const [,x,y]=chain[i];const up=i%2?1:-1;chain.push(['H',x,y+up*.42,i%2?.62:-.62]);bonds.push([i,chain.length-1])}
  chain.push(['O',2.15+.25,1.3,0]);bonds.push([5,chain.length-1]);chain.push(['O',2.15+.8,.05,0]);bonds.push([5,chain.length-1]);
  G.cod=molecule(chain,bonds);
- G.oil=new T.SphereGeometry(1,14,10);
+ G.oil=new T.SphereGeometry(1,SEG[0]+4,SEG[1]+3);
  G.fibre=merged([0,1,2,3].map(k=>{const g=new T.CylinderGeometry(.16,.2,1.1,6);g.rotateZ(Math.PI/2+.35*Math.sin(k*2.1));g.translate(k*.95-1.4,.18*Math.sin(k*1.7),.1*Math.cos(k*2.3));return [g,k%2?0x8a6a3a:0x6e5430]}));
  const floc=[];for(let k=0;k<11;k++){const a=k*2.4,r=k?.55+.25*Math.sin(k*1.3):0,g=new T.SphereGeometry(.42+.12*Math.cos(k*1.9),9,6);g.translate(Math.cos(a)*r,Math.sin(k*1.1)*.4,Math.sin(a)*r);floc.push([g,k%3?0xb69c69:0x8f7848])}
  for(let k=0;k<6;k++){const g=new T.CapsuleGeometry(.08,.3,2,5);g.rotateZ(k);g.translate(Math.cos(k*1.7)*.7,Math.sin(k*2.2)*.5,Math.sin(k*1.7)*.7);floc.push([g,0x4b6b3c])}
  G.floc=merged(floc);
  const gran=[[new T.IcosahedronGeometry(1,1),0x2d2620]];for(let k=0;k<7;k++){const g=new T.SphereGeometry(.22,6,4);g.translate(Math.cos(k*.9)*.92,Math.sin(k*1.7)*.7,Math.sin(k*.9)*.92*Math.cos(k));gran.push([g,0x6b4a31])}
  G.granule=merged(gran);
- G.bubble=new T.SphereGeometry(1,14,10);G.steam=new T.SphereGeometry(1,8,6);G.parcel=new T.SphereGeometry(1,12,8);G.spark=new T.OctahedronGeometry(1,0);
+ G.bubble=new T.SphereGeometry(1,SEG[0]+4,SEG[1]+3);G.steam=new T.SphereGeometry(1,8,6);G.parcel=new T.SphereGeometry(1,12,8);G.spark=new T.OctahedronGeometry(1,0);
  return G;
 }
 
 const kits={};
 function kit(detail=1){
- const key=detail>=.9?'h':detail>=.6?'m':'l';if(kits[key])return kits[key];
- SEG=key==='h'?[8,6,5]:key==='m'?[7,5,4]:[6,4,4];HSEG=key==='l'?[4,3]:key==='m'?[5,3]:[6,4];
+ const key=detail>=1.5?'x':detail>=.9?'h':detail>=.6?'m':'l';if(kits[key])return kits[key];
+ // x = zoomed-in HD: smooth atoms and round bonds.
+ SEG={x:[13,9,7],h:[8,6,5],m:[7,5,4],l:[6,4,4]}[key];HSEG={x:[8,6],h:[6,4],m:[5,3],l:[4,3]}[key];
  const G=buildGeometries();
  const atoms=new T.MeshStandardMaterial({vertexColors:true,roughness:.32,metalness:.05});
  const M={
@@ -90,7 +91,9 @@ export function chemistry(scene,capacity={},enlarge=1.3,{density=1,detail=1}={})
  function stretch(kind,x,y,z,sx,sy,sz,ry=0){const p=pools[kind];if(!p||p.used>=p.n||!keep(p))return;o.position.set(x,y,z);o.rotation.set(0,ry,0);o.scale.set(sx,sy,sz);o.updateMatrix();p.mesh.setMatrixAt(p.used++,o.matrix)}
  function begin(){for(const p of Object.values(pools)){p.used=0;p.seq=0}}
  function end(){for(const p of Object.values(pools)){p.mesh.count=p.used;p.mesh.instanceMatrix.needsUpdate=true}}
- return {put,stretch,begin,end,root,pools,show(v){root.visible=v},setDensity(d){density=d}};
+ // Swap every pool to another detail level (used by zoom-in HD) without reallocating instances.
+ function setDetail(d){const next=kit(d);for(const [k,p] of Object.entries(pools))if(next.G[k])p.mesh.geometry=next.G[k]}
+ return {put,stretch,begin,end,root,pools,show(v){root.visible=v},setDensity(d){density=d},setDetail};
 }
 
 // Deterministic per-slot random tables.
@@ -100,19 +103,24 @@ export const smooth=x=>{x=clamp01(x);return x*x*(3-2*x)};
 export const band=(f,a,b)=>clamp01((f-a)/(b-a));
 export function lerpPath(pts,f,out){const n=pts.length-1,u=clamp01(f)*n,i=Math.min(n-1,Math.floor(u)),k=u-i;out[0]=pts[i][0]+(pts[i+1][0]-pts[i][0])*k;out[1]=pts[i][1]+(pts[i+1][1]-pts[i][1])*k;out[2]=pts[i][2]+(pts[i+1][2]-pts[i][2])*k;return out}
 
-// A wavy translucent liquid surface updated on the CPU at a modest rate.
 // Wavy translucent liquid surface. Waves and their normals are computed on the GPU.
 // calm: base agitation; rows: up to 3 z-lines of strong agitation (aeration diffusers); spot: [x,z,radius,strength].
 export const liquidClock={value:0};
 export function liquidSurface(parent,{x,y,z,w,d,r,color,opacity=.86,rough=.18,calm=0,rows=[],spot=[0,0,1,0]}){
  const geo=r?new T.CircleGeometry(r,48,0,Math.PI*2):new T.PlaneGeometry(w,d,Math.max(8,Math.round(w*16)),Math.max(6,Math.round(d*16)));geo.rotateX(-Math.PI/2);
  const mat=new T.MeshStandardMaterial({color,roughness:rough,metalness:.15,transparent:true,opacity,depthWrite:false,side:T.DoubleSide});
+ addWaves(mat,{calm,rows,spot});
+ const m=new T.Mesh(geo,mat);m.position.set(x,y,z);m.receiveShadow=true;m.renderOrder=2;parent.add(m);
+ return {mesh:m,mat,update(){}};
+}
+// GPU waves for any flat (XZ) water mesh; normals follow the waves.
+export function addWaves(mat,{calm=0,rows=[],spot=[0,0,1,0],amp=1}={}){
  const rowV=[0,1,2].map(i=>new T.Vector3(rows[i]??99,0,rows[i]===undefined?0:1));
  mat.onBeforeCompile=sh=>{
-  Object.assign(sh.uniforms,{uT:liquidClock,uCalm:{value:calm},uRows:{value:rowV},uSpot:{value:new T.Vector4(...spot)}});
-  sh.vertexShader=`uniform float uT;uniform float uCalm;uniform vec3 uRows[3];uniform vec4 uSpot;
+  Object.assign(sh.uniforms,{uT:liquidClock,uCalm:{value:calm},uRows:{value:rowV},uSpot:{value:new T.Vector4(...spot)},uAmp:{value:amp}});
+  sh.vertexShader=`uniform float uT;uniform float uCalm;uniform vec3 uRows[3];uniform vec4 uSpot;uniform float uAmp;
   float agit(vec2 p){float k=uCalm;for(int i=0;i<3;i++)k+=uRows[i].z*max(0.,1.-abs(p.y-uRows[i].x)*6.);k+=uSpot.w*max(0.,1.-distance(p,uSpot.xy)/uSpot.z);return k;}
-  float wave(vec2 p){float k=agit(p);return (.006+.02*k)*sin(p.x*9.+uT*2.1+p.y*3.)+(.004+.016*k)*cos(p.y*11.-uT*2.7)+.012*k*sin(p.x*23.+p.y*17.+uT*9.);}
+  float wave(vec2 p){float k=agit(p);return uAmp*((.006+.02*k)*sin(p.x*9.+uT*2.1+p.y*3.)+(.004+.016*k)*cos(p.y*11.-uT*2.7)+.012*k*sin(p.x*23.+p.y*17.+uT*9.));}
   `+sh.vertexShader.replace('#include <beginnormal_vertex>',`vec2 wp=(modelMatrix*vec4(position,1.)).xz;float h0=wave(wp);
   vec3 objectNormal=normalize(vec3(-(wave(wp+vec2(.01,0.))-h0)/.01,1.,-(wave(wp+vec2(0.,.01))-h0)/.01));
   #ifdef USE_TANGENT
@@ -120,8 +128,7 @@ export function liquidSurface(parent,{x,y,z,w,d,r,color,opacity=.86,rough=.18,ca
   #endif`).replace('#include <begin_vertex>','#include <begin_vertex>\n transformed.y+=h0;');
  };
  mat.customProgramCacheKey=()=>'liquid';
- const m=new T.Mesh(geo,mat);m.position.set(x,y,z);m.receiveShadow=true;m.renderOrder=2;parent.add(m);
- return {mesh:m,mat,update(){}};
+ return mat;
 }
 
 // Translucent liquid body that reveals the molecules inside a cut-away tank.
@@ -141,8 +148,8 @@ const LEGEND=[
  ['nh4','NH₄⁺ ammonium → NO₃⁻ nitrate','nitrified in the aeration basin',['N','H']],
  ['h2s','H₂S hydrogen sulphide','trace gas, corrosive and odorous',['S','H']]
 ];
-export function legend(frame){
- const box=document.createElement('details');box.className='chem-legend';box.open=matchMedia('(min-width:820px)').matches;
+export function legend(frame,{open}={}){
+ const box=document.createElement('details');box.className='chem-legend';box.open=open??matchMedia('(min-width:820px)').matches;
  const hex=n=>'#'+n.toString(16).padStart(6,'0');
  box.innerHTML='<summary>Molecule key</summary><ul>'+LEGEND.map(([,name,note,atoms])=>`<li><span class="atoms">${atoms.map(a=>`<i style="background:${hex(ATOM[a])}"></i>`).join('')}</span><b>${name}</b><small>${note}</small></li>`).join('')+
  '<li><span class="atoms"><i style="background:#f0c44c"></i></span><b>Oil and grease droplet</b></li><li><span class="atoms"><i style="background:#b69c69"></i><i style="background:#2d2620"></i></span><b>Biomass floc or sludge granule</b><small>microbes doing the treatment</small></li><li><span class="atoms"><i style="background:#8a6a3a;border-radius:2px;width:18px"></i></span><b>Fibre and shell (screenings)</b></li></ul>'+

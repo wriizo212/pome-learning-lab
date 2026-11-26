@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {blobShadow} from './life.mjs?v=shift6';
+import {blobShadow} from './life.mjs?v=shift7';
 
 /*
  Mill crew. Each worker follows a looping shift plan made of walking legs and jobs.

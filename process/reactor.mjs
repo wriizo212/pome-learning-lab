@@ -1,14 +1,15 @@
-import {frameBudget} from './frame-budget.mjs?v=shift6';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift6';
-import {windify,concrete,texture} from './life.mjs?v=shift6';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift6';
+import {frameBudget} from './frame-budget.mjs?v=shift7';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift7';
+import {windify,concrete,texture} from './life.mjs?v=shift7';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift7';
+import {hdZoom,hardware} from './hd.mjs?v=shift7';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift6';
-import {explore} from './explore.mjs?v=shift6';
-import {reactorProcess} from './reactor-flows.mjs?v=shift6';
-import {legend} from './molecules.mjs?v=shift6';
+import {populate} from './crew.mjs?v=shift7';
+import {explore} from './explore.mjs?v=shift7';
+import {reactorProcess} from './reactor-flows.mjs?v=shift7';
+import {legend} from './molecules.mjs?v=shift7';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -54,7 +55,8 @@ function build(){
  const cube=new T.BoxGeometry(1,1,1);
  function box(x,y,z,w,h,d,mat){const m=mesh(cube,mat,x,y,z);m.scale.set(w,h,d);return m}
  function cyl(x,y,z,r,h,mat,r2=r){return mesh(new T.CylinderGeometry(r,r2,h,48),mat,x,y,z)}
- function pipe(a,b,r,mat){const start=v(...a),end=v(...b),dir=end.clone().sub(start);const m=mesh(new T.CylinderGeometry(r,r,dir.length(),12),mat,...start.lerp(end,.5).toArray());m.quaternion.setFromUnitVectors(v(0,1,0),dir.normalize());return m}
+ const pipeSegs=[];
+ function pipe(a,b,r,mat){pipeSegs.push([a,b,r]);const start=v(...a),end=v(...b),dir=end.clone().sub(start);const m=mesh(new T.CylinderGeometry(r,r,dir.length(),12),mat,...start.lerp(end,.5).toArray());m.quaternion.setFromUnitVectors(v(0,1,0),dir.normalize());return m}
  function run(points,r,mat){points.slice(1).forEach((p,i)=>pipe(points[i],p,r,mat))}
  function tank(x,z,w,d,h,liquid){box(x,.16,z,w,.32,d,cement);for(const s of [-1,1]){box(x+s*w/2,h/2,z,.1,h,d,cement);const wall=box(x,h/2,z+s*d/2,w,h,.1,cement);if(s===1)solids.push(wall)}solids.push(box(x,h-.13,z,w-.1,.07,d-.1,liquid));box(x,.34,z,w-.14,.1,d-.14,liquid)}
  function label(text,x,y,z,w){
@@ -106,6 +108,12 @@ function build(){
  const world=populate(scene,{steel,brass,cement,dark,base,leaf});dynamic.push(world.animate);
  const flows=reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut:()=>cut,tier});dynamic.push(flows.update);
  const scenery=reactorScenery(scene,{steel,brass,dark,cement,teal,tier});dynamic.push(scenery.update);
+ // Fine hardware that appears only when zoomed in: bolt rings, pipe flanges, name plates.
+ const flanges=[];for(const [a,b,r] of pipeSegs){const d=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],len=Math.hypot(...d);if(len<.45||r<.04)continue;const axis=Math.abs(d[1])>Math.abs(d[0])&&Math.abs(d[1])>Math.abs(d[2])?'y':Math.abs(d[0])>Math.abs(d[2])?'x':'z';for(const k of [.08,.92])flanges.push([a[0]+d[0]*k,a[1]+d[1]*k,a[2]+d[2]*k,r*1.45,axis])}
+ const details=hardware(scene,{
+  rings:[...[.43,1.5,2.6,3.68].map(y=>({x,y,z:0,r:1.3,n:56,a0:start,sweep:arc})),{x,y:4.15,z:0,r:.42,n:16,vertical:true,s:.014},{x:4.75,y:1.09,z:.7,r:.75,n:26,a0:start,sweep:arc,vertical:true,s:.013},{x,y:.38,z:0,r:1.5,n:40,vertical:true,s:.018}],
+  flanges,
+  plates:[{title:'R-101 UASB',sub:'1,200 m³ · 35 °C',at:[-1.4,.3,1.535],w:.34},{title:'T-201 AERATION',sub:'DO 2 mg/L',at:[3.185,.62,.5],ry:Math.PI/2,w:.34},{title:'T-001 INLET',sub:'POME 80 °C',at:[-5.715,.62,.9],ry:-Math.PI/2,w:.34},{title:'G-401 GENSET',sub:'biogas · 400 V',at:[.36,.25,-1.7],w:.3},{title:'P-501 OUTLET',sub:'to reuse / drain',at:[5.5,.45,.7],ry:Math.PI/2,w:.3}]});
  stream(scenery.airMain,.055,0xe9f6ff);stream(scenery.reusePipe,.06,0x9fe3d6);stream([[5.38,.34,.7],[6.15,.34,.7]],.07,0x9fe3d6,2);
  const parcelMesh=new T.InstancedMesh(new T.SphereGeometry(1,10,7),new T.MeshStandardMaterial({color:0xffffff,emissive:0x444444,roughness:.3}),parcels.length);
  parcels.forEach((p,i)=>parcelMesh.setColorAt(i,p.tint));parcelMesh.castShadow=false;parcelMesh.frustumCulled=false;scene.add(parcelMesh);
@@ -146,11 +154,14 @@ function build(){
  function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();
   scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
  const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'},{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
- qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value))};applyTier(tierName);
+ qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
+ const hdBadge=document.createElement('span');hdBadge.className='hd-badge';hdBadge.textContent='HD';hdBadge.hidden=true;view.querySelector('.reactor-frame').append(hdBadge);
+ const hd=hdZoom({budget,chem:flows.chem,sun,flows,details,getTier:()=>tier,near:8.2,far:10.5,onChange:on=>{hdBadge.hidden=!on}});
  function frame(now){requestAnimationFrame(frame);const dt=Math.min(.07,(now-last)/1000);last=now;if(!vis||view.hidden||document.hidden){budget.idle();return}
  const width=canvas.clientWidth,height=canvas.clientHeight;if(!width||!height)return;if(w!==width||h!==height){w=width;h=height;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  budget.tick(now);if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);
- if(!visitor.frame(dt)){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}renderer.render(scene,camera)}
+ const walking=visitor.frame(dt);if(!walking){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}
+ hd.update(walking?0:d,walking?camera.position:focus);renderer.render(scene,camera)}
  canvas.addEventListener('webglcontextlost',()=>{visitor.stop();view.remove();diagram.style.display='';panel.classList.add('reactor-fallback');vis=false});requestAnimationFrame(frame);
- if(new URLSearchParams(location.search).has('debug'))window.__pome={renderer,scene,camera,frame:()=>{dynamic.forEach(fn=>fn(t));renderer.render(scene,camera)},setT:v=>{t=v}};
+ if(new URLSearchParams(location.search).has('debug'))window.__pome={renderer,scene,camera,hd,flows,details,sun,budget,frame:()=>{dynamic.forEach(fn=>fn(t));renderer.render(scene,camera)},setT:v=>{t=v}};
 }

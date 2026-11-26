@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume,liquidClock} from './molecules.mjs?v=shift6';
+import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume,liquidClock} from './molecules.mjs?v=shift7';
 
 /*
  Molecular process layer for the UASB + aerobic cutaway (index.html simulator).
@@ -71,7 +71,7 @@ export function reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut
  const fibres=S.inF.map(([a,b,c,d])=>({mode:0,k:-d*6,sx:-5.3+a*1.45,sy:.45+b*.38,spin:c*6}));
  const hoods=[-.55,0,.55];
  const flocPos=Array.from({length:16},()=>[0,0,0]);
- let last=0;
+ let last=0,hd=false;const micro=seeds(150,4,97);
 
  function update(t){
   const dt=Math.max(0,Math.min(.1,t-last));last=t;const cut=isCut();liquidClock.value=t;
@@ -204,7 +204,13 @@ export function reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut
   }
   for(const [s0,s1,s2] of S.oF){const f=(s0+t/14)%1,a=s1*6.283,r=.25+.35*s2;C.put('floc',4.74+r*Math.cos(a),1.0-.72*smooth(f),.7+r*Math.sin(a),.035,t*.3+s1*9)}
 
+  /* Zoomed-in HD extras: micro-bubbles and fine suspended solids. */
+  if(hd){
+   for(let i=0;i<50;i++){const [a,b,c,d]=micro[i],f=(a+t/(3+2*d))%1,ang=b*6.283,r=Math.sqrt(c)*1.1;C.put('bubble',x+r*Math.cos(ang)+.02*Math.sin(t*4+i),.95+2.35*f,r*Math.sin(ang),.011+.006*f)}
+   for(let i=50;i<110;i++){const [a,b,c]=micro[i],row=diffuserRows[i%3],f=(a+t/1.1)%1;C.put('bubble',.75+b*2.2+.015*Math.sin(t*7+i),.56+.39*f,row+(c-.5)*.25,.008+.006*f)}
+   for(let i=110;i<150;i++){const [a,b,c]=micro[i],f=(a+t*.05)%1;C.put('floc',-5.45+b*1.9+.8*f,.4+c*.45+.02*Math.sin(t+i),.15+((a*7)%1)*1.5,.012)}
+  }
   C.end();
  }
- return {update,chem:C};
+ return {update,chem:C,setHD(on){hd=on}};
 }

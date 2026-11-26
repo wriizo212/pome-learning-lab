@@ -1,5 +1,6 @@
 import * as T from './three.module.min.js';
-import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift6';
+import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift7';
+import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky} from './life.mjs?v=shift7';
 
 /*
  Extra life for the Mill Arcade diorama: the mill that produces the POME, the hot feed
@@ -103,4 +104,83 @@ export function arcadeScenery(scene,{steel,brass,dark,concrete,teal,roof},{isPon
   if(dirty)for(const [a,b,c] of S.scum){const f=(a+t/18)%1;C.stretch('floc',5.2+f*2.6,.11,4.1+b*1.1,.07+.05*c,.012,.05+.04*c,c*6)}
  }
  return {update,hook};
+}
+
+/*
+ Second layer of arcade life, matched to the main simulator: sky and clouds, swaying grass,
+ an FFB lorry tipping bunches into the mill's reception hopper with a moving conveyor,
+ polishing-basin blowers with their air main, a control room, safety signs, lamps,
+ extinguishers, a safety shower, a windsock and butterflies. Scales with the quality tier.
+*/
+export function arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier){
+ const q=tier.scenery;let seed=4242;const rnd=()=>((seed=Math.imul(1664525,seed)+1013904223>>>0)/4294967296);
+ const mat=(color,r=.6,m=.1,extra={})=>new T.MeshStandardMaterial({color,roughness:r,metalness:m,...extra});
+ const stat=new T.Group();scene.add(stat);
+ function add(geo,m,x,y,z,parent=stat,shadow=true){const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=shadow;o.receiveShadow=true;parent.add(o);return o}
+ const box=(x,y,z,w,h,d,m,p=stat)=>add(new T.BoxGeometry(w,h,d),m,x,y+h/2,z,p);
+ const cyl=(x,y,z,r,h,m,p=stat,r2=r)=>add(new T.CylinderGeometry(r,r2,h,16),m,x,y+h/2,z,p);
+ function pipe(a,b,r,m,p=stat){const s=new T.Vector3(...a),e=new T.Vector3(...b),d=e.clone().sub(s);const o=add(new T.CylinderGeometry(r,r,d.length(),12),m,...s.clone().lerp(e,.5).toArray(),p);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return o}
+ const line=(pts,r,m)=>pts.slice(1).forEach((p,i)=>pipe(pts[i],p,r,m));
+ function signPost(spec,x,z,face=0,h=.7){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=face;scene.add(g);add(new T.CylinderGeometry(.02,.02,h,8),steel,0,h/2,0,g);add(new T.BoxGeometry(.5,.32,.02),dark,0,h,.01,g);add(new T.PlaneGeometry(.48,.3),new T.MeshStandardMaterial({map:sign(spec),roughness:.6}),0,h,.022,g,false)}
+ const atmosphere=sky(scene,{sunDir:new T.Vector3(-8,12,5),horizon:0xb0c3b6});scene.background=null;scene.fog=new T.FogExp2(0xadc0b4,.013);
+ // Grass tufts on open ground only.
+ const keepOut=[[-5.3,-2.7,-1.95,.55],[-2.65,.8,-3.35,.15],[1.5,4.65,-4.3,-1.95],[.45,4.85,-1.75,1.05],[-4.65,-.55,1.6,3.5],[-6.15,-5.25,-3.75,1.75],[-7.7,-5.75,-3.45,-1.75],[-7.75,-6.55,-1.35,2.35],[4.85,6.05,-.55,1.1],[6.2,7.8,1.85,3.0],[6.25,7.7,-1.15,.05],[-8,8,.78,1.72],[5.85,6.25,-2,3.5]];
+ const tuftGeo=new T.ConeGeometry(.03,.2,4,1,true);tuftGeo.translate(0,.1,0);
+ const tufts=new T.InstancedMesh(tuftGeo,windify(new T.MeshStandardMaterial({color:0x6c8f43,roughness:.9,side:T.DoubleSide}),{strength:1.2,base:0}),Math.round(700*q)),o=new T.Object3D();
+ let n=0,guard=0;while(n<tufts.count&&guard++<20000){const x=(rnd()-.5)*15.6,z=(rnd()-.5)*11.6;if(z>3.7||keepOut.some(([a,b,c,d])=>x>a&&x<b&&z>c&&z<d))continue;o.position.set(x,0,z);o.rotation.set((rnd()-.5)*.4,rnd()*6,(rnd()-.5)*.4);o.scale.set(1,.6+rnd()*.9,1);o.updateMatrix();tufts.setMatrixAt(n++,o.matrix)}tufts.count=n;scene.add(tufts);
+
+ /* FFB reception: lorry tips bunches into a hopper; a conveyor carries them into the mill. */
+ box(-7.2,0,-1.0,.8,.18,.55,concrete);box(-7.2,.18,-1.0,.7,.06,.45,dark);
+ const conveyorPts=[[-7.2,.24,-1.0],[-7.2,1.05,-1.88]];pipe([-7.45,.2,-1.0],[-7.45,1.05,-1.88],.025,steel);pipe([-6.95,.2,-1.0],[-6.95,1.05,-1.88],.025,steel);
+ const belt=pipe([-7.2,.22,-1.0],[-7.2,1.03,-1.88],.2,mat(0x2a2d2c,.9));belt.scale.z=.12;for(const k of [.3,.7])pipe([-7.2,.22+.81*k-.1,-1.0-.88*k],[-7.2,0,-1.0-.88*k],.02,steel);
+ const lorry=new T.Group();lorry.position.set(-7.2,0,.95);scene.add(lorry);
+ const cab=mat(0x2f6fa6,.4,.4);box(0,.18,.85,.68,.6,.5,cab,lorry);box(0,.48,.6,.6,.24,.02,mat(0x9fd8e6,.15,.4),lorry);box(0,.18,0,.68,.08,1.7,dark,lorry);
+ const bedPivot=new T.Group();bedPivot.position.set(0,.3,-.72);lorry.add(bedPivot);const wood=mat(0x8c6a3b,.8);
+ box(0,0,.62,.66,.05,1.25,wood,bedPivot);for(const s of [-1,1])box(s*.32,0,.62,.03,.32,1.25,wood,bedPivot);box(0,0,1.23,.66,.32,.03,wood,bedPivot);
+ const bunchGeo=new T.IcosahedronGeometry(.085,1),bunchMat=mat(0x6a1f15,.75),load=new T.InstancedMesh(bunchGeo,bunchMat,18);
+ for(let k=0;k<18;k++){o.position.set(-.2+(k%3)*.2,.1+Math.floor(k/9)*.12,.2+(Math.floor(k/3)%3)*.38);o.rotation.set(rnd()*3,rnd()*3,0);o.scale.setScalar(.9+rnd()*.3);o.updateMatrix();load.setMatrixAt(k,o.matrix)}bedPivot.add(load);
+ for(const [z,s] of [[.85,1],[.85,-1],[-.5,1],[-.5,-1]]){const w=add(new T.CylinderGeometry(.14,.14,.1,12),mat(0x1b1d1d,.9),s*.36,.14,z,lorry);w.rotation.z=Math.PI/2}
+ const lorryShadow=blobShadow(1.1,.3);lorryShadow.scale.set(.6,1,1);lorryShadow.position.y=.005;lorry.add(lorryShadow);
+ const beltBunches=new T.InstancedMesh(bunchGeo,bunchMat,10);beltBunches.castShadow=false;scene.add(beltBunches);
+ const falling=new T.InstancedMesh(bunchGeo,bunchMat,8);falling.castShadow=false;scene.add(falling);
+ signPost({title:'FFB RECEPTION',band:'#1f4d3f',lines:['Lorries tip here','Keep clear'],symbol:'!'},-6.45,-1.3,0,.6);
+
+ /* Polishing-basin blowers and air main. */
+ box(6.95,0,-.55,1.1,.1,.9,concrete);const fans=[];
+ for(const dz of [-.22,.22]){box(6.95,.1,-.55+dz,.5,.22,.3,mat(0x3e6a8a,.45,.4));cyl(7.25,.17,-.55+dz,.08,.2,mat(0x2f4e65,.4,.5));const f=new T.Group();f.position.set(6.66,.24,-.55+dz);scene.add(f);
+  for(let k=0;k<4;k++){const b=add(new T.BoxGeometry(.01,.12,.03),dark,0,0,0,f,false);b.position.set(0,Math.cos(k*1.57)*.05,Math.sin(k*1.57)*.05);b.rotation.x=k*1.57}fans.push(f)}
+ box(6.95,.98,-.55,1.2,.04,1.0,dark);for(const [dx,dz] of [[-.55,-.45],[.55,-.45],[-.55,.45],[.55,.45]])box(6.95+dx,.1,-.55+dz,.04,.88,.04,steel);
+ const airMain=[[6.55,.4,-.55],[6.55,1.45,-.55],[6.55,1.45,-.91],[4.62,1.45,-.91],[4.62,.45,-.91],[4.33,.45,-.91],[4.33,.16,-.91]];line(airMain,.04,mat(0x8fb2c4,.4,.5));
+ /* Control room. */
+ const clad=new T.MeshStandardMaterial({map:texture(corrugated(tier.texture,'#7f97a3'),{repeat:[2,1]}),roughness:.55,metalness:.35});
+ box(7.0,0,2.4,1.35,.08,.95,concrete);box(7.0,.08,2.4,1.25,.72,.85,clad);box(7.0,.8,2.4,1.35,.05,.95,dark);
+ const glass=mat(0x9fd8e6,.15,.4,{emissive:0x5ab4c8,emissiveIntensity:.35});box(6.8,.38,1.97,.5,.26,.02,glass);box(7.4,.08,1.97,.26,.56,.02,mat(0x435a62,.5,.3));
+ const beacon=add(new T.SphereGeometry(.03,8,6),mat(0xff3b2f,.3,0,{emissive:0xff2a1a,emissiveIntensity:1}),6.5,1.1,2.6,scene,false);cyl(6.5,.85,2.6,.012,.22,steel);
+ /* Safety furniture, lamps and windsock. */
+ signPost({title:'DANGER',lines:['BIOGAS','NO NAKED FLAMES'],symbol:'!'},-1.95,.32);
+ signPost({title:'CAUTION',band:'#e0a321',lines:['HOT EFFLUENT','about 80 °C'],symbol:'!'},-2.6,.62);
+ signPost({title:'SAMPLE POINT',band:'#1f6fb0',lines:['WEAR GLOVES','AND GOGGLES'],symbol:'i'},4.15,1.12);
+ signPost({title:'PPE REQUIRED',band:'#1f6fb0',lines:['HELMET · BOOTS','GLOVES · VEST'],symbol:'✓'},7.45,1.5);
+ signPost({title:'FLAMMABLE',lines:['FLARE ZONE','PERMIT ONLY'],symbol:'!'},1.25,-4.0);
+ const red=mat(0xc8291f,.35,.3);for(const [x,z] of [[-3.15,-.2],[1.95,-1.95],[5.65,-1.55],[-.4,1.85]]){cyl(x,0,z,.06,.36,red);cyl(x,.36,z,.03,.05,dark)}
+ const green=mat(0x2c9c5a,.5,.3);for(const dx of [-.18,.18])box(4.85+dx,0,-2.3,.04,1.6,.04,green);box(4.85,1.58,-2.3,.4,.04,.04,green);cyl(4.85,1.38,-2.3,.08,.05,steel,stat,.04);
+ add(new T.PlaneGeometry(.32,.2),new T.MeshStandardMaterial({map:sign({title:'SAFETY SHOWER',band:'#2c9c5a',lines:['EYE WASH'],symbol:'+'})}),4.85,1.05,-2.27,stat,false);
+ const lampHead=mat(0xfff6d8,.4,0,{emissive:0xfff1c4,emissiveIntensity:.6});for(const [x,z] of [[-4,-4.3],[0,-4.3],[4,-4.3],[-7.6,3.5],[7.6,3.5]]){cyl(x,0,z,.035,2.2,dark);box(x,2.1,z+.2,.05,.04,.4,dark);box(x,2.03,z+.38,.18,.05,.1,lampHead)}
+ cyl(-7.6,0,-3.9,.025,2.6,mat(0xdfe5e0,.4,.4));const sock=new T.Group();sock.position.set(-7.6,2.62,-3.9);scene.add(sock);
+ const sockTex=new T.CanvasTexture((()=>{const c=document.createElement('canvas');c.width=128;c.height=32;const g=c.getContext('2d');for(let k=0;k<5;k++){g.fillStyle=k%2?'#f4f1e6':'#e8642c';g.fillRect(k*25.6,0,25.6,32)}return c})());
+ const sockBody=new T.Mesh(new T.CylinderGeometry(.06,.11,.6,12,4,true),new T.MeshStandardMaterial({map:sockTex,side:T.DoubleSide,roughness:.8}));sockBody.rotation.z=Math.PI/2;sockBody.position.x=.32;sock.add(sockBody);
+ const flyMat=mat(0xf2b93a,.6,0,{side:T.DoubleSide}),wingGeo=new T.PlaneGeometry(.06,.05);wingGeo.translate(.03,0,0);
+ const flies=Array.from({length:Math.round(6*Math.max(.4,q))},()=>{const g=new T.Group();const l=new T.Mesh(wingGeo,flyMat),r=new T.Mesh(wingGeo,flyMat);r.rotation.y=Math.PI;g.add(l,r);scene.add(g);return {g,l,r,cx:(rnd()-.5)*12,cz:3.2+rnd()*.4,ph:rnd()*9}});
+ mergeStatic(stat);
+ const conv=new T.CurvePath();conv.add(new T.LineCurve3(new T.Vector3(...conveyorPts[0]),new T.Vector3(...conveyorPts[1])));const pv=new T.Vector3();
+ function update(t){
+  wind.value=t;atmosphere.update(t);for(const f of fans)f.rotation.x=t*20;beacon.material.emissiveIntensity=(t%1.6)<.15?3:.2;
+  const dir=.6+.35*Math.sin(t*.11);sock.rotation.y=dir+.12*Math.sin(t*1.7);sock.rotation.z=-.25+.18*Math.sin(t*.9)+.05*Math.sin(t*7);
+  // Tipping cycle: raise the bed, bunches roll into the hopper, lower the bed.
+  const c=(t%24)/24,raise=c<.15?smooth(c/.15):c<.45?1:c<.6?1-smooth((c-.45)/.15):0;bedPivot.rotation.x=-.75*raise;load.visible=c<.3||c>.75;
+  for(let k=0;k<8;k++){const f=band(c,.17+k*.015,.3+k*.015);if(f<=0||f>=1){o.scale.setScalar(0)}else{o.position.set(-7.2+(k%3-1)*.15,.55*(1-f)+.12*Math.sin(Math.PI*f),.2-1.0*f);o.scale.setScalar(1);o.rotation.set(t*5+k,k,0)}o.updateMatrix();falling.setMatrixAt(k,o.matrix)}falling.instanceMatrix.needsUpdate=true;
+  for(let k=0;k<10;k++){conv.getPoint((t*.12+k/10)%1,pv);o.position.set(pv.x+(k%2?.05:-.05),pv.y+.1,pv.z);o.rotation.set(k,k*2,0);o.scale.setScalar(1);o.updateMatrix();beltBunches.setMatrixAt(k,o.matrix)}beltBunches.instanceMatrix.needsUpdate=true;
+  for(const f of flies){const k=t*.5+f.ph;f.g.position.set(f.cx+1.1*Math.sin(k*.7)+.3*Math.sin(k*3.1),.1+.25*Math.abs(Math.sin(k*1.3)),f.cz+.4*Math.sin(k*.9));f.g.rotation.y=k;const flap=1.1*Math.sin(t*28+f.ph);f.l.rotation.y=flap;f.r.rotation.y=Math.PI-flap}
+ }
+ return {update,airMain};
 }

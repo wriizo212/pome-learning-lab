@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {chemistry,seeds,smooth,band,lerpPath,liquidVolume} from './molecules.mjs?v=shift6';
+import {chemistry,seeds,smooth,band,lerpPath,liquidVolume,liquidClock} from './molecules.mjs?v=shift7';
 
 /*
  Molecular process layer for the Mill Arcade diorama (mill-gpu.mjs).
@@ -7,8 +7,8 @@ import {chemistry,seeds,smooth,band,lerpPath,liquidVolume} from './molecules.mjs
  engine, open ponds let it escape to the air. The river shows dissolved O2 falling and
  organics appearing when a mission decision lets poorly treated water through.
 */
-export function arcadeProcess(scene,{world,isCut,isPond,isPolluted}){
- const C=chemistry(scene,{h2o:340,o2:220,bubble:200,steam:110});
+export function arcadeProcess(scene,{world,isCut,isPond,isPolluted,tier={molecules:1,detail:1}}){
+ const C=chemistry(scene,{h2o:340,o2:220,bubble:260,steam:110},1.3,{density:tier.molecules,detail:tier.detail});
  const volumes=[
   liquidVolume(scene,{x:-4,y:.24,z:-.7,w:1.84,h:.28,d:1.84,color:0x6d4b28,opacity:.3}),
   liquidVolume(scene,{x:-.9,y:1.1,z:-1.65,r:1.3,h:.96,color:0x4a4a2e,opacity:.2}),
@@ -22,9 +22,9 @@ export function arcadeProcess(scene,{world,isCut,isPond,isPolluted}){
  const v=[0,0,0];
  const fibres=S.inF.map(([a,b,c,d])=>({mode:0,k:-d*6,sx:-4.8+a*1.6,spin:c*6}));
  const hoods=[-.58,0,.58],rows=[-.91,-.35,.19],flocPos=Array.from({length:12},()=>[0,0,0]);
- let last=0;const hooks=[];
+ let last=0,hd=false;const hooks=[],micro=seeds(110,3,97);
  function update(t){
-  const dt=Math.max(0,Math.min(.1,t-last));last=t;const cut=isCut(),pond=isPond(),dirty=isPolluted();
+  const dt=Math.max(0,Math.min(.1,t-last));last=t;liquidClock.value=t;const cut=isCut(),pond=isPond(),dirty=isPolluted();
   volumes.forEach((m,i)=>m.visible=cut&&!(i===1&&pond));
   C.begin();
   // Intake: raw POME flows to the digester feed; floating fibre gathers at the front wall.
@@ -77,7 +77,11 @@ export function arcadeProcess(scene,{world,isCut,isPond,isPolluted}){
    const isO2=s3<o2Share;C.put(isO2?'o2':'h2o',px,py+.01*Math.sin(t*2+s1*9),pz,isO2?.026:.032,t*(1+s2)+s1*9)}
   if(dirty)for(const [s0,s1,s2] of S.rCod){const f=(s0+t/16)%1,px=5.2+f*2.6,pz=4.05+s1*1.3;C.put(s2<.8?'cod':'nh4',px,.05,pz,.032,t+s1*9)}
   for(const h of hooks)h(C,t,dt);
+  if(hd){
+   if(!pond)for(let i=0;i<50;i++){const [a,b,c]=micro[i],f=(a+t/4)%1,ang=b*6.283,r=Math.sqrt(c)*1.2;C.put('bubble',-.9+r*Math.cos(ang),.62+1.0*f,-1.65+r*Math.sin(ang),.01+.005*f)}
+   for(let i=50;i<110;i++){const [a,b,c]=micro[i],f=(a+t/.9)%1;C.put('bubble',1.8+b*2.4,.21+.16*f,rows[i%3]+(c-.5)*.2,.007+.005*f)}
+  }
   C.end();
  }
- return {update,chem:C,hook:h=>hooks.push(h)};
+ return {update,chem:C,hook:h=>hooks.push(h),setHD(on){hd=on}};
 }
