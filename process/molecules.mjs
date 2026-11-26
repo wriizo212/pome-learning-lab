@@ -23,12 +23,13 @@ function merged(parts){
  out.setAttribute('position',new T.Float32BufferAttribute(pos,3));out.setAttribute('normal',new T.Float32BufferAttribute(nor,3));
  out.setAttribute('color',new T.Float32BufferAttribute(col,3));out.setIndex(idx);out.computeBoundingSphere();return out;
 }
+let SEG=[8,6,5],HSEG=[6,4];
 function molecule(atoms,bonds=[]){
  const parts=[];
- for(const [el,x,y,z] of atoms){const g=new T.SphereGeometry(RADIUS[el],12,8);g.translate(x,y,z);parts.push([g,ATOM[el]])}
+ for(const [el,x,y,z] of atoms){const seg=el==='H'?HSEG:SEG;const g=new T.SphereGeometry(RADIUS[el],seg[0],seg[1]);g.translate(x,y,z);parts.push([g,ATOM[el]])}
  for(const [i,j] of bonds){
   const a=new T.Vector3(...atoms[i].slice(1)),b=new T.Vector3(...atoms[j].slice(1)),d=b.clone().sub(a);
-  const g=new T.CylinderGeometry(.11,.11,d.length(),6);g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),d.clone().normalize()));
+  const g=new T.CylinderGeometry(.11,.11,d.length(),SEG[2]);g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),d.clone().normalize()));
   const m=a.lerp(b,.5);g.translate(m.x,m.y,m.z);parts.push([g,0x9aa3a0]);
  }
  return merged(parts);
@@ -48,7 +49,7 @@ function buildGeometries(){
  // Long-chain organic (a fatty-acid / carbohydrate fragment) stands for COD.
  const chain=[],bonds=[];
  for(let i=0;i<6;i++){chain.push(['C',i*.86-2.15,i%2?.5:0,0]);if(i)bonds.push([i-1,i])}
- for(let i=0;i<6;i++){const [,x,y]=chain[i];const up=i%2?1:-1;for(const s of [-1,1]){chain.push(['H',x,y+up*.42,s*.62]);bonds.push([i,chain.length-1])}}
+ for(let i=0;i<6;i++){const [,x,y]=chain[i];const up=i%2?1:-1;chain.push(['H',x,y+up*.42,i%2?.62:-.62]);bonds.push([i,chain.length-1])}
  chain.push(['O',2.15+.25,1.3,0]);bonds.push([5,chain.length-1]);chain.push(['O',2.15+.8,.05,0]);bonds.push([5,chain.length-1]);
  G.cod=molecule(chain,bonds);
  G.oil=new T.SphereGeometry(1,14,10);
@@ -62,9 +63,10 @@ function buildGeometries(){
  return G;
 }
 
-let shared;
-function kit(){
- if(shared)return shared;
+const kits={};
+function kit(detail=1){
+ const key=detail>=.9?'h':detail>=.6?'m':'l';if(kits[key])return kits[key];
+ SEG=key==='h'?[8,6,5]:key==='m'?[7,5,4]:[6,4,4];HSEG=key==='l'?[4,3]:key==='m'?[5,3]:[6,4];
  const G=buildGeometries();
  const atoms=new T.MeshStandardMaterial({vertexColors:true,roughness:.32,metalness:.05});
  const M={
@@ -74,19 +76,21 @@ function kit(){
   steam:new T.MeshStandardMaterial({color:0xffffff,roughness:1,transparent:true,opacity:.16,depthWrite:false}),
   spark:new T.MeshStandardMaterial({color:0xfff2a0,emissive:0xffd54a,emissiveIntensity:2.4,roughness:.4})
  };
- shared={G,M};return shared;
+ kits[key]={G,M};return kits[key];
 }
 
 // Pools hold instanced copies; the scene fills them every frame.
-export function chemistry(scene,capacity={},enlarge=1.3){
- const {G,M}=kit();const pools={};const o=new T.Object3D();const root=new T.Group();root.name='chemistry';scene.add(root);
+export function chemistry(scene,capacity={},enlarge=1.3,{density=1,detail=1}={}){
+ const {G,M}=kit(detail);const pools={};const o=new T.Object3D();const root=new T.Group();root.name='chemistry';scene.add(root);
  const defaults={ch4:160,co2:160,o2:220,h2o:320,nh4:40,no3:40,h2s:24,acetate:60,cod:160,oil:40,fibre:40,floc:60,granule:40,bubble:260,steam:60,spark:40};
- for(const [k,n] of Object.entries({...defaults,...capacity})){const m=new T.InstancedMesh(G[k],M[k],n);m.frustumCulled=false;m.castShadow=m.receiveShadow=false;m.count=0;m.userData.capacity=n;root.add(m);pools[k]={mesh:m,used:0,n}}
- function put(kind,x,y,z,s=1,spin=0,tilt=0){const p=pools[kind];if(!p||p.used>=p.n||s<=.001)return;o.position.set(x,y,z);o.rotation.set(tilt+spin*.7,spin,spin*.4);o.scale.setScalar(s*enlarge);o.updateMatrix();p.mesh.setMatrixAt(p.used++,o.matrix)}
- function stretch(kind,x,y,z,sx,sy,sz,ry=0){const p=pools[kind];if(!p||p.used>=p.n)return;o.position.set(x,y,z);o.rotation.set(0,ry,0);o.scale.set(sx,sy,sz);o.updateMatrix();p.mesh.setMatrixAt(p.used++,o.matrix)}
- function begin(){for(const p of Object.values(pools))p.used=0}
+ for(const [k,n] of Object.entries({...defaults,...capacity})){const m=new T.InstancedMesh(G[k],M[k],n);m.frustumCulled=false;m.castShadow=m.receiveShadow=false;m.count=0;m.userData.capacity=n;root.add(m);pools[k]={mesh:m,used:0,n,seq:0}}
+ // Density thins every kind evenly (lighter tiers draw fewer copies).
+ function keep(p){p.seq++;return density>=1||Math.floor(p.seq*density)!==Math.floor((p.seq-1)*density)}
+ function put(kind,x,y,z,s=1,spin=0,tilt=0){const p=pools[kind];if(!p||p.used>=p.n||s<=.001||!keep(p))return;o.position.set(x,y,z);o.rotation.set(tilt+spin*.7,spin,spin*.4);o.scale.setScalar(s*enlarge);o.updateMatrix();p.mesh.setMatrixAt(p.used++,o.matrix)}
+ function stretch(kind,x,y,z,sx,sy,sz,ry=0){const p=pools[kind];if(!p||p.used>=p.n||!keep(p))return;o.position.set(x,y,z);o.rotation.set(0,ry,0);o.scale.set(sx,sy,sz);o.updateMatrix();p.mesh.setMatrixAt(p.used++,o.matrix)}
+ function begin(){for(const p of Object.values(pools)){p.used=0;p.seq=0}}
  function end(){for(const p of Object.values(pools)){p.mesh.count=p.used;p.mesh.instanceMatrix.needsUpdate=true}}
- return {put,stretch,begin,end,root,pools,show(v){root.visible=v}};
+ return {put,stretch,begin,end,root,pools,show(v){root.visible=v},setDensity(d){density=d}};
 }
 
 // Deterministic per-slot random tables.
@@ -97,14 +101,27 @@ export const band=(f,a,b)=>clamp01((f-a)/(b-a));
 export function lerpPath(pts,f,out){const n=pts.length-1,u=clamp01(f)*n,i=Math.min(n-1,Math.floor(u)),k=u-i;out[0]=pts[i][0]+(pts[i+1][0]-pts[i][0])*k;out[1]=pts[i][1]+(pts[i+1][1]-pts[i][1])*k;out[2]=pts[i][2]+(pts[i+1][2]-pts[i][2])*k;return out}
 
 // A wavy translucent liquid surface updated on the CPU at a modest rate.
-export function liquidSurface(parent,{x,y,z,w,d,r,color,opacity=.86,rough=.18,turbulence=()=>0}){
- const geo=r?new T.CircleGeometry(r,40,0,Math.PI*2):new T.PlaneGeometry(w,d,Math.max(8,Math.round(w*14)),Math.max(6,Math.round(d*14)));geo.rotateX(-Math.PI/2);
+// Wavy translucent liquid surface. Waves and their normals are computed on the GPU.
+// calm: base agitation; rows: up to 3 z-lines of strong agitation (aeration diffusers); spot: [x,z,radius,strength].
+export const liquidClock={value:0};
+export function liquidSurface(parent,{x,y,z,w,d,r,color,opacity=.86,rough=.18,calm=0,rows=[],spot=[0,0,1,0]}){
+ const geo=r?new T.CircleGeometry(r,48,0,Math.PI*2):new T.PlaneGeometry(w,d,Math.max(8,Math.round(w*16)),Math.max(6,Math.round(d*16)));geo.rotateX(-Math.PI/2);
  const mat=new T.MeshStandardMaterial({color,roughness:rough,metalness:.15,transparent:true,opacity,depthWrite:false,side:T.DoubleSide});
+ const rowV=[0,1,2].map(i=>new T.Vector3(rows[i]??99,0,rows[i]===undefined?0:1));
+ mat.onBeforeCompile=sh=>{
+  Object.assign(sh.uniforms,{uT:liquidClock,uCalm:{value:calm},uRows:{value:rowV},uSpot:{value:new T.Vector4(...spot)}});
+  sh.vertexShader=`uniform float uT;uniform float uCalm;uniform vec3 uRows[3];uniform vec4 uSpot;
+  float agit(vec2 p){float k=uCalm;for(int i=0;i<3;i++)k+=uRows[i].z*max(0.,1.-abs(p.y-uRows[i].x)*6.);k+=uSpot.w*max(0.,1.-distance(p,uSpot.xy)/uSpot.z);return k;}
+  float wave(vec2 p){float k=agit(p);return (.006+.02*k)*sin(p.x*9.+uT*2.1+p.y*3.)+(.004+.016*k)*cos(p.y*11.-uT*2.7)+.012*k*sin(p.x*23.+p.y*17.+uT*9.);}
+  `+sh.vertexShader.replace('#include <beginnormal_vertex>',`vec2 wp=(modelMatrix*vec4(position,1.)).xz;float h0=wave(wp);
+  vec3 objectNormal=normalize(vec3(-(wave(wp+vec2(.01,0.))-h0)/.01,1.,-(wave(wp+vec2(0.,.01))-h0)/.01));
+  #ifdef USE_TANGENT
+  vec3 objectTangent=vec3(tangent.xyz);
+  #endif`).replace('#include <begin_vertex>','#include <begin_vertex>\n transformed.y+=h0;');
+ };
+ mat.customProgramCacheKey=()=>'liquid';
  const m=new T.Mesh(geo,mat);m.position.set(x,y,z);m.receiveShadow=true;m.renderOrder=2;parent.add(m);
- const base=geo.attributes.position.array.slice();let last=-1;
- return {mesh:m,mat,update(t){if(t-last<1/24&&t>=last)return;last=t;const p=geo.attributes.position;
-  for(let i=0;i<p.count;i++){const px=base[i*3],pz=base[i*3+2],k=turbulence(px+x,pz+z,t);p.setY(i,(.006+.02*k)*Math.sin(px*9+t*2.1+pz*3)+(.004+.016*k)*Math.cos(pz*11-t*2.7)+.012*k*Math.sin(px*23+pz*17+t*9))}
-  p.needsUpdate=true;geo.computeVertexNormals()}};
+ return {mesh:m,mat,update(){}};
 }
 
 // Translucent liquid body that reveals the molecules inside a cut-away tank.

@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {gestures} from './visitor-hands.mjs?v=shift5';
+import {gestures} from './visitor-hands.mjs?v=shift6';
 export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arcade=false){
  const controls=document.createElement('div');controls.className='reactor-explore';
  controls.innerHTML='<label>Camera view <select><option value="orbit">Orbit model</option><option value="first">First person</option><option value="third">Third person</option></select></label> <button class="hand-start" aria-pressed="false">Start gesture camera</button> <button class="wide">Fullscreen</button> <button class="tags" aria-pressed="true">Task tags</button><div class="walkpad" hidden><button data-key="w" aria-label="Walk forward">↑</button><button data-key="a" aria-label="Step left">←</button><button data-key="s" aria-label="Walk backward">↓</button><button data-key="d" aria-label="Step right">→</button></div><details><summary>Movement &amp; gestures</summary><p>Walk with W A S D or the arrows above. Drag the scene to look around. With the camera on, move one finger off centre to look. Show an open palm to move forward and steer, lower your open palm to reverse, or make a fist to stop. Hold two fingers to change view, three to open or close the equipment, four to change worker, or aim your fingertip and pinch to inspect a unit.</p></details><span class="tracking" role="status"></span>';
@@ -14,7 +14,7 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
  let player=world.roles[0].actor,pos=player.g.position;
  const label=document.createElement('label');label.textContent='Play as ';const role=document.createElement('select');world.roles.forEach((r,i)=>role.add(new Option(r.name,i)));label.append(role);picker.parentElement.after(label);
  role.onchange=()=>{player.g.visible=true;player=world.roles[Number(role.value)].actor;pos=player.g.position;heading=player.g.rotation.y;setMode(picker.value==='orbit'?'third':picker.value)};
- let heading=0,tilt=.03,forward=0,turn=0,vertical=0,walkTime=0;
+ let heading=0,tilt=.03,forward=0,turn=0,vertical=0,walkTime=0,stridePhase=0;
  const obstacles=arcade?[[-7.6,-5.8,-3.4,-1.8],[.75,1.05,-3.75,-3.45],[4.9,5.1,-3.4,-3.2],[-5.98,-5.9,-2.25,-.05],[-2.53,.7,-3.25,.02],[.53,4.73,-1.63,.96],[1.59,4.57,-4.21,-2.04],[-4.54,-.67,1.67,3.44],[4.95,5.45,-.42,1.02]]:[[-5.83,-3.26,-.13,1.94],[-2.91,.1,-1.55,1.55],[.32,3.3,-.83,1.87],[-1.57,.76,-2.9,-1.47],[2,4.44,-2.68,-1.22],[3.8,5.68,-.23,1.65]];
  function allowed(x,z){return Math.abs(x)<(arcade?7.6:6.03)&&z>(arcade?-4.36:-3.02)&&z<(arcade?3.67:3.02)&&!obstacles.some(([a,b,c,d])=>x>a&&x<b&&z>c&&z<d)}
  function setMode(mode){if(picker.value==='orbit'||mode!=='orbit')heading=player.g.rotation.y;world.control(mode==='orbit'?null:player);picker.value=mode;pad.hidden=mode==='orbit';player.g.visible=mode!=='first';keys.clear();forward=turn=vertical=0;canvas.focus({preventScroll:true})}
@@ -40,8 +40,9 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
   const f=Number(keys.has('w'))-Number(keys.has('s'))+forward,s=Number(keys.has('d'))-Number(keys.has('a'));
   const speed=dt*1.55/Math.max(1,Math.hypot(f,s));
   const dx=(-Math.sin(heading)*f+Math.cos(heading)*s)*speed,dz=(-Math.cos(heading)*f-Math.sin(heading)*s)*speed;
-  if(allowed(pos.x+dx,pos.z))pos.x+=dx;if(allowed(pos.x,pos.z+dz))pos.z+=dz;
-  walkTime+=dt;player.pose(walkTime,Math.min(1,Math.hypot(f,s)));player.g.rotation.y=heading;
+  const ox=pos.x,oz=pos.z;if(allowed(pos.x+dx,pos.z))pos.x+=dx;if(allowed(pos.x,pos.z+dz))pos.z+=dz;
+  const moved=Math.hypot(pos.x-ox,pos.z-oz);stridePhase+=moved/.72*Math.PI*2;
+  walkTime+=dt;player.pose(walkTime,moved>1e-4?Math.min(1,Math.hypot(f,s)):0,'',walkTime,{phase:stridePhase});player.heading=heading;player.g.rotation.y=heading;
   eye.copy(pos);eye.y+=.94;direction.set(-Math.sin(heading)*Math.cos(tilt),Math.sin(tilt),-Math.cos(heading)*Math.cos(tilt));
   camera.position.copy(eye);
   if(picker.value==='third'){chase.copy(direction).multiplyScalar(-1.74);chase.y=.72;for(let f=.1;f<=1.01;f+=.1){if(!allowed(eye.x+chase.x*f,eye.z+chase.z*f))break;camera.position.copy(eye).addScaledVector(chase,f)}}

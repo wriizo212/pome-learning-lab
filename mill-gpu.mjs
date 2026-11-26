@@ -1,9 +1,9 @@
-import {populate} from './process/crew.mjs?v=shift5';
-import {explore} from './process/explore.mjs?v=shift5';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift5';
-import {legend} from './process/molecules.mjs?v=shift5';
-import {arcadeScenery} from './process/arcade-scenery.mjs?v=shift5';
-import {frameBudget} from './process/frame-budget.mjs';
+import {populate} from './process/crew.mjs?v=shift6';
+import {explore} from './process/explore.mjs?v=shift6';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift6';
+import {legend} from './process/molecules.mjs?v=shift6';
+import {arcadeScenery} from './process/arcade-scenery.mjs?v=shift6';
+import {frameBudget} from './process/frame-budget.mjs?v=shift6';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   const renderer = new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});

@@ -1,4 +1,5 @@
 import * as T from './three.module.min.js';
+import {blobShadow} from './life.mjs?v=shift6';
 
 /*
  Mill crew. Each worker follows a looping shift plan made of walking legs and jobs.
@@ -7,7 +8,10 @@ import * as T from './three.module.min.js';
  The plan is a pure function of time, so pausing, resuming and orbiting stay in sync.
 */
 
-const SPEED=.5;
+const SPEED=.5,RAMP=.45,STRIDE=.72;
+// Distance walked τ seconds into a leg, with gentle acceleration and braking.
+function walkDistance(step,τ){const V=SPEED,r=RAMP,d=step.dur;if(τ<=0)return 0;if(τ>=d)return step.len;if(τ<r)return .5*V*τ*τ/r;if(τ<d-r)return .5*V*r+V*(τ-r);const q=d-τ;return step.len-.5*V*q*q/r}
+function walkSpeed(step,τ){return Math.max(0,Math.min(1,τ/RAMP,(step.dur-τ)/RAMP))}
 
 // Shift plans per scene. Points are [x,z] or [x,z,height] (height lifts the walker over a stile).
 const LAYOUTS={
@@ -107,7 +111,7 @@ function compile(role){
   if(s[0]==='go'){
    const pts=[pos,...s[1].map(p=>[p[0],p[1],p[2]||0])],segs=[];let len=0;
    for(let i=1;i<pts.length;i++){const l=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);segs.push({a:pts[i-1],b:pts[i],l,from:len});len+=l}
-   const last=segs.at(-1);const dur=len/SPEED;
+   const last=segs.at(-1);const dur=len/SPEED+RAMP;
    steps.push({kind:'go',segs,len,dur,start:t,opts:s[2]||{},label:(s[2]||{}).label||'Walking'});
    heading=faceTo(last.a,last.b);pos=pts.at(-1);t+=dur;
   }else{
@@ -124,7 +128,7 @@ export function populate(scene, materials, arcade=false){
  const {steel,brass,cement,dark,base}=materials;
  const layout=arcade?LAYOUTS.arcade:LAYOUTS.reactor;
  const mat=(color,roughness=.78,metalness=0)=>new T.MeshStandardMaterial({color,roughness,metalness});
- const navy=mat(0x273e50),stripe=mat(0xe1ebad),boots=mat(0x342d29),leaf=mat(0x506a43),bark=mat(0x79634a),roof=mat(0x688383);
+ const navy=mat(0x273e50),stripe=mat(0xe1ebad),boots=mat(0x342d29),leaf=materials.leaf||mat(0x506a43),bark=mat(0x79634a),roof=mat(0x688383);
  const wood=mat(0x9a7448,.85),rubber=mat(0x1d2222,.9),glove=mat(0xd9c46a,.85),paper=mat(0xf2efe2,.9),screen=new T.MeshStandardMaterial({color:0x5fd4e6,emissive:0x2b8fa8,emissiveIntensity:.9,roughness:.3});
  const cake=mat(0x5a3f2c,.97),screenings=mat(0x6f5a35,.95),sampleWater=new T.MeshStandardMaterial({color:0x8fbfa9,transparent:true,opacity:.75,roughness:.15});
  const vests=[0xe97835,0xe2c13a,0x4f9fd8,0x6fc06b,0xd8473b];
@@ -133,12 +137,23 @@ export function populate(scene, materials, arcade=false){
  weave.fillStyle='#f3eada';weave.fillRect(0,0,128,128);
  for(let n=0;n<128;n+=3){weave.fillStyle='rgba(103,94,86,.13)';weave.fillRect(n,0,1,128);weave.fillStyle='rgba(255,255,255,.45)';weave.fillRect(0,n,128,1)}
  const textile=new T.CanvasTexture(cloth);textile.colorSpace=T.SRGBColorSpace;navy.map=textile;navy.roughness=.91;
+ const eyeMat=new T.MeshBasicMaterial({color:0x1a1512});
  const cube=new T.BoxGeometry(),round=new T.SphereGeometry(1,10,7),tube=new T.CylinderGeometry(1,1,1,10);
  function part(parent,geo,m,x,y,z,w,h,d){const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(w,h,d);o.castShadow=o.receiveShadow=true;parent.add(o);return o}
  const box=(p,m,x,y,z,w,h,d)=>part(p,cube,m,x,y,z,w,h,d);
  const oval=(p,m,x,y,z,w,h,d)=>part(p,round,m,x,y,z,w,h,d);
  const rod=(p,m,x,y,z,r,l)=>part(p,tube,m,x,y,z,r,l,r);
  function pivot(p,x,y,z){const g=new T.Group();p.add(g);g.position.set(x,y,z);return g}
+ // Each rig joint's body parts merge into one vertex-coloured mesh: ~14 draw calls per worker.
+ const skin=new T.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:.02});
+ function mergeJoint(joint){
+  const parts=joint.children.filter(o=>o.isMesh);if(!parts.length)return null;
+  const pos=[],nor=[],col=[],c=new T.Color();
+  for(const m of parts){m.updateMatrix();const g=(m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone()).applyMatrix4(m.matrix);c.copy(m.material.color);
+   pos.push(...g.attributes.position.array);nor.push(...g.attributes.normal.array);for(let i=0;i<g.attributes.position.count;i++)col.push(c.r,c.g,c.b);g.dispose();joint.remove(m)}
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('normal',new T.Float32BufferAttribute(nor,3));g.setAttribute('color',new T.Float32BufferAttribute(col,3));g.computeBoundingSphere();
+  const out=new T.Mesh(g,skin);out.castShadow=false;out.receiveShadow=true;joint.add(out);return out;
+ }
 
  /* ---------- hand tools (built in the torso frame: forward is -z) ---------- */
  function rakeTool(parent){
@@ -191,6 +206,10 @@ export function populate(scene, materials, arcade=false){
    oval(shoulder,vest,s*.014,-.064,0,.064,.096,.061);oval(elbow,navy,0,-.054,0,.043,.077,.044);
    const hand=pivot(elbow,0,-.13,0);oval(hand,glove,0,0,0,.039,.045,.038);arms.push([shoulder,elbow]);hands.push(hand);
   }
+  const joints=[pelvis,torso,head,...legs.flat(),...arms.flat(),...hands];
+  let chest=null;for(const j of joints){const m=mergeJoint(j);if(j===torso)chest=m}
+  const eyes=new T.Group();head.add(eyes);for(const sx of [-.034,.034]){const e=new T.Mesh(round,eyeMat);e.position.set(sx,.1,-.083);e.scale.set(.013,.016,.008);eyes.add(e)}
+  const blob=blobShadow(.26,.4);blob.position.y=-.005;g.add(blob);
   // Name and task tag floats above the helmet.
   const tagCanvas=document.createElement('canvas');tagCanvas.width=512;tagCanvas.height=128;
   const tagTex=new T.CanvasTexture(tagCanvas);tagTex.colorSpace=T.SRGBColorSpace;
@@ -211,9 +230,12 @@ export function populate(scene, materials, arcade=false){
    for(const h of hands)h.rotation.set(0,0,0);
    for(const p of Object.values(props))p.visible=false;
   }
-  function stride(time,amount){
-   const a=Math.sin(time*7)*amount;pelvis.position.y=.48+.016*Math.abs(a);torso.rotation.y=a*.06;
-   legs.forEach(([h,k],i)=>{const n=i?-a:a;h.rotation.x=n*.58;k.rotation.x=-Math.max(0,n)*.75-.05*amount});
+  // Gait driven by distance walked (phase), so boots plant instead of sliding.
+  function stride(phase,amount){
+   const a=Math.sin(phase)*amount;
+   pelvis.position.y=.48-.02*amount*(1-Math.cos(2*phase))*.5;pelvis.rotation.y=.09*a;pelvis.rotation.z=.04*a;
+   torso.rotation.y=-.15*a;torso.rotation.z=-.03*a;torso.rotation.x=-.05*amount;head.rotation.y=.1*a;head.rotation.z=.025*a;
+   legs.forEach(([h,k],i)=>{const p=phase+(i?Math.PI:0),n=Math.sin(p)*amount;h.rotation.x=n*.5;k.rotation.x=-(.95*Math.max(0,Math.sin(p+1.25))+.06)*amount});
    return a;
   }
   const inward=(i,amt)=>{arms[i][0].rotation.z=i?-amt:amt};
@@ -223,10 +245,14 @@ export function populate(scene, materials, arcade=false){
   function pose(time,walk,job='',τ=time,extra={}){
    rest();
    const [L,R]=arms;
+   body(time,walk,job,τ,extra,L,R);
+   settle(time,walk);
+  }
+  function body(time,walk,job,τ,extra,L,R){
    if(walk>0||job===''){
-    const a=stride(time,walk);
-    L[0].rotation.x=-a*.48;R[0].rotation.x=a*.48;L[1].rotation.x=R[1].rotation.x=.17;
-    if(walk===0){L[1].rotation.x=R[1].rotation.x=.12;head.rotation.y=.25*Math.sin(time*.4)}
+    const a=stride(extra.phase??time*9,walk);
+    L[0].rotation.x=-a*.55;R[0].rotation.x=a*.55;L[1].rotation.x=.22+.25*Math.max(0,a);R[1].rotation.x=.22+.25*Math.max(0,-a);inward(0,.06);inward(1,.06);
+    if(walk===0){L[1].rotation.x=R[1].rotation.x=.12;head.rotation.y=.35*Math.sin(time*.37)*Math.max(0,Math.sin(time*.13));pelvis.position.x=.012*Math.sin(time*.45);pelvis.rotation.z=.025*Math.sin(time*.45);torso.rotation.z=-.03*Math.sin(time*.45)}
     if(extra.carry==='bottle'){show('bottle');R[0].rotation.x=.45;R[1].rotation.x=.75;inward(1,.1)}
     if(extra.tool){show(extra.tool);const t=tools[extra.tool];t.g.rotation.set(1.15,0,-.25);t.g.position.set(.12,.33,.02);R[0].rotation.x=-.2;R[0].rotation.z=-1.9;R[1].rotation.x=1.4;if(t.load)t.load.visible=extra.tool==='rake'&&extra.loaded}
     if(extra.push){torso.rotation.x=-.2;L[0].rotation.x=R[0].rotation.x=.55;L[1].rotation.x=R[1].rotation.x=.12;inward(0,.08);inward(1,.08);head.rotation.x=.12}
@@ -284,7 +310,16 @@ export function populate(scene, materials, arcade=false){
      legs[0][0].rotation.x=.3;legs[1][0].rotation.x=-.2;break}
    }
   }
-  const actor={g,pose,arms,hands,torso,setTag,tag,tools,props,spec};
+  // Blend from the previous pose so job changes and stops ease in, then add breath and blinks.
+  const blendJoints=[pelvis,torso,head,...legs.flat(),...arms.flat(),...hands],memory=blendJoints.map(j=>[j.rotation.x,j.rotation.y,j.rotation.z]);let memY=.48,memX=0,lastTime=null;
+  function settle(time,walk){
+   const dt=lastTime===null?1:time-lastTime;lastTime=time;const k=dt<0||dt>.5?1:1-Math.exp(-dt*(walk>0?16:9));
+   blendJoints.forEach((j,i)=>{const m=memory[i];m[0]+=(j.rotation.x-m[0])*k;m[1]+=(j.rotation.y-m[1])*k;m[2]+=(j.rotation.z-m[2])*k;j.rotation.set(m[0],m[1],m[2])});
+   memY+=(pelvis.position.y-memY)*k;memX+=(pelvis.position.x-memX)*k;pelvis.position.y=memY;pelvis.position.x=memX;
+   const b=Math.sin(time*1.9+index);if(chest)chest.scale.set(1+.012*b,1+.006*b,1+.018*b);
+   const blink=((time+index*1.3)%3.9)<.13;eyes.scale.y=blink?.12:1;
+  }
+  const actor={g,pose,arms,hands,torso,head,setTag,tag,tools,props,spec,heading:0};
   return actor;
  }
 
@@ -296,7 +331,8 @@ export function populate(scene, materials, arcade=false){
   if(i===2){tools.tablet=tabletProp(hands[0]);props.tablet=tools.tablet.g;props.wrench=wrenchProp(hands[1])}
   if(i===3){tools.shovel=shovelTool(torso);props.shovel=tools.shovel.g}
   if(i===4){tools.detector=detectorProp(hands[1]);props.detector=tools.detector.g;props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1])}
-  return {name:spec.name,actor,spec,...compile(spec),offset:i*3.7,state:{job:'',label:'',τ:0}};
+  const plan=compile(spec);actor.heading=plan.steps[0].h1??0;
+  return {name:spec.name,actor,spec,...plan,offset:i*3.7,state:{job:'',label:'',τ:0}};
  });
  const player=roles[0].actor;
 
@@ -323,6 +359,7 @@ export function populate(scene, materials, arcade=false){
  for(const s of [-1,1]){rod(tray,steel,s*.17,.34,.45,.014,.6).rotation.x=Math.PI/2;rod(tray,steel,s*.15,.2,.22,.012,.3)}
  const tyre=new T.Mesh(new T.TorusGeometry(.11,.035,8,18),rubber);tyre.rotation.y=Math.PI/2;tyre.position.set(0,.14,-.33);tyre.castShadow=true;tray.add(tyre);
  const barrowLoad=oval(tray,cake,0,.4,0,.17,.08,.22);
+ tray.traverse(o=>{if(o.isMesh)o.castShadow=false});const barrowBlob=blobShadow(.42,.32);barrowBlob.position.set(0,.006,0);barrow.add(barrowBlob);
  let barrowPos=new T.Vector3(layout.barrow[0],.09,layout.barrow[1]),barrowHeading=0;
 
  /* ---------- instanced backdrop: fence, shed, pipe rack, palms, bench, dial ---------- */
@@ -371,6 +408,7 @@ export function populate(scene, materials, arcade=false){
 
  /* ---------- shift scheduler ---------- */
  let controlled=null,tagsOn=true,lastDial=-1;
+ function pointAt(step,d){let seg=step.segs[0];for(const s of step.segs)if(d>=s.from)seg=s;const f=seg.l?Math.min(1,(d-seg.from)/seg.l):1;return [seg.a[0]+(seg.b[0]-seg.a[0])*f,seg.a[1]+(seg.b[1]-seg.a[1])*f,seg.a[2]+(seg.b[2]-seg.a[2])*f]}
  function locate(r,t){
   const local=((t+r.offset)%r.total+r.total)%r.total;
   let step=r.steps[0];for(const s of r.steps)if(local>=s.start)step=s;
@@ -382,14 +420,16 @@ export function populate(scene, materials, arcade=false){
    r.state.job=step.kind==='do'?step.job:'walk';r.state.label=step.label;r.state.τ=τ;r.state.step=step;
    if(a===controlled){a.tag.visible=false;continue}
    a.tag.visible=tagsOn;a.setTag(step.label);
+   const dt=a.lastT===undefined?1:t-a.lastT;a.lastT=t;const k=dt<0||dt>.5?1:1-Math.exp(-dt*7);
    if(step.kind==='go'){
-    const d=Math.min(step.len,τ*SPEED);let seg=step.segs[0];for(const s of step.segs)if(d>=s.from)seg=s;
-    const f=seg.l?(d-seg.from)/seg.l:1,x=seg.a[0]+(seg.b[0]-seg.a[0])*f,z=seg.a[1]+(seg.b[1]-seg.a[1])*f,y=seg.a[2]+(seg.b[2]-seg.a[2])*f;
-    a.g.position.set(x,.11+y,z);a.g.rotation.y=faceTo(seg.a,seg.b);
-    a.pose(t+r.offset,1,'',τ,{...step.opts,loaded:step.opts.tool==='rake'&&step===r.steps[1]});
+    const d=walkDistance(step,τ),p=pointAt(step,d),ahead=pointAt(step,Math.min(step.len,d+.35)),speed=walkSpeed(step,τ);
+    a.g.position.set(p[0],.11+p[2],p[1]);
+    const want=Math.hypot(ahead[0]-p[0],ahead[1]-p[1])>.02?faceTo(p,ahead):faceTo(step.segs.at(-1).a,step.segs.at(-1).b);
+    a.heading+=wrapAngle(want-a.heading)*k;a.g.rotation.y=a.heading;
+    a.pose(t+r.offset,.25+.75*speed,'',τ,{...step.opts,phase:d/STRIDE*Math.PI*2,loaded:step.opts.tool==='rake'&&step===r.steps[1]});
    }else{
     a.g.position.set(step.at[0],.11+(step.at[2]||0),step.at[1]);
-    const turn=Math.min(1,τ/.6);a.g.rotation.y=step.h0+wrapAngle(step.h1-step.h0)*ease(turn);
+    a.heading+=wrapAngle(step.h1-a.heading)*(dt<0||dt>.5?1:1-Math.exp(-dt*4.5));a.g.rotation.y=a.heading;
     a.pose(t+r.offset,0,step.job,τ);
    }
   }
@@ -405,12 +445,12 @@ export function populate(scene, materials, arcade=false){
   // Wheelbarrow travels in front of the sludge handler while pushed, otherwise stays parked.
   const sh=roles[3],ss=sh.state;
   if(sh.actor!==controlled&&(ss.job==='walk'&&ss.step.opts.push||ss.job==='tip')){
-   const h=sh.actor.g.rotation.y;barrowHeading=h;
+   const h=sh.actor.heading;barrowHeading=h;
    barrowPos.set(sh.actor.g.position.x-Math.sin(h)*.62,.09,sh.actor.g.position.z-Math.cos(h)*.62);
   }
   barrow.position.copy(barrowPos);barrow.rotation.y=barrowHeading;
   const pushing=ss.job==='walk';axle.rotation.x=ss.job==='tip'?-.9*(ease(ss.τ/1.2)-ease((ss.τ-2.4)/1)):pushing?-.14:0;
-  if(pushing)tyre.rotation.x=-ss.τ*4.5;
+  if(pushing)tyre.rotation.x=-walkDistance(ss.step,ss.τ)/.11;
   const fill=ss.job==='shovel'?Math.min(1,ss.τ/ss.step.dur):ss.job==='tip'?Math.max(0,1-ss.τ/1.8):(ss.step===sh.steps[1]?1:0);
   barrowLoad.visible=fill>.05;barrowLoad.scale.set(.17,.03+.09*fill,.22);barrowLoad.position.y=.36+.05*fill;
  }

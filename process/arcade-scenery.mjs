@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {seeds,smooth,band,lerpPath} from './molecules.mjs';
+import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift6';
 
 /*
  Extra life for the Mill Arcade diorama: the mill that produces the POME, the hot feed

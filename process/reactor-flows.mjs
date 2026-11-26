@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume} from './molecules.mjs';
+import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume,liquidClock} from './molecules.mjs?v=shift6';
 
 /*
  Molecular process layer for the UASB + aerobic cutaway (index.html simulator).
@@ -14,8 +14,8 @@ import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume} from '.
   drying    water drains through sand and gravel to the underdrain or evaporates.
   outlet    clear water spirals to the draw-off strainer while the last flocs settle.
 */
-export function reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut}){
- const C=chemistry(scene);
+export function reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut,tier={molecules:1,detail:1}}){
+ const C=chemistry(scene,{},1.3,{density:tier.molecules,detail:tier.detail});
  const mat=(color,r=.6,m=.2)=>new T.MeshStandardMaterial({color,roughness:r,metalness:m});
  function add(geo,m,px,py,pz){const o=new T.Mesh(geo,m);o.position.set(px,py,pz);o.castShadow=o.receiveShadow=true;scene.add(o);return o}
  function pipe(a,b,r,m){const s=new T.Vector3(...a),e=new T.Vector3(...b),d=e.clone().sub(s);const o=add(new T.CylinderGeometry(r,r,d.length(),12),m,...s.clone().lerp(e,.5).toArray());o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return o}
@@ -47,9 +47,9 @@ export function reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut
  /* ---- liquids: wavy surfaces and translucent bodies for the cutaway ---- */
  const diffuserRows=[-.28,.4,1.08];
  const surfaces=[
-  liquidSurface(scene,{x:-4.55,y:.915,z:.9,w:2.0,d:1.6,color:0x7b5a33,opacity:.9,turbulence:(px,pz)=>Math.max(0,1-Math.hypot(px+5.45,pz-1.45)*2.2)}),
+  liquidSurface(scene,{x:-4.55,y:.915,z:.9,w:2.0,d:1.6,color:0x7b5a33,opacity:.9,spot:[-5.45,1.45,.45,1]}),
   liquidSurface(scene,{x,y:3.38,z:0,r:1.2,color:0x4c4a30,opacity:.78}),
-  liquidSurface(scene,{x:1.8,y:.965,z:.5,w:2.55,d:2.2,color:0x7c8c5c,opacity:.85,turbulence:(px,pz)=>.6+.4*Math.max(...diffuserRows.map(r=>Math.max(0,1-Math.abs(pz-r)*6)))}),
+  liquidSurface(scene,{x:1.8,y:.965,z:.5,w:2.55,d:2.2,color:0x7c8c5c,opacity:.85,calm:.6,rows:diffuserRows.map(r=>r)}),
   liquidSurface(scene,{x:4.75,y:1.125,z:.7,r:.68,color:0x6fb6ab,opacity:.62,rough:.08})
  ];
  for(const s of surfaces)s.base=s.mat.opacity;
@@ -74,7 +74,7 @@ export function reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut
  let last=0;
 
  function update(t){
-  const dt=Math.max(0,Math.min(.1,t-last));last=t;const cut=isCut();
+  const dt=Math.max(0,Math.min(.1,t-last));last=t;const cut=isCut();liquidClock.value=t;
   for(const s of surfaces){s.update(t);s.mat.opacity=cut?s.base*.55:s.base}for(const m of volumes)m.visible=cut;
   rockers.forEach((r,j)=>{r.position.y=.84+.012*Math.max(0,Math.sin(t*14+j*1.57))});
   C.begin();

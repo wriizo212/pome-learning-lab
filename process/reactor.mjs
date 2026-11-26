@@ -1,30 +1,33 @@
-import {frameBudget} from './frame-budget.mjs';
+import {frameBudget} from './frame-budget.mjs?v=shift6';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift6';
+import {windify,concrete,texture} from './life.mjs?v=shift6';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift6';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift5';
-import {explore} from './explore.mjs?v=shift5';
-import {reactorProcess} from './reactor-flows.mjs?v=shift5';
-import {legend} from './molecules.mjs?v=shift5';
+import {populate} from './crew.mjs?v=shift6';
+import {explore} from './explore.mjs?v=shift6';
+import {reactorProcess} from './reactor-flows.mjs?v=shift6';
+import {legend} from './molecules.mjs?v=shift6';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
-view.innerHTML='<div class="reactor-frame"><canvas tabindex="0" aria-label="UASB reactor cutaway and aerobic basin. Drag to orbit or use arrow keys."></canvas><span class="reactor-caption">UASB section · aerobic basin</span></div><div class="reactor-controls"><label>Inspect <select aria-label="Inspect treatment stage"><option value="">Plant overview</option></select></label><button data-command="section" aria-pressed="true">Cutaway</button><button data-command="motion">Pause flow</button><button data-command="molecules" aria-pressed="true">Molecules</button><button data-command="out" aria-label="Zoom out">−</button><button data-command="in" aria-label="Zoom in">+</button><button data-command="home">Reset view</button></div>';
+view.innerHTML='<div class="reactor-frame"><canvas tabindex="0" aria-label="UASB reactor cutaway and aerobic basin. Drag to orbit or use arrow keys."></canvas><span class="reactor-caption">UASB section · aerobic basin</span></div><div class="reactor-controls"><label>Inspect <select aria-label="Inspect treatment stage"><option value="">Plant overview</option></select></label><button data-command="section" aria-pressed="true">Cutaway</button><button data-command="motion">Pause flow</button><button data-command="molecules" aria-pressed="true">Molecules</button><button data-command="out" aria-label="Zoom out">−</button><button data-command="in" aria-label="Zoom in">+</button><button data-command="home">Reset view</button><label class="quality">Quality <select data-quality aria-label="Rendering quality"><option value="auto">Auto</option><option value="high">High</option><option value="balanced">Balanced</option><option value="lite">Lite</option></select></label></div>';
 diagram.before(view);
 const canvas=view.querySelector('canvas'), select=view.querySelector('select'), toggle=view.querySelector('[data-command=section]'), motion=view.querySelector('[data-command=motion]');
 const units=[...diagram.querySelectorAll('[data-stage]')];
 units.forEach((u,i)=>select.add(new Option(u.getAttribute('aria-label'),i)));
-let renderer;
-try{renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'})}catch{view.remove()}
+let renderer,tierName=resolveTier(),tier=TIERS[tierName];
+try{renderer=new T.WebGLRenderer({canvas,antialias:tierName!=='lite',powerPreference:'high-performance'})}catch{view.remove()}
 if(renderer) build();
 function build(){
- const scene=new T.Scene(), camera=new T.PerspectiveCamera(37,1,.1,110);
+ const scene=new T.Scene(), camera=new T.PerspectiveCamera(37,1,.1,170);
  scene.background=new T.Color(0x203535);scene.fog=new T.FogExp2(0x203535,.028);
- renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
+ renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=T.PCFSoftShadowMap;
  renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;
- scene.add(new T.HemisphereLight(0xf1f6ff,0x999176,2.2));
- const sun=new T.DirectionalLight(0xffe0ad,3.2);sun.position.set(-6,11,8);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
- Object.assign(sun.shadow.camera,{left:-10,right:10,top:9,bottom:-9});sun.shadow.camera.updateProjectionMatrix();sun.shadow.normalBias=.012;scene.add(sun);
+ scene.add(new T.HemisphereLight(0xe4f0ff,0x8f8a6c,2.0));
+ const sun=new T.DirectionalLight(0xffe3b5,3.4);sun.position.set(-6,11,8);sun.castShadow=true;sun.shadow.mapSize.set(tier.shadowSize,tier.shadowSize);
+ Object.assign(sun.shadow.camera,{left:-12.5,right:12.5,top:10,bottom:-10,near:.5,far:40});sun.shadow.camera.updateProjectionMatrix();sun.shadow.normalBias=.012;scene.add(sun);
  const rim=new T.DirectionalLight(0x9adbe9,2);rim.position.set(5,4,-8);scene.add(rim);
  let seed=47;const rand=()=>((seed=Math.imul(1664525,seed)+1013904223>>>0)/4294967296);
  function finish(base,metal,rough,grain){
@@ -39,7 +42,8 @@ function build(){
   const tex=new T.CanvasTexture(c);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(2,2);tex.colorSpace=T.SRGBColorSpace;
   return new T.MeshStandardMaterial({map:tex,bumpMap:tex,bumpScale:grain?.012:.04,metalness:metal,roughness:rough,side:T.DoubleSide});
  }
- const steel=finish('#adbcbe',.65,.36,true), shell=finish('#65958b',.53,.4,true), cement=finish('#b4aea0',.04,.86), base=finish('#53615d',.1,.8), sludge=finish('#614437',0,.98), brass=finish('#d99a45',.42,.45,true);
+ const cementTex=texture(concrete(tier.texture,{base:'#b4aea0'}),{repeat:[1.5,1.5]});
+ const steel=finish('#adbcbe',.65,.36,true), shell=finish('#65958b',.53,.4,true), cement=new T.MeshStandardMaterial({map:cementTex,bumpMap:cementTex,bumpScale:.025,roughness:.88,metalness:.03,side:T.DoubleSide}), base=finish('#53615d',.1,.8), sludge=finish('#614437',0,.98), brass=finish('#d99a45',.42,.45,true);
  const color=(c,m=0,r=.55)=>new T.MeshStandardMaterial({color:c,metalness:m,roughness:r,side:T.DoubleSide});
  const dark=color(0x263c40,.45), teal=color(0x429997,.33), water=color(0x498f84,.25,.19), foam=color(0xacddd2,.08,.23), amber=color(0xeebb65,.2), brown=color(0x88694c);
  let group=scene;
@@ -59,7 +63,9 @@ function build(){
   const sprite=new T.Sprite(new T.SpriteMaterial({map:tex}));sprite.position.set(x,y,z);sprite.scale.set(w,w*96/512,1);group.add(sprite);
  }
  // Pipe runs carry several glowing parcels tinted by what flows inside them.
- function route(points,mat,r,tint=0xacddd2){run(points,r,mat);const path=new T.CurvePath();points.slice(1).forEach((p,i)=>path.add(new T.LineCurve3(v(...points[i]),v(...p))));const look=new T.MeshStandardMaterial({color:tint,emissive:tint,emissiveIntensity:.45,roughness:.3});const n=6,speed=.5/Math.max(1,path.getLength());for(let k=0;k<n;k++){const marker=mesh(new T.SphereGeometry(r*1.32,12,8),look,...points[0]);movers.add(marker);dynamic.push(t=>marker.position.copy(path.getPoint((t*speed+k/n)%1)))}}
+ const parcels=[];
+ function stream(points,r,tint,n){const path=new T.CurvePath();points.slice(1).forEach((p,i)=>path.add(new T.LineCurve3(v(...points[i]),v(...p))));n??=Math.max(4,Math.round(path.getLength()*1.6));for(let k=0;k<n;k++)parcels.push({path,r:r*1.32,tint:new T.Color(tint),k:k/n,speed:.5/Math.max(1,path.getLength())})}
+ function route(points,mat,r,tint=0xacddd2){run(points,r,mat);stream(points,r,tint)}
  box(0,-.41,0,200,.24,200,base);box(0,-.12,0,12.4,.42,6.5,cement);box(0,.08,2.94,12,.03,.12,brass);
  group=groups[0];tank(-4.55,.9,2.2,1.7,1,brown);for(let i=0;i<14;i++)box(-5.38+i*.13,1.02,.68,.04,.09,1.02,steel).rotation.x=-.17;
  label('INLET',-4.55,1.5,1,1.3);
@@ -96,8 +102,14 @@ function build(){
  group=groups[4];for(let j=0;j<3;j++)box(3.2,.24+j*.087,-1.95,1.9,.075,.96,[base,cement,sludge][j]);
  pipe([2.32,.17,-1.64],[4.18,.17,-1.64],.051,teal);
  batchStations(groups,pickables,solids,movers);
- group=scene;const world=populate(scene,{steel,brass,cement,dark,base});dynamic.push(world.animate);
- const flows=reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut:()=>cut});dynamic.push(flows.update);
+ group=scene;const leaf=windify(new T.MeshStandardMaterial({color:0x506a43,roughness:.78}),{strength:.006,base:1.6});
+ const world=populate(scene,{steel,brass,cement,dark,base,leaf});dynamic.push(world.animate);
+ const flows=reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut:()=>cut,tier});dynamic.push(flows.update);
+ const scenery=reactorScenery(scene,{steel,brass,dark,cement,teal,tier});dynamic.push(scenery.update);
+ stream(scenery.airMain,.055,0xe9f6ff);stream(scenery.reusePipe,.06,0x9fe3d6);stream([[5.38,.34,.7],[6.15,.34,.7]],.07,0x9fe3d6,2);
+ const parcelMesh=new T.InstancedMesh(new T.SphereGeometry(1,10,7),new T.MeshStandardMaterial({color:0xffffff,emissive:0x444444,roughness:.3}),parcels.length);
+ parcels.forEach((p,i)=>parcelMesh.setColorAt(i,p.tint));parcelMesh.castShadow=false;parcelMesh.frustumCulled=false;scene.add(parcelMesh);
+ const pm=new T.Object3D(),pv=new T.Vector3();dynamic.push(t=>{parcels.forEach((p,i)=>{p.path.getPoint((t*p.speed+p.k)%1,pv);pm.position.copy(pv);pm.scale.setScalar(p.r);pm.updateMatrix();parcelMesh.setMatrixAt(i,pm.matrix)});parcelMesh.instanceMatrix.needsUpdate=true});
  const molecules=view.querySelector('[data-command=molecules]');legend(view.querySelector('.reactor-frame'));
  const descriptions=[
   'Inlet and bar screen · Hot raw POME (about 80 °C, COD typically around 50,000 mg/L) pours in from the mill. The bars catch fibre and shell, and the operator rakes them into the skip. Oil floats as droplets, while water, dissolved organics (COD) and ammonium flow on to the reactor.',
@@ -118,7 +130,7 @@ function build(){
  function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}
  const orbit=(dx,dy)=>{yaw-=dx;pitch=T.MathUtils.clamp(pitch+dy,.11,1.4)};
  const visitor=explore(view,canvas,camera,world,orbit,pick,()=>toggle.click(),zoom);
- updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'molecules':{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);view.querySelector('.chem-legend').hidden=!on;break}case 'section':renderer.shadowMap.needsUpdate=true;cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
+ updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'molecules':{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);view.querySelector('.chem-legend').hidden=!on;break}case 'section':budget.refreshShadows();cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
  solids.forEach(m=>m.visible=false);
  canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:0}};
  canvas.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);if(visitor.isWalking())visitor.look(dx*.009,dy*.007);else orbit(dx*.009,dy*.007);drag.x=e.clientX;drag.y=e.clientY};
@@ -130,10 +142,15 @@ function build(){
  new IntersectionObserver(es=>{vis=es[0].isIntersecting;if(!vis&&!view.getBoundingClientRect().height)visitor.stop()}).observe(canvas);
  let w=0,h=0;
  const meter=document.createElement('small');meter.title='Rendered frames per second';view.querySelector('.reactor-controls').append(meter);
- const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'});
+ const qualitySelect=view.querySelector('[data-quality]');qualitySelect.value=savedChoice();
+ function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();
+  scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
+ const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'},{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
+ qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value))};applyTier(tierName);
  function frame(now){requestAnimationFrame(frame);const dt=Math.min(.07,(now-last)/1000);last=now;if(!vis||view.hidden||document.hidden){budget.idle();return}
  const width=canvas.clientWidth,height=canvas.clientHeight;if(!width||!height)return;if(w!==width||h!==height){w=width;h=height;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  budget.tick(now);if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);
  if(!visitor.frame(dt)){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}renderer.render(scene,camera)}
  canvas.addEventListener('webglcontextlost',()=>{visitor.stop();view.remove();diagram.style.display='';panel.classList.add('reactor-fallback');vis=false});requestAnimationFrame(frame);
+ if(new URLSearchParams(location.search).has('debug'))window.__pome={renderer,scene,camera,frame:()=>{dynamic.forEach(fn=>fn(t));renderer.render(scene,camera)},setT:v=>{t=v}};
 }
