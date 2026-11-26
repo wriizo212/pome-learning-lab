@@ -13,12 +13,12 @@ export function gestures(button,video,status,act){
  }
  function interpret(points,now){
   const hand=classifyHand(points);
-  const command=!hand?'clear':hand.pinchRatio<.28?'inspect':hand.count===5?'move':hand.count===3?'cut':hand.count===2?'view':hand.count===1?'look':'clear';
+  const command=!hand?'clear':hand.pinchRatio<.28?'inspect':hand.count===5?'move':hand.count===4?'role':hand.count===3?'cut':hand.count===2?'view':hand.count===1?'look':'clear';
   if(points)act('aim',1-points[8].x,points[8].y);else act('hideAim');
   if(command!==held){held=command;since=now;fired=false}
   if(command==='move'||command==='look')act(command,1-hand.palm.x,hand.palm.y);
   else{act('clear');if(!fired&&now-since>750&&command!=='clear'){act(command,1-points[8].x,points[8].y);fired=true}}
-  say(({clear:hand?'Stopped':'Show a hand',move:'Walking / approaching',look:'Looking',inspect:'Pinch · inspect',cut:'Three fingers · cutaway',view:'Two fingers · camera view'})[command]);
+  say(({clear:hand?'Stopped':'Show a hand',move:'Walking / approaching',look:'Looking',inspect:'Pinch · inspect',cut:'Three fingers · cutaway',view:'Two fingers · camera view',role:'Four fingers · change worker'})[command]);
  }
  function schedule(id){if(id===generation)timer=setTimeout(()=>sample(id),Math.max(10,lastSubmit+interval-performance.now()))}
  function result(id,points){

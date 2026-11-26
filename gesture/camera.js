@@ -65,6 +65,7 @@ async function ensureModels(tasks){if(fallback)return ensureMain(tasks);try{awai
 function modelsReady(tasks){return fallback?(!tasks.hands||!!mainHand&&mainNumHands===tasks.numHands)&&(!tasks.face||!!mainFace):(!tasks.hands||workerReady.hands&&workerReady.numHands===tasks.numHands)&&(!tasks.face||workerReady.face)}
 
 async function startCamera(power='orb'){
+ window.dispatchEvent(new Event('pome-quiz-camera'));
  mode=power;if(currentGame()?.power)globalEnabled=false;dock.hidden=false;byId('faceCalibrate').hidden=power!=='face';byId('cameraMode').textContent=power==='face'?'STAGE 2 · WAJAH':globalEnabled?'KURSOR AI · 2 TANGAN':power==='gesture'?'GESTURE · 1–5 JARI':power==='fire'?'FIREBALL':'MAGIC ORB';
  if(active){contextChanged();video.play().catch(()=>{});setButton();return}if(loading)return;
  const token=++generation;loading=true;setButton();status('Meminta izin kamera daripada pelayar…');const c=support.inspect();if(!c.policy||!c.api)showHelp();

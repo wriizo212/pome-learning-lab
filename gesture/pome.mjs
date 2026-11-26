@@ -90,4 +90,4 @@ document.addEventListener('keydown',event=>{
  if(event.key==='Enter'&&!event.repeat && !el('modal').open && el('cameraHelp').hidden && !event.target.closest('button,a,input,select,textarea,summary'))mission.next();
 });
 el('powerHint').textContent=QUIZ_POWERS[mode].hint;
-await import('./camera.js');
+await import('./camera.js?v=shift3');

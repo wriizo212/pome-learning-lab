@@ -175,8 +175,8 @@
   start(Missions.games[0].id);
   if(location.protocol !== 'file:') {
     Promise.all([
-      import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js'),
-      import('./mill-gpu.mjs?v=perf2')
+      import('./process/three.module.min.js'),
+      import('./mill-gpu.mjs?v=shift3')
     ]).then(([three, assets]) => {
       const enhanced=assets.mount(three,el('plant'),inspect);
       renderer.destroy();renderer=enhanced;renderer.update(modelState);renderer.spin(autoOrbit);

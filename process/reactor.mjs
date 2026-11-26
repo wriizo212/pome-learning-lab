@@ -2,8 +2,8 @@ import {frameBudget} from './frame-budget.mjs';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=perf2';
-import {explore} from './explore.mjs?v=perf2';
+import {populate} from './crew.mjs?v=shift3';
+import {explore} from './explore.mjs?v=shift3';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -109,7 +109,7 @@ function build(){
  function updateMotion(){motion.textContent=paused?'Resume flow':'Pause flow'}
  function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}
  const orbit=(dx,dy)=>{yaw-=dx;pitch=T.MathUtils.clamp(pitch+dy,.11,1.4)};
- const visitor=explore(view,canvas,camera,world.player,orbit,pick,()=>toggle.click(),zoom);
+ const visitor=explore(view,canvas,camera,world,orbit,pick,()=>toggle.click(),zoom);
  updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'section':renderer.shadowMap.needsUpdate=true;cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
  solids.forEach(m=>m.visible=false);
  canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:0}};
