@@ -37,3 +37,4 @@
 .play-talk .line{min-height:0;margin:4px 0 6px}
 @media (min-width:560px){.play-talk .choices{grid-template-columns:1fr 1fr}}
 .play-talk .choices button{padding:5px 9px;margin:0;width:auto}
+.mill-gpu .fps-meter{margin-left:8px;color:#a9c0b6;font-size:12px}

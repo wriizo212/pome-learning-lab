@@ -1,14 +1,14 @@
-import {populate} from './process/crew.mjs?v=shift9';
-import {explore} from './process/explore.mjs?v=shift9';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift9';
-import {legend} from './process/molecules.mjs?v=shift9';
-import {arcadeScenery,arcadeExtras} from './process/arcade-scenery.mjs?v=shift9';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift9';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal} from './process/life.mjs?v=shift9';
-import {arcadePlay} from './process/play.mjs?v=shift9';
-import {addWaves} from './process/molecules.mjs?v=shift9';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift9';
-import {frameBudget} from './process/frame-budget.mjs?v=shift9';
+import {populate} from './process/crew.mjs?v=shift10';
+import {explore} from './process/explore.mjs?v=shift10';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift10';
+import {legend} from './process/molecules.mjs?v=shift10';
+import {arcadeScenery,arcadeExtras,arcadeDetails} from './process/arcade-scenery.mjs?v=shift10';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift10';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal} from './process/life.mjs?v=shift10';
+import {arcadePlay} from './process/play.mjs?v=shift10';
+import {addWaves} from './process/molecules.mjs?v=shift10';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift10';
+import {frameBudget} from './process/frame-budget.mjs?v=shift10';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];
@@ -157,6 +157,7 @@ export function mount(T, host, onPick) {
   const flows=arcadeProcess(scene,{world,isCut:()=>cut,isPond:()=>pond.visible,isPolluted:()=>polluted,tier});
   const scenery=arcadeScenery(scene,{steel,brass,dark,concrete,teal,roof},{isPond:()=>pond.visible,isPolluted:()=>polluted});flows.hook(scenery.hook);
   const extras=arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier);
+  const siteDetail=arcadeDetails(scene,{steel,dark,concrete},tier,{isPolluted:()=>polluted});flows.hook(siteDetail.hook);
   // Sky reflections on water, glass and steel; moving ripple normals on all water.
   environment(renderer,scene,{intensity:.5,horizon:0xb0c3b6,sunDir:new T.Vector3(-8,12,5)});
   const ripples=rippleNormal(256);ripples.repeat.set(4,4);
@@ -171,7 +172,8 @@ export function mount(T, host, onPick) {
   const qualitySelect=qualityLabel.querySelector('select');qualitySelect.value=savedChoice();
   const hdBadge=document.createElement('span');hdBadge.className='hd-badge';hdBadge.textContent='HD';hdBadge.hidden=true;viewport.append(hdBadge);
   function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
-  const budget=frameBudget(renderer,null,{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
+  const fpsMeter=document.createElement('small');fpsMeter.className='fps-meter';fpsMeter.title='Rendered frames per second';qualityLabel.after(fpsMeter);
+  const budget=frameBudget(renderer,fps=>{fpsMeter.textContent=fps+' FPS'},{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
   const hd=hdZoom({budget,chem:flows.chem,sun,flows,details,getTier:()=>tier,near:9.5,far:11.5,onChange:on=>{hdBadge.hidden=!on}});
   qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
   const key=legend(viewport,{open:false});molecules.onclick=()=>{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);key.hidden=!on};
@@ -179,7 +181,7 @@ export function mount(T, host, onPick) {
   function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const id=ray.intersectObjects([...Object.values(units),pond],true).find(hit=>hit.object.visible&&hit.object.userData.unit&&hit.object.parent.visible)?.object.userData.unit;if(id){onPick(id);play?.showInfo(id)}}
   const visitor=explore(wrapper,canvas,camera,world,orbit,pick,switchSection,delta=>zoom(-delta*.16),true);
   const play=arcadePlay({scene,camera,canvas,viewport,wrapper,world,visitor,flows,isPond:()=>pond.visible,isPolluted:()=>polluted});
-  if(new URLSearchParams(location.search).has('debug'))window.__arcade={visitor,world,play,renderer,scene,camera};
+  if(new URLSearchParams(location.search).has('debug'))window.__arcade={visitor,world,play,renderer,scene,camera,flows,scenery,extras,budget,hd};
   wrapper.querySelector('.hand-start').addEventListener('click',()=>window.stopCamera?.(true),true);
   window.addEventListener('pome-quiz-camera',()=>visitor.stop());
   let visible=false;const center=new T.Vector3(0,.5,0);
@@ -188,13 +190,13 @@ export function mount(T, host, onPick) {
     frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
-    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);extras.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
+    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);extras.update(time);siteDetail.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
     const walking=visitor.frame(dt);if(!walking){camera.position.set(radius*Math.cos(pitch)*Math.sin(yaw),.6+radius*Math.sin(pitch),radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(0,.5,0)}
     hd.update(walking?0:distance,walking?camera.position:center);
     marker.visible=Boolean(targets[stage]);if(marker.visible){marker.position.copy(targets[stage]);marker.position.y+=.53+Math.sin(time*2)*.045;}
-    renderer.render(scene,camera);
+    renderer.render(scene,camera);budget.end();
   }
   host.replaceWith(wrapper);frame=requestAnimationFrame(draw);
   return {update(s){if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){renderer.shadowMap.needsUpdate=true;const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s){polluted=s.success===false;waters.at(-1).material.color.set(polluted?0x756c42:0x436e64);}},reset,zoom,spin(s){spin=s;},rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.2,Math.min(1.33,pitch+tilt));},destroy(){visitor.stop();observer.disconnect();cancelAnimationFrame(frame);renderer.dispose();}};

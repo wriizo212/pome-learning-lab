@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {chemistry,seeds,smooth,band,lerpPath,liquidVolume,liquidClock} from './molecules.mjs?v=shift9';
+import {chemistry,seeds,smooth,band,lerpPath,liquidVolume,liquidClock} from './molecules.mjs?v=shift10';
 
 /*
  Molecular process layer for the Mill Arcade diorama (mill-gpu.mjs).

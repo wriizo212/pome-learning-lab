@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift9';
-import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky} from './life.mjs?v=shift9';
+import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift10';
+import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky} from './life.mjs?v=shift10';
 
 /*
  Extra life for the Mill Arcade diorama: the mill that produces the POME, the hot feed
@@ -183,4 +183,78 @@ export function arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier){
   for(const f of flies){const k=t*.5+f.ph;f.g.position.set(f.cx+1.1*Math.sin(k*.7)+.3*Math.sin(k*3.1),.1+.25*Math.abs(Math.sin(k*1.3)),f.cz+.4*Math.sin(k*.9));f.g.rotation.y=k;const flap=1.1*Math.sin(t*28+f.ph);f.l.rotation.y=flap;f.r.rotation.y=Math.PI-flap}
  }
  return {update,airMain};
+}
+
+/*
+ Third layer of arcade detail: a walkway bridge with a live dissolved-oxygen probe over
+ the polishing basin, the river outfall (headwall, flap gate, rip-rap) with a floating oil
+ boom, a driver in the lorry cab, steam from the mill's steriliser vents, a local control
+ panel with blinking status lights, valve handwheels on the pipe runs, reflective puddles
+ and pebbles along the walkway. Everything is clickable for an explanation.
+*/
+export function arcadeDetails(scene,{steel,dark,concrete},tier,{isPolluted}){
+ let seed=777;const rnd=()=>((seed=Math.imul(1664525,seed)+1013904223>>>0)/4294967296);
+ const mat=(color,r=.6,m=.1,extra={})=>new T.MeshStandardMaterial({color,roughness:r,metalness:m,...extra});
+ const stat=new T.Group();scene.add(stat);
+ function add(geo,m,x,y,z,parent=stat,shadow=true){const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=shadow;o.receiveShadow=true;parent.add(o);return o}
+ const box=(x,y,z,w,h,d,m,p=stat)=>add(new T.BoxGeometry(w,h,d),m,x,y+h/2,z,p);
+ const cyl=(x,y,z,r,h,m,p=stat,r2=r,n=12)=>add(new T.CylinderGeometry(r,r2,h,n),m,x,y+h/2,z,p);
+ const o=new T.Object3D();
+ const hit=(key,x,y,z,w,h,d)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshBasicMaterial({visible:false}));m.position.set(x,y,z);m.userData.info=key;scene.add(m)};
+ const grate=mat(0x8d9a93,.5,.5),rail=mat(0xe8c440,.45,.3);
+
+ /* Walkway bridge across the polishing basin with a DO probe and live display. */
+ box(3.0,.5,-.35,.4,.04,2.3,grate);for(let k=0;k<12;k++)box(3.0,.505,-1.45+k*.2,.38,.008,.02,dark);
+ for(const s of [-1,1]){box(3.0+s*.19,.54,-.35,.025,.025,2.3,rail);box(3.0+s*.19,.75,-.35,.025,.025,2.3,rail);for(let k=0;k<5;k++)box(3.0+s*.19,.5,-1.45+k*.55,.025,.28,.025,rail)}
+ cyl(3.12,.18,-.35,.012,.4,steel);cyl(3.12,.12,-.35,.025,.08,dark);
+ const doCanvas=document.createElement('canvas');doCanvas.width=256;doCanvas.height=128;const doTex=new T.CanvasTexture(doCanvas);doTex.colorSpace=T.SRGBColorSpace;
+ box(3.19,.66,-.35,.03,.16,.24,mat(0xdfe3de,.5));const screen=add(new T.PlaneGeometry(.2,.1),new T.MeshStandardMaterial({map:doTex,emissive:0xffffff,emissiveMap:doTex,emissiveIntensity:.8}),3.206,.74,-.35,scene,false);screen.rotation.y=Math.PI/2;
+ let doText='';function drawDO(t){const dirty=isPolluted(),v=(dirty?.6:2.1)+.08*Math.sin(t*.7);const text=`DO ${v.toFixed(1)} mg/L`;if(text===doText)return;doText=text;const g=doCanvas.getContext('2d');g.fillStyle='#10231f';g.fillRect(0,0,256,128);g.fillStyle=dirty?'#ff9b6b':'#9ff5b8';g.font='bold 44px monospace';g.textAlign='center';g.fillText(text,128,62);g.font='22px monospace';g.fillStyle='#cfe1d6';g.fillText(dirty?'LOW — check blowers':'aeration OK',128,100);doTex.needsUpdate=true}
+ hit('do probe',3.0,.65,-.35,.5,.4,2.3);
+
+ /* River outfall: headwall, flap gate, rip-rap and a floating oil boom. */
+ box(5.2,0,3.82,.9,.34,.16,concrete);for(const s of [-1,1])box(5.2+s*.48,0,3.95,.12,.3,.4,concrete);
+ const flap=add(new T.CylinderGeometry(.11,.11,.03,16),mat(0x2f3a38,.5,.5),5.2,.19,3.92);flap.rotation.x=Math.PI/2;
+ const rocks=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),mat(0x8a8576,.9),Math.round(26*Math.max(.5,tier.scenery)));
+ for(let k=0;k<rocks.count;k++){const a=-Math.PI*.1+rnd()*Math.PI*1.2,r=.35+rnd()*.45;o.position.set(5.2+Math.cos(a)*r*1.4,.04,3.95+Math.sin(a)*r*.6);o.rotation.set(rnd()*3,rnd()*3,rnd()*3);o.scale.set(.06+rnd()*.07,.04+rnd()*.04,.06+rnd()*.07);o.updateMatrix();rocks.setMatrixAt(k,o.matrix)}
+ rocks.castShadow=rocks.receiveShadow=true;scene.add(rocks);hit('outfall',5.2,.15,3.95,1.2,.4,.6);
+ const boomPts=[];for(let k=0;k<=16;k++){const a=Math.PI*(k/16);boomPts.push([5.2+Math.cos(a)*1.05,3.95+Math.sin(a)*.95])}
+ const floats=new T.InstancedMesh(new T.CapsuleGeometry(.045,.1,3,8),mat(0xf08a24,.45,.05),boomPts.length);floats.castShadow=false;scene.add(floats);
+ const skirt=new T.InstancedMesh(new T.BoxGeometry(1,.06,.012),mat(0xe1d3b0,.8),boomPts.length-1);scene.add(skirt);
+ hit('oil boom',5.2,.1,4.5,2.3,.25,1.2);
+
+ /* Driver in the lorry cab. */
+ const lorry=scene.children.find(c=>c.userData.info==='lorry');let driverHead=null;
+ if(lorry){const d=new T.Group();d.position.set(0,.42,.9);lorry.add(d);const skin=mat(0x9c6b4f,.7),shirt=mat(0x3f6fa0,.8);
+  add(new T.BoxGeometry(.16,.18,.12),shirt,0,0,0,d,false);driverHead=add(new T.SphereGeometry(.06,12,9),skin,0,.15,0,d,false);add(new T.SphereGeometry(.064,12,6,0,Math.PI*2,0,Math.PI/2),mat(0x2a2a2a,.6),0,.17,0,driverHead.parent,false).position.set(0,.165,0);
+  const wheel=add(new T.TorusGeometry(.06,.01,6,16),dark,0,.05,-.1,d,false);wheel.rotation.x=1.1}
+
+ /* Local control panel with blinking status lights beside the digester. */
+ cyl(-1.45,0,.5,.025,.55,steel);box(-1.45,.5,.5,.3,.4,.12,mat(0xc9cfca,.45,.3));
+ const leds=[0x44ff77,0xffc23a,0xff4433].map((c,k)=>{const m=add(new T.SphereGeometry(.018,8,6),new T.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1}),-1.53+k*.08,.82,.565,scene,false);return m});
+ box(-1.45,.6,.565,.2,.1,.01,mat(0x1d2a28,.4));hit('control panel',-1.45,.6,.5,.35,.6,.2);
+
+ /* Valve handwheels on the pipe runs. */
+ const hw=mat(0xb8382c,.5,.2);for(const [x,y,z,ry] of [[-2.75,.36,-.8,0],[1.3,.38,-.35,Math.PI/2],[4.9,.39,-.35,Math.PI/2]]){cyl(x,y,z,.012,.16,steel);const w=add(new T.TorusGeometry(.065,.012,6,18),hw,x,y+.17,z);w.rotation.x=Math.PI/2;hit('handwheel',x,y+.12,z,.18,.25,.18)}
+
+ /* Reflective puddles and pebbles along the walkway. */
+ const puddleMat=new T.MeshStandardMaterial({color:0x5f7470,roughness:.05,metalness:.2,transparent:true,opacity:.75,polygonOffset:true,polygonOffsetFactor:-2});
+ for(const [x,z,r] of [[-3.4,1.5,.32],[1.8,1.22,.26],[5.6,1.62,.22],[3.6,1.55,.24]]){const p=add(new T.CircleGeometry(r,22),puddleMat,x,.026,z,scene,false);p.rotation.x=-Math.PI/2;p.scale.set(1,.65,1);p.userData.info='puddle'}
+ const pebbles=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),mat(0xa8a090,.9),Math.round(220*Math.max(.4,tier.scenery)));
+ for(let k=0;k<pebbles.count;k++){const edge=k%2?.8:1.72;o.position.set(-7.5+rnd()*15,.02,edge+(rnd()-.5)*.12);o.rotation.set(rnd()*3,rnd()*3,rnd()*3);o.scale.setScalar(.012+rnd()*.022);o.updateMatrix();pebbles.setMatrixAt(k,o.matrix)}
+ pebbles.receiveShadow=true;scene.add(pebbles);
+ mergeStatic(stat);
+
+ const steam=seeds(20,3,301);
+ function update(t){
+  drawDO(t);
+  for(let k=0;k<boomPts.length;k++){const [x,z]=boomPts[k];o.position.set(x,.1+.012*Math.sin(t*2.2+k*.7),z);o.rotation.set(0,Math.atan2(boomPts[Math.min(k+1,boomPts.length-1)][1]-boomPts[Math.max(0,k-1)][1],boomPts[Math.min(k+1,boomPts.length-1)][0]-boomPts[Math.max(0,k-1)][0])*-1,Math.PI/2);o.scale.setScalar(1);o.updateMatrix();floats.setMatrixAt(k,o.matrix)}
+  floats.instanceMatrix.needsUpdate=true;
+  for(let k=0;k<boomPts.length-1;k++){const [x1,z1]=boomPts[k],[x2,z2]=boomPts[k+1];o.position.set((x1+x2)/2,.07+.01*Math.sin(t*2.2+k*.7),(z1+z2)/2);o.rotation.set(0,-Math.atan2(z2-z1,x2-x1),0);o.scale.set(Math.hypot(x2-x1,z2-z1),1,1);o.updateMatrix();skirt.setMatrixAt(k,o.matrix)}
+  skirt.instanceMatrix.needsUpdate=true;
+  leds[0].material.emissiveIntensity=1.6;leds[1].material.emissiveIntensity=(t%2)<1?1.8:.15;leds[2].material.emissiveIntensity=isPolluted()&&(t%.6)<.3?2.2:.1;
+  if(driverHead)driverHead.rotation.y=.5*Math.sin(t*.4)*Math.max(0,Math.sin(t*.13));
+ }
+ function hook(C,t){for(const [a,b,c] of steam){const f=(a+t*.11)%1;C.put('steam',-6.95+b*.5+.2*f,1.35+.9*f,-2.95+c*.3,(.05+.16*f)*(1-smooth(band(f,.7,1))),c*3)}}
+ return {update,hook};
 }

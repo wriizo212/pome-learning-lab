@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {createSound} from './sound.mjs?v=shift9';
+import {createSound} from './sound.mjs?v=shift10';
 
 /*
  Interactive play layer shared by the Mill Arcade and the main UASB simulator: walk as a
@@ -312,6 +312,12 @@ export function arcadePlay(env){
   surface:(x,z)=>(z>.8&&z<1.7)||(x>-6.15&&x<-5.25)?'gravel':'grass',
   roleInfo:['Runs the intake and the digester feed.','Samples and tests water from every stage and the river.','Keeps the gas engine, meters and instruments working.','Handles sludge drying, the wheelbarrow and the compost heap.','Checks for gas leaks and keeps the flare and permits safe.'],
   words:{reactor:'digester',basin:'polishing basin',waterQ:'Is the river safe?',waterA:dirty=>dirty?'Not today. The oxygen is low and the COD is high — the treatment upset is reaching the river. That is why the fish have gone.':'Today it looks good: plenty of dissolved oxygen and low COD. You can see the fish jumping.',shovelSpot:'on the river bank',binder:{rake:'by the intake'}},
+  info:{'do probe':['Dissolved-oxygen probe','Hangs in the polishing basin from the walkway and shows live dissolved oxygen. About 2 mg/L keeps the bacteria working; below 1 mg/L the blowers need attention.'],
+   'oil boom':['Floating oil boom','Orange floats with a hanging skirt ring the outfall, so any oil sheen is trapped and skimmed before it can spread down the river.'],
+   'outfall':['River outfall','Treated water enters the river through a concrete headwall. The flap gate stops river water flowing back in a flood, and rip-rap stones stop the bank eroding.'],
+   'control panel':['Local control panel','Green: feed pump running. Amber blinking: digester gas holder filling. Red: high-level or low-oxygen alarm.'],
+   'handwheel':['Isolation valve','Turning the handwheel closes this pipe so a pump or unit can be serviced safely.'],
+   'puddle':['Puddle','Rain and wash-down water. Surface drains lead it back to the treatment plant, not to the river.']},
   trees:ctx=>crewTrees(ctx,ctx.W)
  });
 }

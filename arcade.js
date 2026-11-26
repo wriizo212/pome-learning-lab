@@ -176,7 +176,7 @@
   if(location.protocol !== 'file:') {
     Promise.all([
       import('./process/three.module.min.js'),
-      import('./mill-gpu.mjs?v=shift9')
+      import('./mill-gpu.mjs?v=shift10')
     ]).then(([three, assets]) => {
       const enhanced=assets.mount(three,el('plant'),inspect);
       renderer.destroy();renderer=enhanced;renderer.update(modelState);renderer.spin(autoOrbit);

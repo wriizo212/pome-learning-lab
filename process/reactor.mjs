@@ -1,16 +1,16 @@
-import {frameBudget} from './frame-budget.mjs?v=shift9';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift9';
-import {windify,concrete,texture,environment} from './life.mjs?v=shift9';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift9';
-import {hdZoom,hardware} from './hd.mjs?v=shift9';
-import {reactorPlay} from './play.mjs?v=shift9';
+import {frameBudget} from './frame-budget.mjs?v=shift10';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift10';
+import {windify,concrete,texture,environment} from './life.mjs?v=shift10';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift10';
+import {hdZoom,hardware} from './hd.mjs?v=shift10';
+import {reactorPlay} from './play.mjs?v=shift10';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift9';
-import {explore} from './explore.mjs?v=shift9';
-import {reactorProcess} from './reactor-flows.mjs?v=shift9';
-import {legend} from './molecules.mjs?v=shift9';
+import {populate} from './crew.mjs?v=shift10';
+import {explore} from './explore.mjs?v=shift10';
+import {reactorProcess} from './reactor-flows.mjs?v=shift10';
+import {legend} from './molecules.mjs?v=shift10';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -167,7 +167,7 @@ function build(){
  const width=canvas.clientWidth,height=canvas.clientHeight;if(!width||!height)return;if(w!==width||h!==height){w=width;h=height;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  budget.tick(now);if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);
  const walking=visitor.frame(dt);play.update(dt);if(!walking){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}
- hd.update(walking?0:d,walking?camera.position:focus);renderer.render(scene,camera)}
+ hd.update(walking?0:d,walking?camera.position:focus);renderer.render(scene,camera);budget.end()}
  canvas.addEventListener('webglcontextlost',()=>{visitor.stop();view.remove();diagram.style.display='';panel.classList.add('reactor-fallback');vis=false});requestAnimationFrame(frame);
  if(new URLSearchParams(location.search).has('debug'))window.__pome={renderer,scene,camera,play,visitor,world,hd,flows,details,sun,budget,frame:()=>{dynamic.forEach(fn=>fn(t));renderer.render(scene,camera)},setT:v=>{t=v}};
 }
