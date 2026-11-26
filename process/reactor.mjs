@@ -2,10 +2,10 @@ import {frameBudget} from './frame-budget.mjs';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift4';
-import {explore} from './explore.mjs?v=shift4';
-import {reactorProcess} from './reactor-flows.mjs?v=shift4';
-import {legend} from './molecules.mjs?v=shift4';
+import {populate} from './crew.mjs?v=shift5';
+import {explore} from './explore.mjs?v=shift5';
+import {reactorProcess} from './reactor-flows.mjs?v=shift5';
+import {legend} from './molecules.mjs?v=shift5';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';

@@ -1,7 +1,8 @@
-import {populate} from './process/crew.mjs?v=shift4';
-import {explore} from './process/explore.mjs?v=shift4';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift4';
-import {legend} from './process/molecules.mjs?v=shift4';
+import {populate} from './process/crew.mjs?v=shift5';
+import {explore} from './process/explore.mjs?v=shift5';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift5';
+import {legend} from './process/molecules.mjs?v=shift5';
+import {arcadeScenery} from './process/arcade-scenery.mjs?v=shift5';
 import {frameBudget} from './process/frame-budget.mjs';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
@@ -144,6 +145,7 @@ export function mount(T, host, onPick) {
   const world=populate(scene,{steel,brass,cement:concrete,dark,base:gravel},true);
   let polluted=false;
   const flows=arcadeProcess(scene,{world,isCut:()=>cut,isPond:()=>pond.visible,isPolluted:()=>polluted});
+  const scenery=arcadeScenery(scene,{steel,brass,dark,concrete,teal,roof},{isPond:()=>pond.visible,isPolluted:()=>polluted});flows.hook(scenery.hook);
   const molecules=document.createElement('button');molecules.textContent='Molecules';molecules.setAttribute('aria-pressed','true');wrapper.append(molecules);
   const key=legend(viewport);molecules.onclick=()=>{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);key.hidden=!on};
   const orbit=(dx,dy)=>{yaw-=dx;pitch=Math.max(.2,Math.min(1.33,pitch+dy))};
@@ -157,7 +159,7 @@ export function mount(T, host, onPick) {
     frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
-    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);flows.update(time);
+    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);flows.update(time);
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
     if(!visitor.frame(dt)){camera.position.set(radius*Math.cos(pitch)*Math.sin(yaw),.6+radius*Math.sin(pitch),radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(0,.5,0)}

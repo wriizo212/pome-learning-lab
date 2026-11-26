@@ -8,7 +8,7 @@ import {chemistry,seeds,smooth,band,lerpPath,liquidVolume} from './molecules.mjs
  organics appearing when a mission decision lets poorly treated water through.
 */
 export function arcadeProcess(scene,{world,isCut,isPond,isPolluted}){
- const C=chemistry(scene,{h2o:300,o2:200,bubble:200});
+ const C=chemistry(scene,{h2o:340,o2:220,bubble:200,steam:110});
  const volumes=[
   liquidVolume(scene,{x:-4,y:.24,z:-.7,w:1.84,h:.28,d:1.84,color:0x6d4b28,opacity:.3}),
   liquidVolume(scene,{x:-.9,y:1.1,z:-1.65,r:1.3,h:.96,color:0x4a4a2e,opacity:.2}),
@@ -22,7 +22,7 @@ export function arcadeProcess(scene,{world,isCut,isPond,isPolluted}){
  const v=[0,0,0];
  const fibres=S.inF.map(([a,b,c,d])=>({mode:0,k:-d*6,sx:-4.8+a*1.6,spin:c*6}));
  const hoods=[-.58,0,.58],rows=[-.91,-.35,.19],flocPos=Array.from({length:12},()=>[0,0,0]);
- let last=0;
+ let last=0;const hooks=[];
  function update(t){
   const dt=Math.max(0,Math.min(.1,t-last));last=t;const cut=isCut(),pond=isPond(),dirty=isPolluted();
   volumes.forEach((m,i)=>m.visible=cut&&!(i===1&&pond));
@@ -76,7 +76,8 @@ export function arcadeProcess(scene,{world,isCut,isPond,isPolluted}){
   for(let i=0;i<S.river.length;i++){const [s0,s1,s2,s3]=S.river[i],f=(s0+t/22)%1,px=-7.8+f*15.6,pz=3.95+s1*1.6,py=.03+.04*s2;
    const isO2=s3<o2Share;C.put(isO2?'o2':'h2o',px,py+.01*Math.sin(t*2+s1*9),pz,isO2?.026:.032,t*(1+s2)+s1*9)}
   if(dirty)for(const [s0,s1,s2] of S.rCod){const f=(s0+t/16)%1,px=5.2+f*2.6,pz=4.05+s1*1.3;C.put(s2<.8?'cod':'nh4',px,.05,pz,.032,t+s1*9)}
+  for(const h of hooks)h(C,t,dt);
   C.end();
  }
- return {update,chem:C};
+ return {update,chem:C,hook:h=>hooks.push(h)};
 }

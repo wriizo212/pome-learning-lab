@@ -1,12 +1,12 @@
 (() => {
   const el = id => document.getElementById(id);
   const sites = {
-    intake: 'Intake · Screening and equalisation prepare the incoming POME.',
-    digester: 'Digester · Anaerobic treatment breaks down organic matter and produces biogas.',
-    polish: 'Polishing · Check final water quality for its intended destination.',
-    gas: 'Energy unit · Captured biogas can supply mill energy after suitable conditioning.',
-    sludge: 'Sludge yard · Check treatment and quality before considering beneficial use.',
-    river: 'Receiving river · Organic pollution can reduce oxygen available to aquatic life.'
+    intake: 'Intake · Hot raw POME (about 80 °C) arrives from the mill. Floating fibre and shell are raked off, oil droplets float to the top, and water, dissolved organics (COD) and ammonium flow on to the digester.',
+    digester: 'Digester · Inside the covered tank, microbes break organic matter down to acetate, then methanogens turn it into biogas (CH₄ + CO₂, with a trace of H₂S). Open ponds make the same gas but let it escape to the air.',
+    polish: 'Polishing · Diffusers bubble air through the basin. Bacterial flocs use the dissolved O₂ to oxidise leftover organics to CO₂ + H₂O and to turn ammonium into nitrate. Check final quality for its intended destination.',
+    gas: 'Energy unit · The engine burns biogas with air (CH₄ + 2O₂ → CO₂ + 2H₂O) and drives a generator that feeds the mill grid. Gas the engine cannot use is burnt safely at the flare.',
+    sludge: 'Sludge yard · Waste sludge drains through sand and gravel and dries in the sun. The cake is shovelled out and composted, and the warm compost heaps steam. Check quality before considering beneficial use.',
+    river: 'Receiving river · Clean discharge keeps dissolved O₂ high, so fish and reeds thrive. Organic pollution feeds bacteria that use up that oxygen, so the fish disappear and scum forms.'
   };
   let active, session, pending, history, finished;
   const stationPicker = document.createElement('select');
@@ -176,7 +176,7 @@
   if(location.protocol !== 'file:') {
     Promise.all([
       import('./process/three.module.min.js'),
-      import('./mill-gpu.mjs?v=shift4')
+      import('./mill-gpu.mjs?v=shift5')
     ]).then(([three, assets]) => {
       const enhanced=assets.mount(three,el('plant'),inspect);
       renderer.destroy();renderer=enhanced;renderer.update(modelState);renderer.spin(autoOrbit);

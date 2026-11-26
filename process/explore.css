@@ -21,3 +21,4 @@
 @media(max-width:720px){.chem-legend{max-width:78%}}
 .crew-board li[data-crew="2"] i{background:#4f9fd8}
 .mill-gpu>button[aria-pressed=true]{background:#d7f88e;color:#102b24}.mill-gpu>button{margin:10px 0 0 12px}
+.crew-board li[data-crew="4"] i{background:#d8473b}
