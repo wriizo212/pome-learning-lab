@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {createSound} from './sound.mjs?v=shift16';
-import {createLearning} from './learn.mjs?v=shift16';
+import {createSound} from './sound.mjs?v=shift17';
+import {createLearning} from './learn.mjs?v=shift17';
 
 /*
  Interactive play layer shared by the Mill Arcade and the main UASB simulator: walk as a
