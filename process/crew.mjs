@@ -1,8 +1,10 @@
 import * as T from './three.module.min.js';
-import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift11';
+import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift12';
 
 // Each worker has a person behind the role (used for name tags and conversations).
-const PEOPLE=['Azlan','Mei Ling','Ravi','Siti','Farid'];
+const PEOPLE=['Azlan','Mei Ling','Ravi','Siti','Farid','Hafiz','Joko','Pak Ali'];
+const KIT_PEOPLE={operator:'Azlan',sampler:'Mei Ling',tech:'Ravi',handler:'Siti',officer:'Farid',guard:'Hafiz',harvester:'Joko',angler:'Pak Ali'};
+const KIT_VEST={operator:0xe97835,sampler:0xe2c13a,tech:0x4f9fd8,handler:0x6fc06b,officer:0xd8473b,guard:0x2e4a7a,harvester:0x7a8f45,angler:0x3f7fb0};
 
 /*
  Mill crew. Each worker follows a looping shift plan made of walking legs and jobs.
@@ -23,7 +25,7 @@ const LAYOUTS={
   skip:[-5.75,2.78],heap:[1.12,-2.82],valve:[-2.4,.86,.91],stile:[-3.08,.91],barrow:[4.75,-1.4],
   bench:[5.75,1.74],dial:[3.43,1.88],
   roles:[
-   {name:'Shift operator',skin:0xb98767,helmet:0xf0ede0,start:[-4.6,2.2],toss:1,plan:[
+   {name:'Shift operator',kit:'operator',skin:0xb98767,helmet:0xf0ede0,start:[-4.6,2.2],toss:1,plan:[
     ['do','rake',10,[-4.6,1.0],'Raking screenings off the bar screen'],
     ['go',[[-5.5,2.38]],{tool:'rake',label:'Carrying screenings to the skip'}],
     ['do','dump',3,[-5.75,2.78],'Tipping screenings into the skip'],
@@ -33,7 +35,7 @@ const LAYOUTS={
     ['do','clipboard',6,[-1.2,.6],'Logging sludge-bed level and gas pressure'],
     ['go',[[-3.0,2.5],[-4.6,2.2]],{label:'Returning to the inlet screen'}]
    ]},
-   {name:'Water sampler',skin:0x875846,helmet:0xffbf39,start:[1.6,2.1],plan:[
+   {name:'Water sampler',kit:'sampler',skin:0x875846,helmet:0xffbf39,start:[1.6,2.1],plan:[
     ['do','dip',7,[1.6,1.0],'Dipping a mixed-liquor sample from the aeration basin'],
     ['go',[[2.9,2.72],[4.1,2.72],[4.6,2.08]],{carry:'bottle',label:'Carrying the sample bottle'}],
     ['do','dip',6,[4.75,.7],'Sampling treated effluent at the outlet chamber'],
@@ -42,26 +44,46 @@ const LAYOUTS={
     ['do','clipboard',4,[5.75,1.74],'Recording the lab results'],
     ['go',[[4.1,2.72],[2.9,2.72],[1.6,2.1]],{label:'Heading back to the aeration basin'}]
    ]},
-   {name:'Instrumentation technician',skin:0xc59878,helmet:0xffc548,start:[3.43,2.3],plan:[
+   {name:'Instrumentation technician',kit:'tech',skin:0xc59878,helmet:0xffc548,start:[3.43,2.3],plan:[
     ['do','tablet',6,[3.43,1.88],'Verifying the effluent flow meter'],
     ['go',[[2.2,2.82],[-3.08,2.82],[-3.08,1.4],[-3.08,1.12,.19],[-3.08,.7,.19],[-3.08,.42],[-3.08,-2.2],[-1.95,-2.2]],{label:'Walking to the biogas engine'}],
     ['do','kneel',10,[-.4,-2.2],'Servicing the biogas engine: plugs and gas filter'],
     ['do','tablet',5,[-.4,-2.2],'Logging engine output (kW) and biogas flow'],
     ['go',[[-3.08,-2.2],[-3.08,.42],[-3.08,.7,.19],[-3.08,1.12,.19],[-3.08,1.4],[-3.08,2.82],[2.2,2.82],[3.43,2.3]],{label:'Returning to the instrument loop'}]
    ]},
-   {name:'Sludge handler',skin:0x9c6b4f,helmet:0x74c8a4,start:[4.75,-1.95],toss:1,plan:[
+   {name:'Sludge handler',kit:'handler',skin:0x9c6b4f,helmet:0x74c8a4,start:[4.75,-1.95],toss:1,plan:[
     ['do','shovel',10,[3.6,-1.95],'Shovelling dried sludge cake into the barrow'],
     ['go',[[4.75,-2.82],[2.05,-2.82]],{push:true,label:'Wheeling sludge cake to the compost heap'}],
     ['do','tip',3.5,[1.12,-2.82],'Tipping cake onto the compost heap'],
     ['go',[[4.75,-2.82],[4.75,-1.95]],{push:true,label:'Returning with the empty barrow'}]
+   ]},
+   {name:'Security guard',kit:'guard',skin:0x8a5a40,helmet:0x23324a,start:[9.2,4.85,-.38],plan:[
+    ['do','clipboard',9,[7.55,4.45],'Logging lorries in and out at the gate'],
+    ['go',[[6.9,4.85,-.38],[-2,4.85,-.38],[-10,4.85,-.38]],{label:'Patrolling the fence line'}],
+    ['do','look',5,[-10,0],'Checking the fence for gaps'],
+    ['go',[[-2,4.85,-.38],[6.9,4.85,-.38],[9.2,4.85,-.38]],{label:'Walking back to the gate booth'}]
+   ]},
+   {name:'FFB harvester',kit:'harvester',skin:0x7a4e35,helmet:0xd8c9a0,start:[-16,3.8,-.38],plan:[
+    ['go',[[-16,-4.5,-.38],[-16.6,-4.5,-.38]],{tool:'pole',label:'Walking the harvest path'}],
+    ['do','harvest',7,[-17.6,-4.5],'Cutting a ripe bunch with the egrek'],
+    ['do','gather',3,[-17.6,-4.5],'Picking up the bunch and loose fruit'],
+    ['go',[[-16,-3,-.38],[-15.4,-3,-.38]],{carry:'ffb',label:'Moving to the next ripe palm'}],
+    ['do','harvest',7,[-14.4,-3],'Cutting a ripe bunch with the egrek'],
+    ['do','gather',3,[-14.4,-3],'Picking up the bunch and loose fruit'],
+    ['go',[[-16,-.5,-.38],[-16.6,-.5,-.38]],{carry:'ffb',label:'Moving to the next ripe palm'}],
+    ['do','harvest',7,[-17.6,-.5],'Cutting a ripe bunch with the egrek'],
+    ['do','gather',3,[-17.6,-.5],'Picking up the bunch and loose fruit'],
+    ['go',[[-16,3.8,-.38]],{carry:'ffb',label:'Carrying bunches to the collection point'}],
+    ['do','load',3,[-16,4.6],'Stacking bunches at the collection point']
    ]}
-  ]},
+  ],
+  harvest:{palms:[[-17.6,-4.5],[-14.4,-3],[-17.6,-.5],[-14.4,1],[-17.6,3.5],[-14.4,5.2]],pile:[-16,4.6],y:-.29,worker:5}},
  arcade:{
   lane:1.27,
   skip:[-5.8,.85],heap:[-5.85,2.6],valve:[-.35,.8,.02],stile:null,barrow:[-.35,3.1],
   bench:[5.45,.69],dial:[1.02,.76],
   roles:[
-   {name:'Shift operator',skin:0xb98767,helmet:0xf0ede0,start:[-4,.72],plan:[
+   {name:'Shift operator',kit:'operator',skin:0xb98767,helmet:0xf0ede0,start:[-4,.72],plan:[
     ['do','rake',10,[-4,-1.3],'Raking screenings off the intake screen'],
     ['go',[[-5.3,.85]],{tool:'rake',label:'Carrying screenings to the skip'}],
     ['do','dump',3,[-5.8,.85],'Tipping screenings into the skip'],
@@ -71,7 +93,7 @@ const LAYOUTS={
     ['do','clipboard',5,[-.9,-1.65],'Logging digester temperature and gas pressure'],
     ['go',[[-4,1.27],[-4,.72]],{label:'Returning to the intake screen'}]
    ]},
-   {name:'Water sampler',skin:0x875846,helmet:0xffbf39,start:[2.6,1.15],plan:[
+   {name:'Water sampler',kit:'sampler',skin:0x875846,helmet:0xffbf39,start:[2.6,1.15],plan:[
     ['do','dip',7,[2.6,0],'Dipping a sample from the polishing basin'],
     ['go',[[2.9,1.4],[3.1,3.4]],{carry:'bottle',label:'Walking down to the river bank'}],
     ['do','dip',6,[3.1,4.6],'Sampling the receiving river downstream'],
@@ -80,28 +102,49 @@ const LAYOUTS={
     ['do','clipboard',4,[5.45,.69],'Recording the lab results'],
     ['go',[[4.2,1.4],[2.6,1.15]],{label:'Heading back to the polishing basin'}]
    ]},
-   {name:'Instrumentation technician',skin:0xc59878,helmet:0xffc548,start:[1.02,1.3],plan:[
+   {name:'Instrumentation technician',kit:'tech',skin:0xc59878,helmet:0xffc548,start:[1.02,1.3],plan:[
     ['do','tablet',6,[1.02,.76],'Verifying the flow meter reading'],
     ['go',[[6.0,1.45],[6.0,-1.83],[2.6,-1.83]],{label:'Walking to the gas engine house'}],
     ['do','kneel',10,[2.6,-3.1],'Servicing the gas engine: plugs and gas filter'],
     ['do','tablet',5,[2.6,-3.1],'Logging engine output (kW) and biogas flow'],
     ['go',[[6.0,-1.83],[6.0,1.45],[1.02,1.3]],{label:'Returning to the instrument loop'}]
    ]},
-   {name:'Sludge handler',skin:0x9c6b4f,helmet:0x74c8a4,start:[-.35,2.55],toss:1,plan:[
+   {name:'Sludge handler',kit:'handler',skin:0x9c6b4f,helmet:0x74c8a4,start:[-.35,2.55],toss:1,plan:[
     ['do','shovel',10,[-1.6,2.55],'Shovelling dried sludge cake into the barrow'],
     ['go',[[-.35,1.45],[-4.75,1.45],[-4.75,2.55],[-4.95,2.55]],{push:true,label:'Wheeling sludge cake to the compost heap'}],
     ['do','tip',3.5,[-5.85,2.55],'Tipping cake onto the compost heap'],
     ['go',[[-4.75,2.55],[-4.75,1.45],[-.35,1.45],[-.35,2.55]],{push:true,label:'Returning with the empty barrow'}]
    ]},
-   {name:'Gas safety officer',skin:0xa77657,helmet:0xf4f1e6,start:[1.55,-2.95],plan:[
+   {name:'Gas safety officer',kit:'officer',skin:0xa77657,helmet:0xf4f1e6,start:[1.55,-2.95],plan:[
     ['do','detector',7,[2.1,-3.6],'Sniffing gas-line joints for CH₄ and H₂S leaks'],
     ['go',[[1.3,-3.0]],{label:'Moving to the flare stack'}],
     ['do','clipboard',5,[.9,-3.45],'Confirming the flare pilot flame is lit'],
     ['go',[[1.3,-1.83],[6.1,-1.83],[6.1,3.35],[5.45,3.45]],{label:'Patrolling to the river outfall'}],
     ['do','detector',6,[5.2,4.1],'Checking the outfall for foam, odour and colour'],
     ['go',[[6.1,3.35],[6.1,-1.83],[1.55,-1.83],[1.55,-2.95]],{label:'Returning to the gas line'}]
+   ]},
+   {name:'FFB harvester',kit:'harvester',skin:0x7a4e35,helmet:0xd8c9a0,start:[11.5,-3.9],plan:[
+    ['go',[[11.5,-3],[11.2,-3]],{tool:'pole',label:'Walking the harvest path'}],
+    ['do','harvest',7,[10.2,-3],'Cutting a ripe bunch with the egrek'],
+    ['do','gather',3,[10.2,-3],'Picking up the bunch and loose fruit'],
+    ['go',[[11.5,-1.5],[11.8,-1.5]],{carry:'ffb',label:'Moving to the next ripe palm'}],
+    ['do','harvest',7,[12.8,-1.5],'Cutting a ripe bunch with the egrek'],
+    ['do','gather',3,[12.8,-1.5],'Picking up the bunch and loose fruit'],
+    ['go',[[11.5,0],[11.2,0]],{carry:'ffb',label:'Moving to the next ripe palm'}],
+    ['do','harvest',7,[10.2,0],'Cutting a ripe bunch with the egrek'],
+    ['do','gather',3,[10.2,0],'Picking up the bunch and loose fruit'],
+    ['go',[[11.5,-3.9]],{carry:'ffb',label:'Carrying bunches to the collection point'}],
+    ['do','load',3,[11.5,-4.7],'Stacking bunches at the collection point']
+   ]},
+   {name:'Village angler',kit:'angler',skin:0x6e4a33,helmet:0x2a2a2a,start:[1.7,3.48],plan:[
+    ['do','fish',24,[1.7,4.7],'Fishing from the river bank'],
+    ['go',[[.4,3.42],[-1.0,3.48]],{tool:'rod',label:'Moving to a new fishing spot'}],
+    ['do','fish',20,[-1.0,4.7],'Fishing from the river bank'],
+    ['go',[[.4,3.42],[1.7,3.48]],{tool:'rod',label:'Moving back to the first spot'}]
    ]}
-  ]}
+  ],
+  harvest:{palms:[[10.2,-3],[12.8,-1.5],[10.2,0],[12.8,1.5],[10.2,2.9],[12.8,-4.2]],pile:[11.5,-4.7],y:0,worker:5},
+  fishing:{worker:6,spots:[[1.7,3.48],[-1.0,3.48]]}}
 };
 
 const ease=x=>.5-.5*Math.cos(Math.PI*Math.min(1,Math.max(0,x)));
@@ -109,7 +152,7 @@ const wrapAngle=a=>Math.atan2(Math.sin(a),Math.cos(a));
 const faceTo=(from,to)=>Math.atan2(-(to[0]-from[0]),-(to[1]-from[1]));
 
 function compile(role){
- let pos=[...role.start,0],t=0,heading=0;const steps=[];
+ let pos=[role.start[0],role.start[1],role.start[2]||0],t=0,heading=0;const steps=[];
  for(const s of role.plan){
   if(s[0]==='go'){
    const pts=[pos,...s[1].map(p=>[p[0],p[1],p[2]||0])],segs=[];let len=0;
@@ -119,7 +162,7 @@ function compile(role){
    heading=faceTo(last.a,last.b);pos=pts.at(-1);t+=dur;
   }else{
    const [,job,dur,face,label]=s;const h=face?faceTo(pos,face):heading;
-   steps.push({kind:'do',job,dur,at:pos,h0:heading,h1:h,label,start:t});heading=h;t+=dur;
+   steps.push({kind:'do',job,dur,at:pos,face,h0:heading,h1:h,label,start:t});heading=h;t+=dur;
   }
  }
  // The first job turns from the heading the loop ended on.
@@ -188,6 +231,12 @@ export function populate(scene, materials, arcade=false){
  function wrenchProp(hand){const g=pivot(hand,0,-.04,-.01);box(g,steel,0,-.05,0,.018,.13,.012);box(g,steel,0,-.12,0,.045,.025,.015);return g}
  function detectorProp(hand){const g=pivot(hand,0,-.03,-.03);box(g,mat(0xe0b52a,.5),0,0,0,.06,.11,.035);const led=box(g,new T.MeshStandardMaterial({color:0x4cff7a,emissive:0x2bff66,emissiveIntensity:1.5}),0,.035,-.019,.035,.02,.004);rod(g,dark,0,.08,0,.006,.06);return {g,led}}
  function extinguisherProp(hand){const g=pivot(hand,0,-.06,-.02);const red=mat(0xc8291f,.35,.3);rod(g,red,0,-.05,0,.045,.2);rod(g,dark,0,.07,0,.02,.04);box(g,dark,.03,.09,0,.06,.012,.02);const hose=rod(g,dark,0,.06,-.07,.008,.14);hose.rotation.x=1.2;rod(g,dark,0,.03,-.14,.014,.04).rotation.x=Math.PI/2;return g}
+ // Egrek: long aluminium harvesting pole with a curved sickle at the tip.
+ function poleTool(parent){const g=pivot(parent,.03,.24,-.1),shaft=pivot(g,0,0,0);const h=rod(shaft,mat(0xc9d0d4,.35,.7),0,0,-1.35,.016,2.7);h.rotation.x=Math.PI/2;
+  const blade=box(shaft,steel,0,-.04,-2.72,.012,.14,.03);blade.rotation.x=.5;const hook=box(shaft,steel,0,-.1,-2.64,.012,.03,.12);hook.rotation.x=-.3;return {g,shaft}}
+ function rodTool(parent){const g=pivot(parent,.06,.2,-.1),shaft=pivot(g,0,0,0);const h=part(shaft,new T.CylinderGeometry(.004,.012,1.5,6),mat(0x2b2b2b,.4,.2),0,0,-.75,1,1,1);h.rotation.x=Math.PI/2;
+  box(shaft,mat(0x9aa3a0,.4,.6),0,-.03,-.12,.03,.03,.04);const tip=pivot(shaft,0,0,-1.5);return {g,shaft,tip}}
+ function ffbProp(parent){const g=pivot(parent,0,.06,-.2);const red=mat(0xb8411f,.7),dk=mat(0x2a1512,.7);for(let k=0;k<14;k++){const a=k*2.4,r=.05+.02*(k%3);oval(g,k%3?red:dk,Math.cos(a)*r,(k%4)*.025-.03,Math.sin(a)*r,.028,.028,.028)}return g}
  function penProp(hand){const g=pivot(hand,0,-.02,-.02);rod(g,navy,0,0,0,.006,.08).rotation.x=.6;return g}
  function probeProp(hand){const g=pivot(hand,0,-.03,-.02);box(g,mat(0x31363a),0,0,0,.05,.09,.03);rod(g,steel,0,-.09,0,.006,.12);return g}
 
@@ -196,7 +245,7 @@ export function populate(scene, materials, arcade=false){
   // Body parts use their own solid colours (scene materials may keep colour in a texture).
   const dark=kitDark;
   const g=pivot(scene,0,.1,0),pelvis=pivot(g,0,.48,0),torso=pivot(pelvis,0,0,0),legs=[],arms=[],hands=[];
-  const vest=mat(vests[index%vests.length],.88);vest.map=textile;
+  const vest=mat(KIT_VEST[spec.kit]??vests[index%vests.length],.88);vest.map=textile;
   oval(torso,vest,0,.18,0,.149,.218,.092);
   box(torso,navy,0,.262,-.093,.008,.104,.009);box(torso,stripe,-.075,.276,-.083,.052,.029,.01);
   for(const y of [.13,.19])oval(torso,stripe,0,y,0,.15,.018,.095);
@@ -230,7 +279,7 @@ export function populate(scene, materials, arcade=false){
   let tagText='';
   function setTag(text){if(text===tagText)return;tagText=text;const c=tagCanvas.getContext('2d');c.clearRect(0,0,512,128);
    c.fillStyle='rgba(16,36,33,.86)';c.beginPath();c.roundRect(6,10,500,96,18);c.fill();
-   c.fillStyle='#'+vests[index%vests.length].toString(16).padStart(6,'0');c.fillRect(6,10,14,96);
+   c.fillStyle='#'+(KIT_VEST[spec.kit]??vests[index%vests.length]).toString(16).padStart(6,'0');c.fillRect(6,10,14,96);
    c.fillStyle='#e8f6c4';c.font='bold 34px system-ui,Arial';c.fillText((spec.person?spec.person+' · ':'')+spec.name,34,50);
    c.fillStyle='#cfe1d6';c.font='26px system-ui,Arial';let line=text;while(c.measureText(line).width>456&&line.length>4)line=line.slice(0,-2);if(line!==text)line=line.trimEnd()+'…';c.fillText(line,34,88);
    tagTex.needsUpdate=true}
@@ -270,6 +319,7 @@ export function populate(scene, materials, arcade=false){
      L[0].rotation.x=-r*.95;R[0].rotation.x=r*.95;L[1].rotation.x=R[1].rotation.x=1.25;inward(0,.12);inward(1,.12)}
     if(extra.landing){pelvis.position.y-=.08*extra.landing;for(const [h,k] of legs){h.rotation.x+=.45*extra.landing;k.rotation.x-=.8*extra.landing}torso.rotation.x-=.15*extra.landing}
     if(extra.carry==='bottle'){show('bottle');R[0].rotation.x=.45;R[1].rotation.x=.75;inward(1,.1)}
+    else if(extra.carry==='ffb'){show('ffb');L[0].rotation.x=R[0].rotation.x=.7;L[1].rotation.x=R[1].rotation.x=1.15;inward(0,.3);inward(1,.3)}
     else if(extra.carry){show(extra.carry);R[0].rotation.x=.55;R[1].rotation.x=.85;inward(1,.12)}
     if(extra.tool&&tools[extra.tool]){show(extra.tool);const t=tools[extra.tool];t.g.rotation.set(1.15,0,-.25);t.g.position.set(.12,.33,.02);R[0].rotation.x=-.2;R[0].rotation.z=-1.9;R[1].rotation.x=1.4;if(t.load)t.load.visible=extra.tool==='rake'&&extra.loaded}
     if(extra.push){torso.rotation.x=-.2;L[0].rotation.x=R[0].rotation.x=.55;L[1].rotation.x=R[1].rotation.x=.12;inward(0,.08);inward(1,.08);head.rotation.x=.12}
@@ -327,6 +377,19 @@ export function populate(scene, materials, arcade=false){
      R[0].rotation.x=1.05+.25*Math.sin(τ*.7);R[1].rotation.x=.35;R[0].rotation.z=-.15+.4*sweep;
      L[0].rotation.x=.2;L[1].rotation.x=.3;torso.rotation.y=-.2*sweep;head.rotation.y=-.35*sweep;head.rotation.x=-.05;
      legs[0][0].rotation.x=.15;if(tools.detector)tools.detector.led.material.emissiveIntensity=Math.sin(τ*9)>0?2:.2;break}
+    case 'harvest':{const t=tools.pole;if(!t)break;show('pole');const saw=Math.sin(τ*5),done=τ>5.2;
+     torso.rotation.x=.1;head.rotation.x=.5;legs[0][0].rotation.x=.25;legs[1][0].rotation.x=-.2;
+     L[0].rotation.x=2.35-(done?.6:0);R[0].rotation.x=2.1-(done?.6:0);L[1].rotation.x=R[1].rotation.x=.45+.12*saw;inward(0,.35);inward(1,.3);
+     t.g.rotation.set(0,0,0);t.g.position.set(.03,.3,-.06);t.shaft.rotation.x=(done?.75:1.12)+.05*saw;break}
+    case 'gather':{const reach=ease(Math.min(1,τ/.8))-ease((τ-2.2)/.8);torso.rotation.x=-1.05*reach;pelvis.position.y=.48-.12*reach;
+     for(const [h,k] of legs){h.rotation.x=.7*reach;k.rotation.x=-.8*reach}L[0].rotation.x=R[0].rotation.x=1.2*reach+.2;L[1].rotation.x=R[1].rotation.x=.25;inward(0,.25);inward(1,.25);head.rotation.x=-.2;
+     if(τ>1.4)show('ffb');break}
+    case 'load':{const s=ease(τ/1)-ease((τ-1.6)/.8);show(τ<1.3?'ffb':'');L[0].rotation.x=R[0].rotation.x=.8+1.1*s;L[1].rotation.x=R[1].rotation.x=.6-.4*s;inward(0,.25);inward(1,.25);torso.rotation.x=-.2+.2*s;break}
+    case 'look':{L[0].rotation.x=2.3;L[1].rotation.x=2.1;inward(0,.55);head.rotation.y=.6*Math.sin(τ*.8);head.rotation.x=.08;R[1].rotation.x=.2;break}
+    case 'fish':{const t=tools.rod;if(!t)break;show('rod');const c=(τ%12)/12,cast=c>.72&&c<.86?Math.sin((c-.72)/.14*Math.PI):0;
+     pelvis.position.y=.29;legs.forEach(([h,k])=>{h.rotation.x=1.45;k.rotation.x=-1.5});torso.rotation.x=-.12+.15*cast;head.rotation.x=-.1;
+     L[0].rotation.x=R[0].rotation.x=.95+.6*cast;L[1].rotation.x=R[1].rotation.x=.55;inward(0,.3);inward(1,.2);
+     t.g.rotation.set(0,0,0);t.g.position.set(.06,.2,-.1);t.shaft.rotation.x=.5+.05*Math.sin(τ*1.3)+1.1*cast;break}
     case 'tip':{const s=ease(τ/1.2)-ease((τ-2.4)/1);torso.rotation.x=-.12-.1*s;
      L[0].rotation.x=R[0].rotation.x=.55+.65*s;L[1].rotation.x=R[1].rotation.x=.15;inward(0,.08);inward(1,.08);
      legs[0][0].rotation.x=.3;legs[1][0].rotation.x=-.2;break}
@@ -348,13 +411,17 @@ export function populate(scene, materials, arcade=false){
 
  // Build the crew and their personal kit.
  const roles=layout.roles.map((spec,i)=>{
-  spec.person=PEOPLE[i];
+  spec.person=KIT_PEOPLE[spec.kit]||PEOPLE[i];
   const actor=worker(spec,i),{props,tools,hands,torso}=actor;
-  if(i===0){tools.rake=rakeTool(torso);props.rake=tools.rake.g;props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.walkie=box(torso,dark,.09,.32,-.09,.03,.07,.02)}
-  if(i===1){tools.dipper=dipperTool(torso);props.dipper=tools.dipper.g;props.bottle=bottleProp(hands[1]);props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.probe=probeProp(hands[1])}
-  if(i===2){tools.tablet=tabletProp(hands[0]);props.tablet=tools.tablet.g;props.wrench=wrenchProp(hands[1])}
-  if(i===3){tools.shovel=shovelTool(torso);props.shovel=tools.shovel.g}
-  if(i===4){tools.detector=detectorProp(hands[1]);props.detector=tools.detector.g;props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1])}
+  const kit=spec.kit;
+  if(kit==='operator'){tools.rake=rakeTool(torso);props.rake=tools.rake.g;props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.walkie=box(torso,dark,.09,.32,-.09,.03,.07,.02)}
+  if(kit==='sampler'){tools.dipper=dipperTool(torso);props.dipper=tools.dipper.g;props.bottle=bottleProp(hands[1]);props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.probe=probeProp(hands[1])}
+  if(kit==='tech'){tools.tablet=tabletProp(hands[0]);props.tablet=tools.tablet.g;props.wrench=wrenchProp(hands[1])}
+  if(kit==='handler'){tools.shovel=shovelTool(torso);props.shovel=tools.shovel.g}
+  if(kit==='officer'){tools.detector=detectorProp(hands[1]);props.detector=tools.detector.g;props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1])}
+  if(kit==='guard'){props.clipboard=clipboardProp(hands[0]);props.pen=penProp(hands[1]);props.walkie=box(torso,dark,.09,.32,-.09,.03,.07,.02)}
+  if(kit==='harvester'){tools.pole=poleTool(torso);props.pole=tools.pole.g;props.ffb=ffbProp(torso)}
+  if(kit==='angler'){tools.rod=rodTool(torso);props.rod=tools.rod.g}
   const plan=compile(spec);actor.heading=plan.steps[0].h1??0;
   return {name:spec.name,person:spec.person,actor,spec,...plan,offset:i*3.7,phase0:i*3.7,hold:null,state:{job:'',label:'',τ:0}};
  });
@@ -401,8 +468,25 @@ export function populate(scene, materials, arcade=false){
  for(let k=0;k<5;k++)repeat(tube,steel,2.85,.84,-5.88-k*.145,.07,3.4,.07,0,0,Math.PI/2);
  // Background oil palms (instanced, sway in the wind).
  const backPalms=new T.InstancedMesh(oilPalm({fronds:16,leaflets:9,height:2.9,seed:31,bunches:1,lod:1}),palmMaterial(.012),22),po=new T.Object3D();
- for(let i=0;i<22;i++){const x=-18+(i%11)*3.5,z=-11-Math.floor(i/11)*5-Math.sin(i*3)*1.3,h=2.8+.48*Math.sin(i*5.2);po.position.set(x,0,z);po.rotation.set(0,i*1.7,0);po.scale.setScalar(h/2.9);po.updateMatrix();backPalms.setMatrixAt(i,po.matrix)}
+ for(let i=0;i<22;i++){const x=-18+(i%11)*3.5,z=-11-Math.floor(i/11)*5-Math.sin(i*3)*1.3,h=2.8+.48*Math.sin(i*5.2);po.position.set(x,layout.harvest?.y??0,z);po.rotation.set(0,i*1.7,0);po.scale.setScalar(h/2.9);po.updateMatrix();backPalms.setMatrixAt(i,po.matrix)}
  backPalms.castShadow=true;backPalms.receiveShadow=true;backPalms.userData.info='palm';scene.add(backPalms);
+ /* ---------- harvest block: palms with ripe bunches, collection pile ---------- */
+ const harvest=layout.harvest,harvestState=[];
+ if(harvest){const hp=new T.InstancedMesh(oilPalm({fronds:24,leaflets:15,height:2.6,seed:61,bunches:2,lod:1}),palmMaterial(.02),harvest.palms.length);hp.userData.info='palm';
+  harvest.palms.forEach(([x,z],k)=>{po.position.set(x,harvest.y,z);po.rotation.set(0,k*2.1,0);po.scale.setScalar(1);po.updateMatrix();hp.setMatrixAt(k,po.matrix)});hp.castShadow=hp.receiveShadow=true;scene.add(hp);
+  const red=mat(0xc4461f,.7),dk=mat(0x2a1512,.7);
+  harvest.palms.forEach(([x,z],k)=>{const g=new T.Group();for(let j=0;j<16;j++){const a=j*2.4,r=.07+.03*(j%3);oval(g,j%3?red:dk,Math.cos(a)*r,(j%5)*.03-.05,Math.sin(a)*r,.036,.036,.036)}scene.add(g);harvestState.push({g,x,z,crown:harvest.y+2.25})});
+  const pile=new T.Group();pile.position.set(harvest.pile[0],harvest.y,harvest.pile[1]);scene.add(pile);pile.userData.info='ffb pile';
+  for(let j=0;j<10;j++){const b=new T.Group();for(let q=0;q<9;q++){const a=q*2.4;oval(b,q%3?red:dk,Math.cos(a)*.06,(q%3)*.03,Math.sin(a)*.06,.034,.034,.034)}b.position.set((j%4-1.5)*.17,.05+Math.floor(j/4)*.09,(Math.floor(j/2)%2-.5)*.16);pile.add(b)}
+  harvest.pileGroup=pile;box(pile,mat(0x3a4a3a,.8),0,.01,0,.9,.02,.6);
+  // Where each bunch hangs (on the path side of the crown) and where it lands when cut.
+  const hr=roles[harvest.worker];harvestState.forEach(h=>{const k=hr.steps.findIndex(s=>s.job==='harvest'&&s.face&&Math.hypot(s.face[0]-h.x,s.face[1]-h.z)<.01);h.hs=k;
+   const sx=k>=0?hr.steps[k].at[0]:h.x+1,sz=k>=0?hr.steps[k].at[1]:h.z,d=Math.hypot(sx-h.x,sz-h.z)||1;h.cx=h.x+(sx-h.x)/d*.24;h.cz=h.z+(sz-h.z)/d*.24;h.gx=h.x+(sx-h.x)*.55;h.gz=h.z+(sz-h.z)*.55})}
+ const fishing=layout.fishing;let line=null,bobber=null,fish=null;
+ if(fishing){for(const [x,z] of fishing.spots){box(scene,wood,x,.11,z+.05,.2,.18,.18);rod(scene,mat(0x3f6fa0,.5),x+.25,.07,z,.06,.14)}
+  line=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(),new T.Vector3()]),new T.LineBasicMaterial({color:0xe8e8e0,transparent:true,opacity:.7}));scene.add(line);
+  bobber=new T.Group();oval(bobber,mat(0xd83a2a,.4),0,.015,0,.022,.022,.022);oval(bobber,mat(0xf4f1e6,.4),0,-.005,0,.02,.016,.02);scene.add(bobber);
+  fish=new T.Group();oval(fish,mat(0xa9b8b8,.3,.6),0,0,0,.08,.03,.025);fish.visible=false;scene.add(fish)}
  // Sampling bench with capped vials, a pH meter with a live display and a wash bottle.
  const [bx,bz]=layout.bench;
  repeat(cube,steel,bx,.58,bz,.82,.055,.47);
@@ -427,7 +511,7 @@ export function populate(scene, materials, arcade=false){
  for(const {geo,m,list} of batches.values()){const o=new T.InstancedMesh(geo,m,list.length);list.forEach((matrix,i)=>o.setMatrixAt(i,matrix));o.castShadow=o.receiveShadow=true;scene.add(o)}
 
  /* ---------- shift scheduler ---------- */
- let controlled=null,tagsOn=true,lastDial=-1,playerPos=null,valveSpin=0,lastAnim=null;const events=[];
+ let controlled=null,tagsOn=true,lastDial=-1,playerPos=null,valveSpin=0,lastAnim=null,riverClean=()=>true;const events=[],memo={};const tipW=new T.Vector3();
  function pointAt(step,d){let seg=step.segs[0];for(const s of step.segs)if(d>=s.from)seg=s;const f=seg.l?Math.min(1,(d-seg.from)/seg.l):1;return [seg.a[0]+(seg.b[0]-seg.a[0])*f,seg.a[1]+(seg.b[1]-seg.a[1])*f,seg.a[2]+(seg.b[2]-seg.a[2])*f]}
  function locate(r,t){
   const local=((t+r.offset)%r.total+r.total)%r.total;
@@ -473,6 +557,23 @@ export function populate(scene, materials, arcade=false){
    const look=playerPos&&near<2.6?Math.max(-1.1,Math.min(1.1,wrapAngle(faceTo([a.g.position.x,a.g.position.z],[playerPos.x,playerPos.z])-a.heading))):0;
    a.lookYaw+=(look*(step.kind==='do'?.55:.8)-a.lookYaw)*(1-Math.exp(-Math.max(0,dt)*4));a.head.rotation.y+=a.lookYaw;
   }
+  // Harvest: bunches fall when cut, are gathered and carried to the pile.
+  if(harvest){const r=roles[harvest.worker],si=r.steps.indexOf(r.state.step),τh=r.state.τ,loop=Math.floor((t+r.offset)/r.total);
+   harvestState.forEach((h,p)=>{let x=h.cx,z=h.cz,y=h.crown,vis=true;const hs=h.hs;
+    if(hs>=0){
+     if(si===hs){if(τh>1.5&&memo['chop'+p]!==loop){memo['chop'+p]=loop;events.push({type:'chop',x:h.x,z:h.z})}
+      if(τh>=5){const f=Math.min(1,(τh-5)/.55);x=h.cx+(h.gx-h.cx)*f;z=h.cz+(h.gz-h.cz)*f;y=h.crown+(harvest.y+.06-h.crown)*f*f;if(f>=1&&memo['thud'+p]!==loop){memo['thud'+p]=loop;events.push({type:'thud',x:h.gx,z:h.gz})}}}
+     else if(si===hs+1){x=h.gx;z=h.gz;y=harvest.y+.06;vis=τh<1.4}
+     else if(si>hs+1)vis=false}
+    h.g.visible=vis;h.g.position.set(x,y,z)});
+   const loads=r.steps.filter((s,k)=>s.job==='load'&&(k<si||(k===si&&τh>1.3))).length;harvest.pileGroup.children.forEach((b,j)=>{if(j<10)b.visible=j<6+loads*3})}
+  // Angler: line to the bobber, a catch only when the river is clean.
+  if(fishing){const r=roles[fishing.worker],a=r.actor,st=r.state,fishing_=st.job==='fish'&&a!==controlled;line.visible=bobber.visible=fishing_;fish.visible=false;
+   if(fishing_){const c=(st.τ%12)/12,h=a.heading,bx=a.g.position.x-Math.sin(h)*1.35,bz=a.g.position.z-Math.cos(h)*1.35;a.tools.rod?.tip.getWorldPosition(tipW);
+    const cast=c>.72&&c<.86;bobber.position.set(bx,.1+.008*Math.sin(t*3),bz);bobber.visible=!cast;
+    const lp=line.geometry.attributes.position;lp.setXYZ(0,tipW.x,tipW.y,tipW.z);lp.setXYZ(1,cast?tipW.x:bx,cast?tipW.y-.4:.11,cast?tipW.z:bz);lp.needsUpdate=true;
+    const loop=Math.floor(st.τ/12);if(c>.86&&c<.9&&memo.splash!==loop+'_'+st.step.start){memo.splash=loop+'_'+st.step.start;events.push({type:'splash',x:bx,z:bz})}
+    if(riverClean()&&c>.5&&c<.68&&loop%2===0){const f=(c-.5)/.18;fish.visible=true;fish.position.set(bx+(tipW.x-bx)*f,.1+(tipW.y-.35-.1)*Math.sin(f*Math.PI*.5),bz+(tipW.z-bz)*f);fish.rotation.z=Math.sin(t*20)*.6;if(memo.catch!==loop+'_'+st.step.start){memo.catch=loop+'_'+st.step.start;events.push({type:'catch',x:bx,z:bz})}}}}
   // Valve wheel spins while the operator turns it.
   const op=roles[0].state;wheel.rotation.z=(op.job==='valve'&&!roles[0].hold?-op.τ*2.2:0)-valveSpin;
   // Skip fills a little each time screenings are tipped.
@@ -504,6 +605,8 @@ export function populate(scene, materials, arcade=false){
   turnValve(dt){valveSpin+=dt*2.6},
   valvePosition:new T.Vector3(...layout.valve),
   takeEvents(){return events.splice(0)},
+  emit(e){events.push(e)},
+  setRiverHealth(fn){riverClean=fn},
   // Give any worker a tool or hand prop (used when the player picks something up).
   equip(actor,name){const {tools,props,hands,torso}=actor;if(props[name])return props[name];
    if(name==='rake'){tools.rake=rakeTool(torso);props.rake=tools.rake.g}
@@ -513,6 +616,8 @@ export function populate(scene, materials, arcade=false){
    else if(name==='bottle')props.bottle=bottleProp(hands[1]);
    else if(name==='probe')props.probe=probeProp(hands[1]);
    else if(name==='extinguisher')props.extinguisher=extinguisherProp(hands[1]);
+   else if(name==='pole'){tools.pole=poleTool(torso);props.pole=tools.pole.g}
+   else if(name==='ffb')props.ffb=ffbProp(torso);
    if(props[name])props[name].visible=false;return props[name]},
   status(){return roles.map(r=>({name:r.name,label:r.actor===controlled?'Controlled by you':r.state.label,job:r.state.job}))},
   tags(on){tagsOn=on;for(const r of roles)r.actor.tag.visible=on&&r.actor!==controlled}

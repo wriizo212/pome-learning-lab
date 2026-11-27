@@ -1,16 +1,16 @@
-import {frameBudget} from './frame-budget.mjs?v=shift11';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift11';
-import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift11';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift11';
-import {hdZoom,hardware} from './hd.mjs?v=shift11';
-import {reactorPlay} from './play.mjs?v=shift11';
+import {frameBudget} from './frame-budget.mjs?v=shift12';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift12';
+import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift12';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift12';
+import {hdZoom,hardware} from './hd.mjs?v=shift12';
+import {reactorPlay} from './play.mjs?v=shift12';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift11';
-import {explore} from './explore.mjs?v=shift11';
-import {reactorProcess} from './reactor-flows.mjs?v=shift11';
-import {legend} from './molecules.mjs?v=shift11';
+import {populate} from './crew.mjs?v=shift12';
+import {explore} from './explore.mjs?v=shift12';
+import {reactorProcess} from './reactor-flows.mjs?v=shift12';
+import {legend} from './molecules.mjs?v=shift12';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -108,7 +108,7 @@ function build(){
  group=scene;const leaf=windify(new T.MeshStandardMaterial({color:0x506a43,roughness:.78}),{strength:.006,base:1.6});
  const world=populate(scene,{steel,brass,cement,dark,base,leaf});dynamic.push(world.animate);
  const flows=reactorProcess(scene,{x,steel,brass,dark,teal,cement,world,isCut:()=>cut,tier});dynamic.push(flows.update);
- const scenery=reactorScenery(scene,{steel,brass,dark,cement,teal,tier});dynamic.push(scenery.update);
+ const scenery=reactorScenery(scene,{steel,brass,dark,cement,teal,tier,emit:e=>world.emit(e)});dynamic.push(scenery.update);
  environment(renderer,scene,{intensity:.45});
  // Premium finish: normal-mapped relief, sharper texture filtering, contact shadows under equipment.
  premiumSurfaces(scene,tier,renderer);
@@ -134,18 +134,18 @@ function build(){
   'Outlet chamber · Treated water spirals towards the draw-off strainer while the last flocs settle out. Whether it can be discharged or reused depends on verified effluent quality (BOD, COD and suspended solids).'];
  const caption=view.querySelector('.reactor-caption');
  const targets=[[-4.55,.85,.9],[x,1.96,0],[1.8,.91,.5],[-.4,.7,-2.18],[3.2,.55,-1.95],[4.75,.76,.7]];
- let yaw=.18,pitch=.45,dist=14,goal=v(0,1.25,0),focus=goal.clone(),cut=true,paused=matchMedia('(prefers-reduced-motion:reduce)').matches,drag=null,vis=false,last=0,t=0;
+ let yaw=.18,pitch=.45,dist=14,cy=.18,cp=.45,cd=14,goal=v(0,1.25,0),focus=goal.clone(),cut=true,paused=matchMedia('(prefers-reduced-motion:reduce)').matches,drag=null,vis=false,last=0,t=0;
  const ray=new T.Raycaster();
  function home(){visitor.setMode('orbit');caption.textContent='UASB section · aerobic basin';select.value='';goal.set(0,1.25,0);dist=14;yaw=.18;pitch=.45}
  function inspect(i){if(i===''){home();return}visitor.setMode('orbit');select.value=String(i);caption.textContent=descriptions[i];goal.set(...targets[i]);dist=i===1?7.2:6;units[i].dispatchEvent(new Event('click'))}
  select.onchange=()=>inspect(select.value===''?'':Number(select.value));
- function zoom(delta){dist=T.MathUtils.clamp(dist+delta,3.4,24)}
+ function zoom(delta){dist=T.MathUtils.clamp(dist+delta,3.4,34)}
  function updateMotion(){motion.textContent=paused?'Resume flow':'Pause flow'}
  function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit)inspect(hit.object.parent.userData.id)}
  const orbit=(dx,dy)=>{yaw-=dx;pitch=T.MathUtils.clamp(pitch+dy,.11,1.4)};
  const visitor=explore(view,canvas,camera,world,orbit,pick,()=>toggle.click(),zoom);
  // Play as a worker: tools, talking crew, clickable labels, sound.
- const play=reactorPlay({scene,camera,canvas,viewport:view.querySelector('.reactor-frame'),world,visitor,flows});
+ const play=reactorPlay({scene,camera,canvas,viewport:view.querySelector('.reactor-frame'),world,visitor,flows,scenery});
  const UNIT_INFO=['inlet','uasb','aeration','biogas engine','drying bed','outlet'];
  updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'molecules':{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);view.querySelector('.chem-legend').hidden=!on;break}case 'section':budget.refreshShadows();cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
  solids.forEach(m=>m.visible=false);
@@ -170,7 +170,9 @@ function build(){
  function frame(now){requestAnimationFrame(frame);const dt=Math.min(.07,(now-last)/1000);last=now;if(!vis||view.hidden||document.hidden){budget.idle();return}
  const width=canvas.clientWidth,height=canvas.clientHeight;if(!width||!height)return;if(w!==width||h!==height){w=width;h=height;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  budget.tick(now);if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);
- const walking=visitor.frame(dt);play.update(dt);if(!walking){camera.position.set(focus.x+d*Math.cos(pitch)*Math.sin(yaw),focus.y+d*Math.sin(pitch),focus.z+d*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(focus)}
+ // Orbit glides toward the requested angle and distance (inertia) instead of snapping.
+ const ck=1-Math.exp(-dt*7);cy+=(yaw-cy)*ck;cp+=(pitch-cp)*ck;cd+=(dist-cd)*ck;const dd=cd*Math.max(1,1.52/camera.aspect);
+ const walking=visitor.frame(dt);play.update(dt);if(!walking){camera.position.set(focus.x+dd*Math.cos(cp)*Math.sin(cy),focus.y+dd*Math.sin(cp),focus.z+dd*Math.cos(cp)*Math.cos(cy));camera.lookAt(focus)}
  hd.update(walking?0:d,walking?camera.position:focus);renderer.render(scene,camera);budget.end()}
  canvas.addEventListener('webglcontextlost',()=>{visitor.stop();view.remove();diagram.style.display='';panel.classList.add('reactor-fallback');vis=false});requestAnimationFrame(frame);
  if(new URLSearchParams(location.search).has('debug'))window.__pome={renderer,scene,camera,play,visitor,world,hd,flows,details,sun,budget,frame:()=>{dynamic.forEach(fn=>fn(t));renderer.render(scene,camera)},setT:v=>{t=v}};

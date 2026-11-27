@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {createSound} from './sound.mjs?v=shift11';
-import {createLearning} from './learn.mjs?v=shift11';
+import {createSound} from './sound.mjs?v=shift12';
+import {createLearning} from './learn.mjs?v=shift12';
 
 /*
  Interactive play layer shared by the Mill Arcade and the main UASB simulator: walk as a
@@ -61,8 +61,20 @@ const INFO={
  'rake':['Screen rake','Use it at the screen to pull off trapped fibre and shell.'],
  'detector':['Portable gas detector','Measures methane (as % of the lower explosive limit), H₂S and oxygen. Use it anywhere to take a reading.'],
  'shovel':['Shovel','Use it at the sludge drying area to turn the cake so it dries evenly.'],
- 'extinguisher-item':['Fire extinguisher','Press F to spray. Point at the base of a fire and sweep.']
+ 'extinguisher-item':['Fire extinguisher','Press F to spray. Point at the base of a fire and sweep.'],
+ 'lookout tower':['Lookout tower','Climb the stairs for a bird’s-eye view of the whole treatment plant and the plantation around it.'],
+ 'guard booth':['Gate booth','Security signs visitors in, checks PPE and logs every lorry that enters or leaves.'],
+ 'harvest path':['Harvest path','Harvesters walk these paths between the palm rows and carry bunches out to the collection point.'],
+ 'frond stack':['Frond stack','Cut fronds are stacked between the rows. They rot into mulch, return nutrients and keep the soil moist.'],
+ 'cattle':['Grazing cattle','Cattle graze the grass and weeds between the palms. This "cattle integration" cuts weeding costs and earns extra income.'],
+ 'egret':['Cattle egret','These white herons follow grazing cattle and catch the insects the cattle disturb.'],
+ 'owl box':['Barn owl nest box','Barn owls nest in these boxes and hunt the rats that eat palm fruit — natural pest control instead of rat poison.'],
+ 'ffb pile':['FFB collection point','Harvested bunches are stacked here for the lorry. They should reach the mill within about a day.'],
+ 'footbridge':['Footbridge','Villagers cross here to the plantation. From the middle you can look upstream to the outfall.'],
+ 'kampung house':['Kampung house','A village home on stilts, safe from floods. Families downstream fish in and use the river, so the mill’s effluent matters to them.'],
+ 'tractor':['Tractor and trailer','Carries empty fruit bunches from the mill back to the palms, where they are spread as mulch.']
 };
+const ROLE_INFO={operator:'Runs the inlet screen and the reactor feed.',sampler:'Samples and tests water from every stage.',tech:'Keeps the gas engine, meters and instruments working.',handler:'Handles sludge drying, the wheelbarrow and the compost heap.',officer:'Checks for gas leaks and keeps the flare and permits safe.',guard:'Signs people in, checks PPE, logs lorries and patrols the fence.',harvester:'Cuts ripe bunches with the egrek and carries them to the collection point.',angler:'A villager who fishes downstream — the river tells him how well the plant is working.'};
 // Quick questions each crew member can ask ("Quiz me!").
 const QUIZ=[
  [{q:'Which sign tells you the reactor is being overfed?',options:['Volatile fatty acids rise and gas production drops','More fish appear in the river','The flare gets brighter'],answer:0,why:'Too much feed makes acids faster than methanogens can use them, so pH falls and gas drops.'},
@@ -76,7 +88,11 @@ const QUIZ=[
  [{q:'Methane can explode in air at about…',options:['5–15 %','50–60 %','0.1 %'],answer:0,why:'Between the lower and upper explosive limits (about 5–15 %), a spark can ignite it.'},
   {q:'In a gas leak you should move…',options:['Upwind — check the windsock','Downwind','Into the digester'],answer:0,why:'Moving upwind keeps you out of the gas cloud.'}]
 ];
-const VOICE=[{pitch:.92,rate:1},{pitch:1.35,rate:1.04},{pitch:.78,rate:.97},{pitch:1.22,rate:1.02},{pitch:1,rate:.95}];
+const QUIZ_KIT={operator:QUIZ[0],sampler:QUIZ[1],tech:QUIZ[2],handler:QUIZ[3],officer:QUIZ[4],
+ guard:[{q:'Before entering a treatment plant you should…',options:['Sign in and wear the right PPE','Run straight to the digester','Light a cigarette'],answer:0,why:'Signing in and PPE keep everyone safe and accounted for.'}],
+ harvester:[{q:'How does a harvester know a bunch is ripe?',options:['A few loose fruits have dropped to the ground','The fronds turn blue','The trunk gets taller'],answer:0,why:'Ripe bunches turn reddish-orange and shed a few loose fruits.'},{q:'Why must bunches reach the mill quickly?',options:['Bruised fruit spoils and the oil quality drops','They get heavier','The bunches grow back'],answer:0,why:'Free fatty acids rise in bruised fruit, lowering the oil quality.'}],
+ angler:[{q:'Why do fish leave a river polluted with untreated POME?',options:['Bacteria use up the dissolved oxygen','The water gets too cold','There is too much light'],answer:0,why:'Decomposing organics consume the oxygen fish need to breathe.'}]};
+const VOICE=[{pitch:.92,rate:1},{pitch:1.35,rate:1.04},{pitch:.78,rate:.97},{pitch:1.22,rate:1.02},{pitch:1,rate:.95},{pitch:.85,rate:.98},{pitch:.95,rate:1.03},{pitch:.7,rate:.9}];
 const JOBTALK={rake:'raking fibre off the screen so it does not choke the pumps',dump:'tipping the screenings into the skip',valve:'trimming the feed valve so the reactor is not overloaded',clipboard:'writing readings in the log',dip:'taking a water sample',test:'testing pH, DO and COD at the bench',tablet:'checking readings on my tablet',kneel:'servicing the engine — plugs and the gas filter',shovel:'shovelling dried sludge cake',tip:'tipping cake on the compost heap',detector:'sniffing the gas line for leaks',walk:'walking to my next job'};
 
 export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isPond=()=>false,isPolluted=()=>false},cfg){
@@ -85,7 +101,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
  const mat=(c,r=.5,m=.1,x={})=>new T.MeshStandardMaterial({color:c,roughness:r,metalness:m,...x});
  const quests=Object.fromEntries(Object.entries(cfg.quests).map(([k,q])=>[k,{...q,done:false,on:false}]));
  const W=cfg.words;
- if(cfg.walk)visitor.configure(cfg.walk);
+ if(cfg.walk)visitor.configure(cfg.walk);if(cfg.walk?.block)visitor.blockWith(cfg.walk.block);
 
  /* ---------- HUD ---------- */
  const hud=document.createElement('div');hud.className='play-hud';hud.innerHTML=`
@@ -149,7 +165,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
  function npcSay(i,text,done){const a=world.roles[i].actor;sound.say(text,{...VOICE[i%VOICE.length],voice:i,onstart:()=>a.talk(true),onend:()=>{a.talk(false);done?.()}})}
  function openTalk(i){if(talking!==null)endTalk();talking=i;world.hold(i,'talk');const a=world.roles[i].actor;visitor.faceTowards(a.g.position.x,a.g.position.z);
   talkEl.hidden=false;talkEl.querySelector('header b').textContent=world.roles[i].person+' · '+world.roles[i].name;talkEl.dataset.crew=i;node(i,'start');if(document.pointerLockElement===canvas)document.exitPointerLock()}
- function node(i,id){const tree=TREES[i];if(id==='quizme'){const bank=QUIZ[i%QUIZ.length],item=bank[Math.floor(Math.random()*bank.length)],who=world.roles[i].person;endTalk();learn.quiz(item,{by:who+' asks you',reward:15});return}
+ function node(i,id){const tree=TREES[i];if(id==='quizme'){const bank=QUIZ_KIT[world.roles[i].spec.kit]||QUIZ[0],item=bank[Math.floor(Math.random()*bank.length)],who=world.roles[i].person;endTalk();learn.quiz(item,{by:who+' asks you',reward:15});return}
   if(id==='end'){npcSay(i,['Take care!','See you around.','Stay safe out there.'][Math.floor(Math.random()*3)]);endTalk();return}
   const n=tree[id];const text=typeof n==='function'?n():n;const line=talkEl.querySelector('.line');line.textContent='';let k=0;const typer=setInterval(()=>{line.textContent=text.slice(0,k+=2);if(k>=text.length)clearInterval(typer)},18);
   npcSay(i,text);const choices=talkEl.querySelector('.choices');choices.replaceChildren(...[...tree.options().slice(0,-1),['Quiz me!','quizme'],tree.options().at(-1)].map(([label,next],j)=>{const b=document.createElement('button');b.innerHTML=`<kbd>${j+1}</kbd> `;b.append(label);b.onclick=()=>{sound.fx.click();node(i,next)};return b}));}
@@ -215,7 +231,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
   const list=withPalms?infoTargets:infoTargets.filter(o=>o.userData.info!=='palm');
   const npcMeshes=[];world.roles.forEach(r=>{if(r.actor!==visitor.player)r.actor.g.traverse(o=>{if(o.isMesh&&o.visible)npcMeshes.push(o)})});
   const hits=ray.intersectObjects([...list,...npcMeshes],false).filter(h=>h.object.visible!==false&&(h.object.parent?.visible!==false));return hits[0]?.object}
- function infoFor(o){if(o.userData.npc!==undefined){const i=o.userData.npc,r=world.roles[i];return [r.person+' · '+r.name,`${cfg.roleInfo[i]} Right now: ${r.state.label.toLowerCase()}. Walk up and press E to talk.`]}return INFO[o.userData.info]}
+ function infoFor(o){if(o.userData.npc!==undefined){const i=o.userData.npc,r=world.roles[i];return [r.person+' · '+r.name,`${ROLE_INFO[r.spec.kit]||cfg.roleInfo[i]||''} Right now: ${r.state.label.toLowerCase()}. Walk up and press E to talk.`]}return INFO[o.userData.info]}
  function handleClick(u,v){const o=hitAt(u,v);if(!o)return false;const d=infoFor(o);if(!d)return false;showCard(null,d,o.userData.npc!==undefined?'crew-'+o.userData.npc:o.userData.info);return true}
  let hoverT=0;
  canvas.addEventListener('pointermove',e=>{if(e.buttons||document.pointerLockElement===canvas)return;const now=performance.now();if(now-hoverT<120)return;hoverT=now;const r=canvas.getBoundingClientRect();
@@ -225,7 +241,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
  canvas.addEventListener('mousedown',e=>{if(document.pointerLockElement===canvas&&e.button===0)handleClick(.5,.5)});
 
  /* ---------- ambience ---------- */
- const amb=cfg.ambient.map(([kind,x,z,o,tag])=>Object.assign(sound.ambient(kind,{x,z},o),{tag}));
+ const amb=cfg.ambient.map(([kind,x,z,o,tag])=>Object.assign(sound.ambient(kind,typeof x==='object'?x:{x,z},o),{tag}));
 
  /* ---------- per-frame ---------- */
  const fwd=new T.Vector3();
@@ -236,7 +252,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
   const walking=visitor.isWalking();for(const a of amb)if(a.tag==='gas')a.on=!isPond();
   camera.getWorldDirection(fwd);sound.listen(camera.position.x,camera.position.z,-Math.atan2(fwd.x,-fwd.z),dt);
   spray=Math.max(0,spray-dt);dig=Math.max(0,dig-dt);if(valveTurning>0){valveTurning-=dt;world.turnValve(dt)}
-  for(const e of world.takeEvents())if(e.type==='blocked'&&walking)npcSay(e.i,BLOCKED[Math.floor(Math.random()*BLOCKED.length)]);
+  for(const e of world.takeEvents()){if(e.type==='blocked'){if(walking)npcSay(e.i,BLOCKED[Math.floor(Math.random()*BLOCKED.length)])}else{const n={moo:'moo',chop:'chop',thud:'thud',splash:'plop',catch:'reel'}[e.type];if(n)sound.at(n,e.x,e.z,e.type==='moo'?18:12)}}
   if(talking!==null){const a=world.roles[talking].actor;if(Math.hypot(a.g.position.x-visitor.position.x,a.g.position.z-visitor.position.z)>2.2)endTalk()}
   if(!walking){ring.visible=false;return}
   staminaBar.style.width=Math.round(visitor.stamina*100)+'%';
@@ -283,14 +299,34 @@ function crewTrees(ctx,words){
    help:()=>{quests.cake.on=true;renderQuests();return `There is a spare shovel ${shovelSpot}. Stand at the edge of the drying area and press F to turn the cake.`},
    thanks:'Thank you! Turning the cake helps it dry evenly.'}
  ];
- if(world.roles[4])trees.push({start:()=>`I'm ${world.roles[4].person}, gas safety officer. Safety first — are you wearing your PPE?`,
+ ['operator','sampler','tech','handler'].forEach((k,i)=>trees[i].kit=k);
+ const oi=world.roles.findIndex(r=>r.spec.kit==='officer');
+ if(oi>=0)trees.push({kit:'officer',start:()=>`I'm ${world.roles[oi].person}, gas safety officer. Safety first — are you wearing your PPE?`,
    options:()=>[['What are you doing now?','now'],['How dangerous is biogas?','danger'],['What is the flare for?','flare'],quests.gas?.done?['I took a gas reading.','thanks']:['Can I help?','help'],['Stay safe!','end']],
-   now:()=>`I'm ${JOBTALK[job(4).job]||'busy'}.`,
+   now:()=>`I'm ${JOBTALK[job(oi).job]||'busy'}.`,
    danger:'Methane can explode at about five to fifteen percent in air, and hydrogen sulphide is toxic even at low levels. So we test before anyone works near the gas line.',
    flare:()=>isPond()?'With open ponds there is no gas to flare — and that is the problem: the methane escapes straight to the sky.':'When the engine cannot use all the biogas, the flare burns it. Burnt methane becomes CO₂, which warms the climate far less than methane.',
    help:()=>{quests.gas.on=true;renderQuests();return 'Take the gas detector from the crate by the control room. Stand near the digester and press F to take a reading.'},
    thanks:'Good habit! Test the air, read the numbers, then decide if it is safe to work.'});
- return trees;
+ const gi=world.roles.findIndex(r=>r.spec.kit==='guard'),hi=world.roles.findIndex(r=>r.spec.kit==='harvester'),ai=world.roles.findIndex(r=>r.spec.kit==='angler');
+ if(gi>=0)trees.push({kit:'guard',start:()=>`Selamat datang! I'm ${world.roles[gi].person}, security. Everyone signs in at the gate — even you!`,
+  options:()=>[['What do you do here?','job'],['Why log every lorry?','lorry'],['Where can I see the whole plant?','tower'],['Thanks!','end']],
+  job:'I check that everyone wears PPE, log the lorries in and out, and patrol the fence so nobody wanders near the gas lines.',
+  lorry:'Each lorry brings fresh fruit bunches. More bunches processed today means more POME tomorrow, so the plant uses our log to plan its load.',
+  tower:'Walk east along the road to the lookout tower and climb the stairs. You can see every stage from the top.'});
+ if(hi>=0)trees.push({kit:'harvester',start:()=>`Hello! I'm ${world.roles[hi].person}. I cut the ripe bunches with this egrek — a long pole with a sickle on the end.`,
+  options:()=>[['What are you doing now?','now'],['How do you know a bunch is ripe?','ripe'],['How often do you harvest a palm?','round'],['Where do the bunches go?','next'],['See you!','end']],
+  now:()=>`I'm ${JOBTALK[job(hi).job]||({harvest:'cutting a ripe bunch',gather:'picking up the bunch and the loose fruit',load:'stacking bunches for the lorry'})[job(hi).job]||'busy'}.`,
+  ripe:'Look for a reddish-orange bunch and a few loose fruits on the ground. Black, unripe bunches give much less oil.',
+  round:'We come back to every palm about every 10 to 15 days, so each ripe bunch is cut in time.',
+  next:'They go to the collection point, then by lorry to the mill. They should be processed within about a day, or the oil quality drops.'});
+ if(ai>=0)trees.push({kit:'angler',start:()=>isPolluted()?`Assalamualaikum. I'm ${world.roles[ai].person}. No bites today — look at the colour of that water.`:`Assalamualaikum! I'm ${world.roles[ai].person}. The fish are biting today!`,
+  options:()=>[['Catching anything?','fish'],['Has the river changed?','change'],['What does the village use the river for?','use'],['Good luck!','end']],
+  fish:()=>isPolluted()?'Nothing. When the water turns dark and smelly the fish swim away — they need oxygen to breathe.':'Yes — tilapia and catfish. Clean water means plenty of fish for the village.',
+  change:'Years ago untreated effluent turned the river brown and the fish died. Since the treatment plant was built, they have come back.',
+  use:'We fish, wash and water our gardens. That is why what the mill sends downstream matters to us.'});
+ const byKit={};trees.forEach(t=>byKit[t.kit]=t);
+ return world.roles.map(r=>byKit[r.spec.kit]);
 }
 const P=(x,z)=>({x,z});
 const sampleCards={
@@ -302,15 +338,21 @@ function controlLog({isPond,isPolluted,t}){const pond=isPond(),dirty=isPolluted(
 
 export function arcadePlay(env){
  const {world}=env;
+ const outer=env.outer,palmsBack=Array.from({length:22},(_,i)=>[-18+(i%11)*3.5,-11-Math.floor(i/11)*5-Math.sin(i*3)*1.3,.35]),row=Array.from({length:13},(_,i)=>[-7+i*1.16,-4.9,.35]);
  return createPlay(env,{
   key:'arcade',
+  walk:{bounds:{x:26,z0:-13,z1:15},obstacles:[...[[-7.6,-5.8,-3.4,-1.8],[.75,1.05,-3.75,-3.45],[4.9,5.1,-3.4,-3.2],[-5.98,-5.9,-2.25,-.05],[-2.53,.7,-3.25,.02],[.53,4.73,-1.63,.96],[1.59,4.57,-4.21,-2.04],[-4.54,-.67,1.67,3.44],[4.95,5.45,-.42,1.02],[-7.62,-6.78,.05,2.1],[-7.65,-6.75,-1.95,-.7],[6.35,7.55,-1.05,-.05],[6.3,7.7,1.9,2.9],[4.62,5.08,-2.45,-2.15]],...(outer?.obstacles||[]),[11.05,11.95,-5.05,-4.35]],
+   circles:[...(outer?.spots||[]).map(([x,z])=>[x,z,.32]),...palmsBack,...row,[10.2,-3,.32],[12.8,-1.5,.32],[10.2,0,.32],[12.8,1.5,.32],[10.2,2.9,.32],[12.8,-4.2,.32],[10.6,-6.2,.12],[-12.5,9.6,.12]],
+   ground:(x,z)=>x>-3.42&&x<-2.58&&z>3.5&&z<6.0?.39:.11},
   trail:[
    {at:[-4,.78],title:'Intake',fact:'Hot raw POME from the mill is screened here: fibre and shell come out, oil floats.',quiz:{q:'Why is raw POME screened before treatment?',options:['Fibre and shell would clog pumps and the digester','To make it hotter','To add oxygen'],answer:0,why:'Solids are removed early so the pumps and digester keep working.'}},
    {at:[-.9,.42],title:'Covered digester',fact:'Microbes without oxygen turn organics into biogas — mostly methane and CO₂.',quiz:{q:'Which gas do methanogens mainly produce?',options:['Methane (CH₄)','Oxygen (O₂)','Nitrogen (N₂)'],answer:0,why:'Methanogens turn acetate into methane, the fuel in biogas.'}},
    {at:[2.4,-1.83],title:'Gas engine house',fact:'Biogas burns in the engine to make electricity for the mill.',quiz:{q:'When methane burns in the engine it becomes…',options:['Carbon dioxide and water','Hydrogen sulphide','Ammonia'],answer:0,why:'CH₄ + 2O₂ → CO₂ + 2H₂O, releasing energy.'}},
    {at:[2.6,1.2],title:'Polishing basin',fact:'Blowers bubble air through the water so bacteria can clean up what is left.',quiz:{q:'Why do the blowers push air into the basin?',options:['Bacteria need dissolved oxygen to break down the leftover organics','To cool the water down','To make more biogas'],answer:0,why:'Aerobic bacteria use oxygen to oxidise organics to CO₂ and water.'}},
    {at:[5.2,3.4],title:'River outfall',fact:'Treated water joins the river here — the oil boom catches any sheen.',quiz:{q:'What happens to fish if poorly treated POME reaches the river?',options:['Oxygen drops and the fish die or leave','The fish grow faster','Nothing changes'],answer:0,why:'Bacteria feeding on the pollution use up the dissolved oxygen fish need.'}},
-   {at:[-2.6,1.45],title:'Sludge yard',fact:'Waste sludge dries on sand beds and is composted with empty fruit bunches.',quiz:{q:'How does the sludge cake dry?',options:['Water drains through sand and gravel and evaporates','It is boiled','Bacteria drink the water'],answer:0,why:'The underdrain removes water and the sun evaporates the rest.'}}],
+   {at:[-2.6,1.45],title:'Sludge yard',fact:'Waste sludge dries on sand beds and is composted with empty fruit bunches.',quiz:{q:'How does the sludge cake dry?',options:['Water drains through sand and gravel and evaporates','It is boiled','Bacteria drink the water'],answer:0,why:'The underdrain removes water and the sun evaporates the rest.'}},
+   {at:[11.5,-.8],title:'Harvest block',fact:'Ripe bunches are cut with a long-pole sickle (egrek) and carried to the collection point.',quiz:{q:'How does a harvester know a bunch is ripe?',options:['A few loose fruits have dropped to the ground','The fronds turn blue','The trunk gets taller'],answer:0,why:'Ripe bunches turn reddish-orange and shed a few loose fruits.'}},
+   {at:[.6,8.4],title:'Kampung downstream',fact:'The village fishes and washes in the river below the outfall.',quiz:{q:'Why does the village care about the mill’s effluent?',options:['They fish and use the river downstream','It makes their houses taller','It brings more lorries'],answer:0,why:'Whatever the plant discharges flows straight past the village.'}}],
   stages:[{name:'Raw POME (intake)',at:[-4,-.7],cod:()=>50000},{name:'After the digester',at:[-.9,-1.65],cod:()=>env.isPond()?12000:7500},{name:'After polishing',at:[3,-.35],cod:()=>env.isPolluted()?340:120},{name:'River below outfall',at:[5.2,4.2],cod:()=>env.isPolluted()?140:18}],
   items:{bottle:{name:'Sample bottle',at:[5.3,.615,.62]},rake:{name:'Screen rake',at:[-2.95,.02,.58]},detector:{name:'Gas detector',at:[6.55,.43,1.72]},shovel:{name:'Shovel',at:[-.7,.02,3.5]},extinguisher:{name:'Fire extinguisher',at:[-.4,0,1.85]}},
   crates:[[6.55,0,1.72]],
@@ -335,7 +377,7 @@ export function arcadePlay(env){
   gasSources:[{x:-.9,z:-1.65,r:1.4,lel:3,pond:14,h2s:3,pondH2s:9,fall:.8},{x:3.1,z:-3.1,lel:2,fall:1.2},{x:.9,z:-3.6,lel:1.5,fall:1},{x:-4,z:-.7,h2s:4,fall:1.2}],
   gasQuest:p=>Math.hypot(p.x+.9,p.z+1.65)<2.7,
   infoBoxes:[['blowers',[6.95,.5,-.55],[1.25,1,1]],['control',[7,.45,2.4],[1.35,.9,.95]],['windsock',[-7.6,1.4,-3.9],[.3,2.7,.3]],['conveyor',[-7.2,.5,-1.4],[.8,1.1,1.2]],['skip',[-5.8,.25,.85],[.65,.5,.5]],['bench',[5.45,.45,.69],[.85,.9,.5]],['heap',[-5.85,.2,2.6],[.8,.4,.8]],['valve',[-.35,.8,.02],[.35,.35,.3]],['to mill grid',[5,1,-3.3],[.3,2,.6]],['extinguisher',[-3.15,.2,-.2],[.15,.45,.15]],['extinguisher',[1.95,.2,-1.95],[.15,.45,.15]],['extinguisher',[5.65,.2,-1.55],[.15,.45,.15]]],
-  ambient:[['hum',3.1,-3.1,{freq:52,gain:.22,radius:7},'gas'],['hum',6.95,-.55,{freq:118,gain:.12,radius:5}],['roar',.9,-3.6,{gain:.2,radius:6},'gas'],['water',0,4.75,{gain:.18,radius:4,line:[-8,8]}],['bubbles',-.9,-1.65,{freq:420,gain:.06,radius:3.5}],['water',-4.85,-.1,{gain:.1,radius:3}],['hum',-7.2,-1.3,{freq:76,gain:.07,radius:4}]],
+  ambient:[...(outer?[['hum',outer.tractor.position,0,{freq:68,gain:.14,radius:9}]]:[]),['hum',3.1,-3.1,{freq:52,gain:.22,radius:7},'gas'],['hum',6.95,-.55,{freq:118,gain:.12,radius:5}],['roar',.9,-3.6,{gain:.2,radius:6},'gas'],['water',0,4.75,{gain:.18,radius:4,line:[-8,8]}],['bubbles',-.9,-1.65,{freq:420,gain:.06,radius:3.5}],['water',-4.85,-.1,{gain:.1,radius:3}],['hum',-7.2,-1.3,{freq:76,gain:.07,radius:4}]],
   surface:(x,z)=>(z>.8&&z<1.7)||(x>-6.15&&x<-5.25)?'gravel':'grass',
   roleInfo:['Runs the intake and the digester feed.','Samples and tests water from every stage and the river.','Keeps the gas engine, meters and instruments working.','Handles sludge drying, the wheelbarrow and the compost heap.','Checks for gas leaks and keeps the flare and permits safe.'],
   words:{reactor:'digester',basin:'polishing basin',waterQ:'Is the river safe?',waterA:dirty=>dirty?'Not today. The oxygen is low and the COD is high — the treatment upset is reaching the river. That is why the fish have gone.':'Today it looks good: plenty of dissolved oxygen and low COD. You can see the fish jumping.',shovelSpot:'on the river bank',binder:{rake:'by the intake'}},
@@ -355,6 +397,10 @@ export function reactorPlay(env){
  const onPlatform=(x,z)=>Math.abs(x)<6.2&&Math.abs(z)<3.25;
  const num=id=>Number(String(document.getElementById(id)?.value??document.getElementById(id)?.textContent??'').replace(/[^0-9.]/g,''))||0;
  const codIn=()=>num('cod')||50000,codOut=()=>num('residual')||Math.round(codIn()*.05);
+ const sc=env.scenery,TW=sc?.tower;
+ // Height of the ground (platform, yard, tower stairs and deck). y is the walker's current height.
+ const groundAt=(x,z,y=.11)=>{if(onPlatform(x,z))return .11;if(TW){if(x>TW.x0&&x<TW.x1&&z>TW.z0&&z<TW.z1&&y>TW.top-.7)return TW.top+.02;
+   if(x>TW.sx0&&x<TW.sx1&&z>TW.sz0&&z<TW.sz1){const h=TW.top-(TW.top+.29)*(z-TW.sz0)/(TW.sz1-TW.sz0)+.02;if(y>h-.75)return h}}return -.27};
  return createPlay(env,{
   key:'reactor',
   trail:[
@@ -364,11 +410,17 @@ export function reactorPlay(env){
    {at:[1.6,2.2],title:'Aeration basin',fact:'Air from the blowers lets floc bacteria finish the clean-up and turn ammonium into nitrate.',quiz:{q:'Why do the blowers push air into the basin?',options:['Bacteria need dissolved oxygen to break down the leftover organics','To cool the water down','To make more biogas'],answer:0,why:'Aerobic bacteria use oxygen to oxidise organics to CO₂ and water.'}},
    {at:[4.75,1.95],title:'Outlet chamber',fact:'Treated water is checked here before it is reused or discharged.',quiz:{q:'Which test shows how much oxygen the remaining pollution would use up?',options:['COD','Temperature','Colour'],answer:0,why:'Chemical oxygen demand measures the oxygen needed to oxidise what is left.'}},
    {at:[4.8,-1.05],title:'Sludge drying bed',fact:'Excess sludge dries on sand and gravel; the cake is composted.',quiz:{q:'How does the sludge cake dry?',options:['Water drains through sand and gravel and evaporates','It is boiled','Bacteria drink the water'],answer:0,why:'The underdrain removes water and the sun evaporates the rest.'}},
+   {at:[-16,-2.0],y:-.26,title:'FFB harvesting',fact:'Outside the fence, harvesters cut ripe bunches with a long-pole sickle (egrek) and carry them to the collection point.',quiz:{q:'How does a harvester know a bunch is ripe?',options:['A few loose fruits have dropped to the ground','The fronds turn blue','The trunk gets taller'],answer:0,why:'Ripe bunches turn reddish-orange and shed a few loose fruits.'}},
+   {at:[13.0,4.6],y:-.26,title:'Lookout tower',fact:'Climb the stairs and look back over every stage of the plant.',quiz:{q:'In which order does POME flow through this plant?',options:['Inlet → UASB → aeration → outlet','Outlet → aeration → UASB → inlet','Aeration → inlet → outlet → UASB'],answer:0,why:'Solids out first, then anaerobic digestion makes biogas, then aeration polishes the water.'}},
    {at:[8.45,.55],y:-.26,title:'Reuse water tank',fact:'Water that passes its tests is reused for washing and cooling.',quiz:{q:'Why reuse treated water at the mill?',options:['It saves river water and cuts discharge','It makes more biogas','It is required to cool the flare'],answer:0,why:'Every cubic metre reused is one less taken from, or sent to, the river.'}}],
   stages:[{name:'Raw POME (inlet)',at:[-4.55,.9],cod:codIn},{name:'After UASB',at:[-1.4,0],cod:()=>Math.round(codIn()*.15)},{name:'After aeration',at:[1.8,.5],cod:()=>Math.round(codOut()*1.3)},{name:'Outlet',at:[4.75,.7],cod:codOut}],
-  walk:{bounds:{x:10.2,z0:-4.35,z1:4.25},ground:(x,z)=>onPlatform(x,z)?.11:-.27,
+  walk:{bounds:{x:32,z0:-26,z1:22},ground:groundAt,
+   // Railings: once up on the tower you can only leave by the stairs.
+   block:(x,z)=>{if(!TW||env.visitor.position.y<TW.top-.6)return false;const deck=x>TW.x0+.06&&x<TW.x1-.06&&z>TW.z0+.06&&z<TW.z1-.06,stairs=x>TW.sx0+.03&&x<TW.sx1-.03&&z>=TW.z1-.12&&z<TW.sz1;return !(deck||stairs)},
+   circles:[...(sc?.palmSpots||[]).map(([x,z])=>[x,z,.34]),[-17.6,-4.5,.34],[-14.4,-3,.34],[-17.6,-.5,.34],[-14.4,1,.34],[-17.6,3.5,.34],[-14.4,5.2,.34],[-21,-9,.1],[19,9,.1],[22,-14,.1],...[-18,-12,-6,0,6,12,18].map(x=>[x,7.95,.1]),...(TW?[[TW.x0+.08,TW.z0+.08,.12],[TW.x1-.08,TW.z0+.08,.12],[TW.x0+.08,TW.z1-.08,.12],[TW.x1-.08,TW.z1-.08,.12]]:[])],
    obstacles:[[-5.83,-3.26,-.13,1.94],[-2.91,.1,-1.55,1.55],[.32,3.3,-.83,1.87],[-1.57,.76,-2.9,-1.47],[2,4.44,-2.68,-1.22],[3.8,5.68,-.23,1.65],[5.34,6.16,1.5,1.98],
-    [-9.95,-7.15,-1.1,.28],[6.4,8.7,-2.55,-.95],[7.55,9.35,.85,2.65],[6.4,7.9,2.75,3.45],[-7.45,-6.95,.6,1.3],[-6.1,-5.4,2.55,3.0],[.75,1.5,-3.2,-2.45]]},
+    [-9.95,-7.15,-1.1,.28],[6.4,8.7,-2.55,-.95],[7.55,9.35,.85,2.65],[6.4,7.9,2.75,3.45],[-7.45,-6.95,.6,1.3],[-6.1,-5.4,2.55,3.0],[.75,1.5,-3.2,-2.45],
+    [-10.6,6.3,4.37,4.53],[8.8,10.6,4.37,4.53],[-10.6,-10.4,-4.7,4.53],[10.4,10.6,-4.7,4.53],[-10.6,10.6,-4.7,-4.5],[9.55,10.35,4.5,5.2],[-8.3,-3.7,-8.2,-5.8],[1.4,4.3,-6.6,-5.8],[16.8,27.2,-27.2,-20.8],[-16.5,-15.5,4.25,4.95]]},
   items:{bottle:{name:'Sample bottle',at:[5.48,.61,1.62]},detector:{name:'Gas detector',at:[5.72,.61,1.58]},rake:{name:'Screen rake',at:[-3.3,.1,2.62]},shovel:{name:'Shovel',at:[4.95,.1,-.95]},extinguisher:{name:'Fire extinguisher',at:[-6.0,.09,2.0]}},
   quests:{screen:{giver:0,title:'Clear the inlet bar screen',hint:'Take the rake on the walkway, stand at the inlet and press F.'},
    sample:{giver:1,title:'Test an aeration-basin sample',hint:'Bottle on the field bench → F at the aeration basin edge → E at the bench.'},

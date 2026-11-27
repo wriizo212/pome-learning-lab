@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {gestures} from './visitor-hands.mjs?v=shift11';
+import {gestures} from './visitor-hands.mjs?v=shift12';
 
 /*
  Walk the plant as one of the workers. Orbit, first-person and third-person views;
@@ -28,9 +28,12 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
   [-7.62,-6.78,.05,2.1],[-7.65,-6.75,-1.95,-.7],[6.35,7.55,-1.05,-.05],[6.3,7.7,1.9,2.9],[4.62,5.08,-2.45,-2.15]]
   :[[-5.83,-3.26,-.13,1.94],[-2.91,.1,-1.55,1.55],[.32,3.3,-.83,1.87],[-1.57,.76,-2.9,-1.47],[2,4.44,-2.68,-1.22],[3.8,5.68,-.23,1.65]];
  let extraBlock=()=>false,bounds=arcade?{x:7.6,z0:-4.36,z1:3.67}:{x:6.03,z0:-3.02,z1:3.02},ground=()=>.11,baseY=.11;
+ // Round obstacles (palm trunks, posts) in a coarse spatial grid so thousands stay cheap.
+ let grid=new Map();const CELL=3,cellKey=(x,z)=>Math.floor(x/CELL)+','+Math.floor(z/CELL);
+ function circleAt(x,z){for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const list=grid.get((Math.floor(x/CELL)+i)+','+(Math.floor(z/CELL)+j));if(list)for(const [cx,cz,r] of list)if((x-cx)**2+(z-cz)**2<r*r)return true}return false}
  function solid(x,z){return !(Math.abs(x)<bounds.x&&z>bounds.z0&&z<bounds.z1)||obstacles.some(([a,b,c,d])=>x>a&&x<b&&z>c&&z<d)}
  function workerAt(x,z){return world.roles.some(r=>r.actor!==player&&Math.hypot(r.actor.g.position.x-x,r.actor.g.position.z-z)<.34)}
- function allowed(x,z){return !solid(x,z)&&!workerAt(x,z)&&!extraBlock(x,z)}
+ function allowed(x,z){return !solid(x,z)&&!circleAt(x,z)&&!workerAt(x,z)&&!extraBlock(x,z)}
  function setMode(mode){
   if(picker.value==='orbit'||mode!=='orbit')heading=bodyYaw=player.g.rotation.y;
   world.control(mode==='orbit'?null:player);world.setPlayer?.(mode==='orbit'?null:pos);picker.value=mode;pad.hidden=mode==='orbit';player.g.visible=mode!=='first';
@@ -89,7 +92,7 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
   else if(!grounded)player.pose(walkTime,0,'air',walkTime,{vy,carry});
   else player.pose(walkTime,moved>1e-4?Math.min(1,speed/1.5):0,'',walkTime,{phase:stridePhase,run,landing,carry,tool});
   // Ground height can change (platform to yard); step smoothly between levels.
-  baseY+=(ground(pos.x,pos.z)-baseY)*(1-Math.exp(-dt*12));
+  baseY+=(ground(pos.x,pos.z,baseY)-baseY)*(1-Math.exp(-dt*12));
   player.heading=bodyYaw;player.g.rotation.y=bodyYaw;pos.y=baseY+jumpY;world.setPlayer?.(pos);
   // Camera: head-bob in first person, smooth over-the-shoulder follow in third person.
   const bob=grounded&&moved>1e-4?Math.sin(stridePhase*2)*(run?.03:.015):0;
@@ -108,7 +111,7 @@ export function explore(view,canvas,camera,world,orbit,inspect,cutaway,zoom,arca
   act(job,dur,done){if(action)return false;action={job,dur,t:0,done};vel.set(0,0);return true},busy:()=>!!action,
   setHeld(name){held=name},
   // A scene can widen the walkable area, add obstacles and give the ground a height.
-  configure(o){if(o.bounds)bounds=o.bounds;if(o.obstacles)obstacles=o.obstacles;if(o.ground)ground=o.ground},get held(){return held},blockWith(fn){extraBlock=fn},controls,
+  configure(o){if(o.bounds)bounds=o.bounds;if(o.obstacles)obstacles=o.obstacles;if(o.ground)ground=o.ground;if(o.circles){grid=new Map();for(const c of o.circles){const k=cellKey(c[0],c[1]);if(!grid.has(k))grid.set(k,[]);grid.get(k).push(c)}}},get held(){return held},blockWith(fn){extraBlock=fn},controls,
   roleIndex:()=>Number(role.value),selectRole(i){role.value=String(i);role.onchange()},
   faceTowards(x,z){bodyYaw=Math.atan2(-(x-pos.x),-(z-pos.z));if(picker.value==='first')heading=bodyYaw}};
 }

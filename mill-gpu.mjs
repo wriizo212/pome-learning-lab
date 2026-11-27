@@ -1,14 +1,14 @@
-import {populate} from './process/crew.mjs?v=shift11';
-import {explore} from './process/explore.mjs?v=shift11';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift11';
-import {legend} from './process/molecules.mjs?v=shift11';
-import {arcadeScenery,arcadeExtras,arcadeDetails} from './process/arcade-scenery.mjs?v=shift11';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift11';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift11';
-import {arcadePlay} from './process/play.mjs?v=shift11';
-import {addWaves} from './process/molecules.mjs?v=shift11';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift11';
-import {frameBudget} from './process/frame-budget.mjs?v=shift11';
+import {populate} from './process/crew.mjs?v=shift12';
+import {explore} from './process/explore.mjs?v=shift12';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift12';
+import {legend} from './process/molecules.mjs?v=shift12';
+import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift12';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift12';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift12';
+import {arcadePlay} from './process/play.mjs?v=shift12';
+import {addWaves} from './process/molecules.mjs?v=shift12';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift12';
+import {frameBudget} from './process/frame-budget.mjs?v=shift12';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];
@@ -137,10 +137,10 @@ export function mount(T, host, onPick) {
       const m=new T.Mesh(g,parts[0].material);m.userData.unit=parts[0].userData.unit;m.castShadow=m.receiveShadow=true;if(covers.has(parts[0])){for(const p of parts)covers.delete(p);covers.add(m)}group.add(m);
     }
   }
-  let stage='intake',yaw=.52,pitch=.65,distance=17,spin=false,paused=false,frame,previous=0,time=0,drag;
+  let stage='intake',yaw=.52,pitch=.65,distance=17,sy=.52,sp=.65,sd=17,spin=false,paused=false,frame,previous=0,time=0,drag;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   function reset(){visitor.setMode('orbit');yaw=.52;pitch=.65;distance=17;spin=false;}
-  function zoom(delta){distance=Math.max(6,Math.min(29,distance-delta*9));}
+  function zoom(delta){distance=Math.max(6,Math.min(40,distance-delta*9));}
   const ray=new T.Raycaster();
   canvas.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,moved:0};canvas.setPointerCapture(e.pointerId);};
   canvas.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);drag.x=e.clientX;drag.y=e.clientY;if(visitor.isWalking())visitor.look(dx*.008,dy*.006);else orbit(dx*.008,dy*.006);};
@@ -158,6 +158,8 @@ export function mount(T, host, onPick) {
   const scenery=arcadeScenery(scene,{steel,brass,dark,concrete,teal,roof},{isPond:()=>pond.visible,isPolluted:()=>polluted});flows.hook(scenery.hook);
   const extras=arcadeExtras(scene,{steel,brass,dark,concrete,teal},tier);
   const siteDetail=arcadeDetails(scene,{steel,dark,concrete},tier,{isPolluted:()=>polluted});flows.hook(siteDetail.hook);
+  // The landscape beyond the board: river, kampung, palms, road, animals.
+  const outer=arcadeWorld(scene,{steel,dark,concrete,riverMat:waters.at(-1).material},tier,{emit:e=>world.emit(e)});world.setRiverHealth(()=>!polluted);
   // Sky reflections on water, glass and steel; moving ripple normals on all water.
   environment(renderer,scene,{intensity:.5,horizon:0xb0c3b6,sunDir:new T.Vector3(-8,12,5)});
   // Premium finish: normal-mapped relief, sharper filtering, contact shadows under equipment.
@@ -183,7 +185,7 @@ export function mount(T, host, onPick) {
   const orbit=(dx,dy)=>{yaw-=dx;pitch=Math.max(.2,Math.min(1.33,pitch+dy))};
   function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const id=ray.intersectObjects([...Object.values(units),pond],true).find(hit=>hit.object.visible&&hit.object.userData.unit&&hit.object.parent.visible)?.object.userData.unit;if(id){onPick(id);play?.showInfo(id)}}
   const visitor=explore(wrapper,canvas,camera,world,orbit,pick,switchSection,delta=>zoom(-delta*.16),true);
-  const play=arcadePlay({scene,camera,canvas,viewport,wrapper,world,visitor,flows,isPond:()=>pond.visible,isPolluted:()=>polluted});
+  const play=arcadePlay({scene,camera,canvas,viewport,wrapper,world,visitor,flows,outer,isPond:()=>pond.visible,isPolluted:()=>polluted});
   if(new URLSearchParams(location.search).has('debug'))window.__arcade={visitor,world,play,renderer,scene,camera,flows,scenery,extras,budget,hd};
   wrapper.querySelector('.hand-start').addEventListener('click',()=>window.stopCamera?.(true),true);
   window.addEventListener('pome-quiz-camera',()=>visitor.stop());
@@ -193,10 +195,11 @@ export function mount(T, host, onPick) {
     frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
-    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);extras.update(time);siteDetail.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
+    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);extras.update(time);siteDetail.update(time);outer.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
-    const walking=visitor.frame(dt);if(!walking){camera.position.set(radius*Math.cos(pitch)*Math.sin(yaw),.6+radius*Math.sin(pitch),radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(0,.5,0)}
+    const ck=1-Math.exp(-dt*7);sy+=(yaw-sy)*ck;sp+=(pitch-sp)*ck;sd+=(distance-sd)*ck;const rr=sd*Math.max(1,1.25/camera.aspect);
+    const walking=visitor.frame(dt);if(!walking){camera.position.set(rr*Math.cos(sp)*Math.sin(sy),.6+rr*Math.sin(sp),rr*Math.cos(sp)*Math.cos(sy));camera.lookAt(0,.5,0)}
     hd.update(walking?0:distance,walking?camera.position:center);
     marker.visible=Boolean(targets[stage]);if(marker.visible){marker.position.copy(targets[stage]);marker.position.y+=.53+Math.sin(time*2)*.045;}
     renderer.render(scene,camera);budget.end();

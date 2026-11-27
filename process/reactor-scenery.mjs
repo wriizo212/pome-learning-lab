@@ -1,5 +1,6 @@
 import * as T from './three.module.min.js';
-import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift11';
+import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift12';
+import {fauna} from './fauna.mjs?v=shift12';
 
 /*
  Surroundings for the main UASB + aerobic simulator: ground, road and plantation,
@@ -8,7 +9,7 @@ import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platf
  butterflies, chimney smoke). Static pieces are merged per material; moving pieces
  stay separate. Counts scale with the quality tier.
 */
-export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
+export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier,emit=()=>{}}){
  const q=tier.scenery,texSize=tier.texture;let seed=2024;const rnd=()=>((seed=Math.imul(1664525,seed)+1013904223>>>0)/4294967296);
  const mat=(color,r=.7,m=.05,extra={})=>new T.MeshStandardMaterial({color,roughness:r,metalness:m,...extra});
  const stat=new T.Group();scene.add(stat);
@@ -22,6 +23,7 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  function signPost(spec,x,z,face=0,h=.78){const t=sign(spec);const g=new T.Group();g.position.set(x,.09,z);g.rotation.y=face;scene.add(g);
   add(new T.CylinderGeometry(.022,.022,h,8),steel,0,h/2,0,g);const p=add(new T.PlaneGeometry(.56,.35),new T.MeshStandardMaterial({map:t,roughness:.6}),0,h,.026,g);p.castShadow=false;p.userData.info=spec.title.toLowerCase();add(new T.BoxGeometry(.58,.37,.02),dark,0,h,.012,g);return g}
  const dynamic=[];
+ const hitBox=(key,x,y,z,w,h,d)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshBasicMaterial({visible:false}));m.position.set(x,y,z);m.userData.info=key;return m};
 
  /* ---------- sky, ground, road ---------- */
  const atmosphere=sky(scene,{sunDir:new T.Vector3(-6,11,8)});scene.background=null;scene.fog=new T.FogExp2(0xb3c5bd,.0105);
@@ -51,7 +53,7 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
  }
  const spots=[];
  // Keep the camera's line of sight (in front of the plant) clear of trees.
- const free=(x,z)=>!(Math.abs(x)<11.5&&z>-9&&z<9)&&!(Math.abs(x)<30&&z>4)&&!(z>4.6&&z<8.4)&&!(Math.abs(x)<19&&z>-17.5&&z<-9.5);
+ const free=(x,z)=>!(x>-21&&x<-11&&z>-7.5&&z<6.6)&&!(x>12.5&&x<28&&z>-19&&z<-4.5)&&!(x>11&&x<16.5&&z>-1.5&&z<5.4)&&!(Math.abs(x)<11.5&&z>-9&&z<9)&&!(Math.abs(x)<30&&z>4)&&!(z>4.6&&z<8.4)&&!(Math.abs(x)<19&&z>-17.5&&z<-9.5);
  for(let gx=-46;gx<=46;gx+=4.6)for(let gz=-40;gz<=34;gz+=4.6){const x=gx+(rnd()-.5)*1.6+(Math.round(gz/4.6)%2)*2.3,z=gz+(rnd()-.5)*1.6;if(free(x,z)&&Math.hypot(x,z)<52)spots.push([x,z])}
  spots.sort(()=>rnd()-.5);const palmCount=Math.round(spots.length*Math.min(1,.25+.75*q));
  // Realistic oil palms; frond and leaflet counts follow the quality tier.
@@ -62,6 +64,7 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
   if(!list.length)continue;const m=new T.InstancedMesh(oilPalm({height:3.4,seed:9,...opts}),pm,list.length);m.userData.info='palm';
   list.forEach(([x,z],i)=>{o.position.set(x,-.29,z);o.rotation.set((rnd()-.5)*.06,rnd()*6.28,(rnd()-.5)*.06);o.scale.setScalar(.85+rnd()*.45);o.updateMatrix();m.setMatrixAt(i,o.matrix)});
   m.castShadow=false;m.receiveShadow=true;scene.add(m);palmSets.push(m)}
+ const palmSpots=[...nearSpots,...farSpots];
  // Grass tufts around the yard.
  const tuftGeo=new T.ConeGeometry(.035,.22,4,1,true);tuftGeo.translate(0,.11,0);
  const tuftMat=windify(new T.MeshStandardMaterial({color:0x6f8f45,roughness:.9,side:T.DoubleSide}),{strength:1.1,base:-.29});
@@ -154,6 +157,31 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
 
  // Steps down from the platform to the yard on both sides and at the front.
  const stepMat=mat(0xb9b3a4,.85);for(const [x,z,ax] of [[-6.38,.7,'x'],[6.38,-.4,'x'],[-2.2,3.42,'z'],[2.6,3.42,'z']])for(let k=0;k<3;k++){const o2=(k+.5)*.12;const w=ax==='x'?.12:.9,d=ax==='x'?.9:.12;box(x+(ax==='x'?Math.sign(x)*(o2-.18):0),-.29,z+(ax==='z'?Math.sign(z)*(o2-.18):0),w,.38-k*.12,d,stepMat)}
+ /* ---------- lookout tower: climb the stairs for a view over the whole plant ---------- */
+ const TW={x0:12.6,x1:14.4,z0:.2,z1:2.0,top:2.9,sx0:12.65,sx1:13.35,sz0:2.0,sz1:5.0};
+ const timber=mat(0x7a5a3c,.85),rail=mat(0xe8c440,.45,.3);
+ for(const [x,z] of [[TW.x0+.08,TW.z0+.08],[TW.x1-.08,TW.z0+.08],[TW.x0+.08,TW.z1-.08],[TW.x1-.08,TW.z1-.08]])box(x,-.29,z,.14,TW.top+.29,.14,timber);
+ for(const [x,z,w,d] of [[(TW.x0+TW.x1)/2,TW.z0+.08,1.8,.08],[(TW.x0+TW.x1)/2,TW.z1-.08,1.8,.08],[TW.x0+.08,(TW.z0+TW.z1)/2,.08,1.8],[TW.x1-.08,(TW.z0+TW.z1)/2,.08,1.8]]){const b=box(x,1.2,z,w,.06,d,timber);b.rotation.y=.0}
+ box((TW.x0+TW.x1)/2,TW.top-.08,(TW.z0+TW.z1)/2,1.9,.08,1.9,timber);
+ for(let k=0;k<9;k++)box(TW.x0+.1+k*.2,TW.top,(TW.z0+TW.z1)/2,.18,.012,1.88,mat(0x8a6a48,.8));
+ for(const [x,z,w,d] of [[(TW.x0+TW.x1)/2,TW.z0,1.9,.04],[TW.x0,(TW.z0+TW.z1)/2,.04,1.9],[TW.x1,(TW.z0+TW.z1)/2,.04,1.9]]){box(x,TW.top+.5,z,w,.04,d,rail);box(x,TW.top+.25,z,w,.03,d,rail)}
+ for(const [x,z] of [[TW.x0,TW.z0],[TW.x1,TW.z0],[TW.x0,TW.z1],[TW.x1,TW.z1]])box(x,TW.top,z,.05,.55,.05,rail);
+ const steps=16;for(let k=0;k<steps;k++){const f=(k+.5)/steps,z=TW.sz0+(TW.sz1-TW.sz0)*f,h=TW.top-(TW.top+.29)*f;box((TW.sx0+TW.sx1)/2,h-.04,z,TW.sx1-TW.sx0,.04,.17,mat(0x8a6a48,.8))}
+ for(const sx of [TW.sx0,TW.sx1]){const len=Math.hypot(TW.sz1-TW.sz0,TW.top+.29),ang=Math.atan2(TW.top+.29,TW.sz1-TW.sz0);const st=box(sx,0,(TW.sz0+TW.sz1)/2,.05,.05,len,timber);st.position.y=(TW.top-.29)/2;st.rotation.x=ang;
+  const hr=box(sx,0,(TW.sz0+TW.sz1)/2,.03,.03,len,rail);hr.position.y=(TW.top-.29)/2+.55;hr.rotation.x=ang}
+ box(13.5,TW.top+.55,TW.z0-.02,.8,.22,.02,mat(0x1f4d3f,.6));label('LOOKOUT TOWER',13.5,TW.top+1.15,1.1,1.6,'#d9f58a');
+ for(const m of [hitBox('lookout tower',13.5,1.4,1.1,2,3,2)])scene.add(m);
+ /* ---------- gate booth for the security guard ---------- */
+ box(9.95,-.29,4.85,.7,.95,.6,mat(0xe3e0d4,.7));box(9.95,.66,4.85,.82,.06,.72,dark);box(9.6,.15,4.85,.02,.35,.42,mat(0x9fd8e6,.15,.4,{emissive:0x3a7080,emissiveIntensity:.25}));
+ scene.add(hitBox('guard booth',9.95,.2,4.85,.72,1,.62));
+ /* ---------- harvest block extras: harvest path and frond stacks between the rows ---------- */
+ const path=plane(1.1,13,new T.MeshStandardMaterial({map:texture(gravel(texSize,'#8a7a5e'),{repeat:[1,10]}),roughness:.95}),-16,-.276,-.8,scene);path.userData.info='harvest path';
+ const frondGeo=new T.BoxGeometry(1,1,1),frondMat=mat(0x6b6a3a,.95);const stacks=new T.InstancedMesh(frondGeo,frondMat,Math.round(60*Math.max(.5,q)));
+ for(let k=0;k<stacks.count;k++){const row=k%6,x=k<12?(row<3?-19.1:-12.9):-24+rnd()*48,z=k<12?-6+Math.floor(k/6)*2.6+(row%3)*3.2:-22+rnd()*44;if(k>=12&&(Math.abs(x)<12&&z>-6&&z<8||z>4&&z<9)){o.scale.set(0,0,0)}else{o.position.set(x,-.25,z);o.rotation.set(0,rnd()*.3+(k<12?0:Math.PI/2*(k%2)),0);o.scale.set(.45,.1,1.8+rnd()*1.2)}o.updateMatrix();stacks.setMatrixAt(k,o.matrix)}
+ stacks.receiveShadow=true;stacks.userData.info='frond stack';scene.add(stacks);
+ /* ---------- animals with jobs on the estate ---------- */
+ const animals=fauna(scene,{cattle:{area:[14,26,-16,-6],count:Math.max(3,Math.round(5*q))},egrets:3,owls:[[-21,-9],[19,9],[22,-14]],y:-.29,emit});
+ dynamic.push(t=>animals.update(t));
  mergeStatic(stat);
  function update(t){
   wind.value=t;atmosphere.update(t);
@@ -166,5 +194,5 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier}){
   for(const f of flies){const k=t*.5+f.ph;f.g.position.set(f.cx+1.2*Math.sin(k*.7)+.3*Math.sin(k*3.1),-.05+.25*Math.abs(Math.sin(k*1.3)),f.cz+.5*Math.sin(k*.9));f.g.rotation.y=k;const flap=1.1*Math.sin(t*28+f.ph);f.l.rotation.y=flap;f.r.rotation.y=Math.PI-flap}
   for(const fn of dynamic)fn(t);
  }
- return {update,airMain,reusePipe:[[6.15,.34,.7],[7.25,.34,.7],[7.25,.34,1.75],[7.6,.34,1.75]]};
+ return {update,palmSpots,tower:TW,cows:animals.cows,airMain,reusePipe:[[6.15,.34,.7],[7.25,.34,.7],[7.25,.34,1.75],[7.6,.34,1.75]]};
 }

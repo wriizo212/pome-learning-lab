@@ -1,6 +1,7 @@
 import * as T from './three.module.min.js';
-import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift11';
-import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky} from './life.mjs?v=shift11';
+import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift12';
+import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky,grass,asphalt,oilPalm,palmMaterial} from './life.mjs?v=shift12';
+import {fauna} from './fauna.mjs?v=shift12';
 
 /*
  Extra life for the Mill Arcade diorama: the mill that produces the POME, the hot feed
@@ -257,4 +258,75 @@ export function arcadeDetails(scene,{steel,dark,concrete},tier,{isPolluted}){
  }
  function hook(C,t){for(const [a,b,c] of steam){const f=(a+t*.11)%1;C.put('steam',-6.95+b*.5+.2*f,1.35+.9*f,-2.95+c*.3,(.05+.16*f)*(1-smooth(band(f,.7,1))),c*3)}}
  return {update,hook};
+}
+
+/*
+ The world beyond the diorama board: the ground continues as grass, the river runs on past
+ both edges, a footbridge leads to a kampung on the far bank, oil palms surround the site,
+ a tractor carries empty fruit bunches along the back road, cattle graze with egrets and
+ barn owl boxes stand in the palms. Returns spots and boxes for walking collisions.
+*/
+export function arcadeWorld(scene,{steel,dark,concrete,riverMat},tier,{emit=()=>{}}={}){
+ const q=tier.scenery;let seed=515;const rnd=()=>((seed=Math.imul(1664525,seed)+1013904223>>>0)/4294967296);
+ const mat=(color,r=.7,m=.05,extra={})=>new T.MeshStandardMaterial({color,roughness:r,metalness:m,...extra});
+ const stat=new T.Group();scene.add(stat);
+ function add(geo,m,x,y,z,parent=stat,shadow=true){const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=shadow;o.receiveShadow=true;parent.add(o);return o}
+ const box=(x,y,z,w,h,d,m,p=stat)=>add(new T.BoxGeometry(w,h,d),m,x,y+h/2,z,p);
+ const hit=(key,x,y,z,w,h,d)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshBasicMaterial({visible:false}));m.position.set(x,y,z);m.userData.info=key;scene.add(m)};
+ const o=new T.Object3D();
+ // Ground beyond the board, at board level so the site joins the landscape.
+ const grassMat=new T.MeshStandardMaterial({map:texture(grass(tier.texture),{repeat:[50,50]}),roughness:.95});
+ const ground=add(new T.PlaneGeometry(160,160),grassMat,0,-.004,0,scene,false);ground.rotation.x=-Math.PI/2;
+ // River continues past both edges of the board, with muddy banks.
+ for(const s of [-1,1]){const w=add(new T.PlaneGeometry(52,1.9,208,8).rotateX(-Math.PI/2),riverMat,s*34,.09,4.75,scene,false);w.renderOrder=2;
+  for(const z of [3.72,5.78]){const b=add(new T.PlaneGeometry(52,.28),mat(0x6b5a40,.95),s*34,.004,z,scene,false);b.rotation.x=-Math.PI/2}}
+ const bed=add(new T.PlaneGeometry(120,1.86),mat(0x4f5a48,.95),0,.02,4.75,scene,false);bed.rotation.x=-Math.PI/2;
+ // Footbridge across the river to the kampung.
+ const plank=mat(0x8a6a48,.85),post=mat(0x5e4630,.9);
+ box(-3,.24,4.75,.8,.06,2.5,plank);for(let k=0;k<12;k++)box(-3,.3,3.6+k*.21,.78,.008,.02,dark);
+ for(const sx of [-3.38,-2.62]){for(const z of [3.6,4.2,4.75,5.3,5.9])box(sx,-.05,z,.06,.85,.06,post);box(sx,.72,4.75,.04,.04,2.5,post);box(sx,.5,4.75,.03,.03,2.5,post)}
+ hit('footbridge',-3,.5,4.75,.9,.6,2.6);
+ // Kampung houses on stilts across the river.
+ const plankTex=texture((()=>{const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#8f6b45';g.fillRect(0,0,256,256);for(let y=0;y<256;y+=21){g.fillStyle=`rgba(${60+rnd()*40|0},${40+rnd()*30|0},20,.35)`;g.fillRect(0,y,256,2);for(let i=0;i<14;i++){g.fillStyle='rgba(40,25,10,.2)';g.fillRect(rnd()*256,y+3+rnd()*15,30+rnd()*60,1)}}return c})(),{repeat:[1,1]});
+ const wall=new T.MeshStandardMaterial({map:plankTex,roughness:.85}),zinc=new T.MeshStandardMaterial({map:texture(corrugated(tier.texture,'#9aa49f'),{repeat:[3,1]}),roughness:.5,metalness:.4,side:T.DoubleSide});
+ const houses=[[-5.4,9.2,.15,0xc7d9c3],[.6,10.2,-.1,0xe6d2a6],[5.8,9.0,.2,0xbcd0e0]];
+ for(const [x,z,ry,trim] of houses){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=ry;scene.add(g);g.userData.info='kampung house';
+  for(const px of [-.75,0,.75])for(const pz of [-.55,.55])add(new T.CylinderGeometry(.05,.06,.62,8),post,px,.31,pz,g);
+  add(new T.BoxGeometry(1.75,.08,1.35),plank,0,.64,0,g);add(new T.BoxGeometry(1.6,.85,1.2),wall,0,1.1,0,g);
+  // Gable roof of corrugated zinc (ridge along the length of the house).
+  const pitch=.62;for(const s of [-1,1]){const r=add(new T.PlaneGeometry(1.95,.85),zinc,0,1.73,s*.34,g);r.rotation.x=s>0?-(Math.PI/2-pitch):-(Math.PI/2+pitch)}
+  const gable=new T.BufferGeometry();gable.setAttribute('position',new T.Float32BufferAttribute([.8,0,-.6,.8,0,.6,.8,.45,0,-.8,0,.6,-.8,0,-.6,-.8,.45,0],3));gable.computeVertexNormals();
+  add(gable,mat(0x8f6b45,.85,0,{side:T.DoubleSide}),0,1.525,0,g);
+  const trimM=mat(trim,.6);add(new T.BoxGeometry(.32,.6,.02),mat(0x5a3a22,.7),0,1.0,-.61,g);for(const s of [-1,1]){add(new T.BoxGeometry(.3,.26,.02),mat(0x2a3338,.3,.3),s*.52,1.18,-.61,g);add(new T.BoxGeometry(.12,.3,.02),trimM,s*.73,1.18,-.615,g);add(new T.BoxGeometry(.12,.3,.02),trimM,s*.31,1.18,-.615,g)}
+  for(let k=0;k<4;k++)add(new T.BoxGeometry(.42,.03,.16),plank,0,.12+k*.16,-.72-k*.13,g);
+  add(new T.CylinderGeometry(.09,.07,.18,10),mat(0x9c4a2a,.8),.7,.75,-.62,g);add(new T.SphereGeometry(.12,8,6),mat(0x4f8a3a,.85),.7,.9,-.62,g)}
+ // Clothes line between two houses and a parked motorbike.
+ const line=add(new T.CylinderGeometry(.004,.004,4.2,4),mat(0xdddddd,.5),-2.4,1.05,9.7,stat,false);line.rotation.z=Math.PI/2;line.rotation.y=-.18;
+ for(let k=0;k<5;k++)box(-3.6+k*.55,.72,9.7+k*.09,.28,.3,.01,mat([0xd8473b,0x4f9fd8,0xf2c14e,0xf4f1e6,0x6fc06b][k],.9));
+ // Back road with a tractor hauling empty fruit bunches to the palms (mulch).
+ const road=add(new T.PlaneGeometry(160,1.6),new T.MeshStandardMaterial({map:texture(asphalt(tier.texture),{repeat:[40,1]}),roughness:.88}),0,.006,-9,scene,false);road.rotation.x=-Math.PI/2;
+ const tractor=new T.Group();scene.add(tractor);tractor.userData.info='tractor';
+ const red=mat(0xb8392a,.45,.3),tyre=mat(0x1b1d1d,.9);add(new T.BoxGeometry(.7,.35,.5),red,0,.45,0,tractor);add(new T.BoxGeometry(.32,.38,.46),mat(0x2a3338,.3,.3),-.12,.82,0,tractor);
+ add(new T.CylinderGeometry(.03,.03,.35,8),dark,.25,.8,.12,tractor);const wheels=[];for(const [x,r] of [[-.2,.26],[.3,.15]])for(const s of [-1,1]){const w=add(new T.CylinderGeometry(r,r,.12,14),tyre,x,r,s*.3,tractor);w.rotation.x=Math.PI/2;wheels.push([w,r])}
+ const trailer=new T.Group();trailer.position.set(-1.0,0,0);tractor.add(trailer);add(new T.BoxGeometry(1.1,.08,.6),mat(0x5f6b5f,.7,.4),0,.32,0,trailer);for(const s of [-1,1])add(new T.BoxGeometry(1.1,.22,.03),mat(0x5f6b5f,.7,.4),0,.47,s*.3,trailer);
+ for(let k=0;k<9;k++)add(new T.IcosahedronGeometry(.12,0),mat(0x6b5536,.95),-.4+(k%3)*.4,.5+(k%2)*.05,-.18+Math.floor(k/3)*.18,trailer);for(const s of [-1,1]){const w=add(new T.CylinderGeometry(.16,.16,.1,12),tyre,0,.16,s*.33,trailer);w.rotation.x=Math.PI/2;wheels.push([w,.16])}
+ const tractorShadow=blobShadow(1.4,.32);tractorShadow.scale.set(1,.4,1);tractorShadow.position.set(-.5,.01,0);tractor.add(tractorShadow);
+ // Surrounding oil palms (very light far-detail palms) with frond stacks between rows.
+ const spots=[];for(let gx=-40;gx<=40;gx+=4.4)for(let gz=-30;gz<=30;gz+=4.4){const x=gx+(rnd()-.5)*1.4+(Math.round(gz/4.4)%2)*2.2,z=gz+(rnd()-.5)*1.4;
+  if(Math.abs(x)<9.5&&z>-6.4&&z<6.6)continue;if(z>3.2&&z<6.3)continue;if(x>-9&&x<9&&z>6.3&&z<13.5)continue;if(z>-10.2&&z<-7.8)continue;if(x>8.8&&x<14.5&&z>-5.6&&z<4)continue;if(x>-17&&x<-8&&z>6.4&&z<14.5)continue;if(Math.hypot(x,z)>46)continue;spots.push([x,z])}
+ const keep=Math.round(spots.length*Math.min(1,.35+.65*q));spots.length=keep;
+ const palms=new T.InstancedMesh(oilPalm({fronds:12,leaflets:6,height:2.6,seed:83,lod:2,bunches:1,boots:false}),palmMaterial(.016),spots.length);palms.userData.info='palm';
+ spots.forEach(([x,z],i)=>{o.position.set(x,0,z);o.rotation.set((rnd()-.5)*.06,rnd()*6.28,(rnd()-.5)*.06);o.scale.setScalar(.85+rnd()*.4);o.updateMatrix();palms.setMatrixAt(i,o.matrix)});palms.receiveShadow=true;scene.add(palms);
+ const stacks=new T.InstancedMesh(new T.BoxGeometry(1,1,1),mat(0x6b6a3a,.95),Math.round(50*Math.max(.5,q)));
+ for(let k=0;k<stacks.count;k++){const [x,z]=spots[Math.floor(rnd()*spots.length)]||[20,20];o.position.set(x+2.2,.04,z+(rnd()-.5));o.rotation.set(0,(k%2)*Math.PI/2,0);o.scale.set(.45,.1,1.6+rnd());o.updateMatrix();stacks.setMatrixAt(k,o.matrix)}stacks.userData.info='frond stack';scene.add(stacks);
+ const animals=fauna(scene,{cattle:{area:[-15.5,-9.5,7.2,13.5],count:Math.max(2,Math.round(4*q))},egrets:3,owls:[[10.6,-6.2],[-12.5,9.6]],y:0,emit});
+ scene.fog&&(scene.fog.density=.0095);
+ mergeStatic(stat);
+ let lastT=0;
+ function update(t){
+  const c=(t%46)/46,x=-48+c*96;tractor.position.set(x,0,-9.25);tractor.rotation.y=0;const dist=x-lastT;lastT=x;for(const [w,r] of wheels)w.rotation.y=-x/r;
+  tractor.position.y=.008*Math.sin(t*18);animals.update(t);
+ }
+ const houseBoxes=houses.map(([x,z])=>[x-.95,x+.95,z-.95,z+.85]);
+ return {update,spots,tractor,cows:animals.cows,obstacles:[[-60,-3.42,3.78,5.72],[-2.58,60,3.78,5.72],...houseBoxes,[-10.6,10.6,-4.7,-4.5],[-8.3,-3.7,-8.2,-5.8],[1.4,4.3,-6.6,-5.8]]};
 }
