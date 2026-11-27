@@ -110,6 +110,7 @@
     finish(summary, lesson){
       if (finished) return;
       finished = true; result = {summary, lesson};
+      if (/^★★/.test(summary)) model.update({celebrate: true});
       window.stopCamera?.(true);
       const banner = document.createElement('div');
       banner.className = 'game-over';
@@ -127,7 +128,7 @@
     game?.destroy?.();
     active = Missions.games.find(g => g.id === id);
     history = []; finished = false; result = null;
-    model.update({success:null, pathway:'uasb', mode:id});
+    model.update({success:null, pathway:'uasb', mode:id, storm:0, alarm:false});
     el('record').hidden = true;
     el('reflection').value = '';
     el('next').hidden = true;
@@ -176,7 +177,7 @@
   if(location.protocol !== 'file:') {
     Promise.all([
       import('./process/three.module.min.js'),
-      import('./mill-gpu.mjs?v=shift14')
+      import('./mill-gpu.mjs?v=shift15')
     ]).then(([three, assets]) => {
       const enhanced=assets.mount(three,el('plant'),inspect);
       renderer.destroy();renderer=enhanced;renderer.update(modelState);renderer.spin(autoOrbit);

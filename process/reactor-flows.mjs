@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume,liquidClock} from './molecules.mjs?v=shift14';
+import {chemistry,seeds,smooth,band,lerpPath,liquidSurface,liquidVolume,liquidClock} from './molecules.mjs?v=shift15';
 
 /*
  Molecular process layer for the UASB + aerobic cutaway (index.html simulator).

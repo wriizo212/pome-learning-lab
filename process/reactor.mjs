@@ -1,16 +1,17 @@
-import {frameBudget} from './frame-budget.mjs?v=shift14';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './quality.mjs?v=shift14';
-import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift14';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift14';
-import {hdZoom,hardware} from './hd.mjs?v=shift14';
-import {reactorPlay} from './play.mjs?v=shift14';
+import {frameBudget} from './frame-budget.mjs?v=shift15';
+import {warmShaders,densityKnob} from './warmup.mjs?v=shift15';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './quality.mjs?v=shift15';
+import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift15';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift15';
+import {hdZoom,hardware} from './hd.mjs?v=shift15';
+import {reactorPlay} from './play.mjs?v=shift15';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift14';
-import {explore} from './explore.mjs?v=shift14';
-import {reactorProcess} from './reactor-flows.mjs?v=shift14';
-import {legend} from './molecules.mjs?v=shift14';
+import {populate} from './crew.mjs?v=shift15';
+import {explore} from './explore.mjs?v=shift15';
+import {reactorProcess} from './reactor-flows.mjs?v=shift15';
+import {legend} from './molecules.mjs?v=shift15';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -157,7 +158,7 @@ function build(){
  canvas.onwheel=e=>{e.preventDefault();zoom(Math.sign(e.deltaY)*.6)};
  canvas.onkeydown=e=>{const actions={ArrowLeft:()=>yaw-=.13,ArrowRight:()=>yaw+=.13,ArrowUp:()=>pitch=Math.min(1.4,pitch+.1),ArrowDown:()=>pitch=Math.max(.11,pitch-.1),'+':()=>zoom(-1),'-':()=>zoom(1),Home:home};if(actions[e.key]){e.preventDefault();actions[e.key]()}};
  // One 3D plant serves both recovery pathways; the integrated one adds the poster's resource-recovery units.
- function sync(){const is=o=>document.querySelector(`[data-option="${o}"]`).classList.contains('active'),integrated=is(2),active=is(1)||integrated;if(!active)visitor.stop();view.hidden=!active;diagram.style.display=active?'none':'';
+ function sync(){const is=o=>document.querySelector(`[data-option="${o}"]`).classList.contains('active'),integrated=is(2),active=is(1)||integrated;if(!active)visitor.stop();view.hidden=!active;diagram.style.display=active||panel.dataset.ponds3d?'none':'';
   if(mode.integrated!==integrated){mode.integrated=integrated;scenery.setIntegrated(integrated);budget.refreshShadows?.()}if(!select.value)caption.textContent=homeCaption()}
  for(const o of [1,2])new MutationObserver(sync).observe(document.querySelector(`[data-option="${o}"]`),{attributes:true,attributeFilter:['class']});sync();
  new IntersectionObserver(es=>{vis=es[0].isIntersecting;if(!vis&&!view.getBoundingClientRect().height)visitor.stop()}).observe(canvas);
@@ -165,11 +166,14 @@ function build(){
  const meter=document.createElement('small');meter.title='Rendered frames per second';view.querySelector('.reactor-controls').append(meter);
  const qualitySelect=view.querySelector('[data-quality]');qualitySelect.value=savedChoice();
  function applyTier(name){tierName=name;tier=TIERS[name];const shadowType=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap,recompile=renderer.shadowMap.enabled!==tier.shadows||renderer.shadowMap.type!==shadowType;renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=shadowType;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.pixels);budget.refreshShadows();
-  if(recompile)scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
- const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'},{cap:tier.pixels,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false},onRecover(){const up=canRaise(tierName);if(up){applyTier(up);return true}return false}});
+  if(recompile){scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});if(knob)warmShaders(renderer,scene,camera)}qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
+ let knob=null;
+ const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'},{cap:tier.pixels,onStruggle(){if(knob&&knob.level>.6){knob.set(knob.level-.2);return true}const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false},onRecover(){if(knob&&knob.level<1){knob.set(knob.level+.2);return true}const up=canRaise(tierName);if(up){applyTier(up);return true}return false}});
  qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
  const hdBadge=document.createElement('span');hdBadge.className='hd-badge';hdBadge.textContent='HD';hdBadge.hidden=true;view.querySelector('.reactor-frame').append(hdBadge);
  const hd=hdZoom({budget,chem:flows.chem,sun,flows,details,getTier:()=>tier,near:8.2,far:10.5,onChange:on=>{hdBadge.hidden=!on}});
+ // Compile every shader now (hidden units too) so switching pathway or zooming in never stalls.
+ warmShaders(renderer,scene,camera);knob=densityKnob(scene);
  function frame(now){requestAnimationFrame(frame);const dt=Math.min(.07,(now-last)/1000);last=now;if(!vis||view.hidden||document.hidden){budget.idle();return}
  const width=canvas.clientWidth,height=canvas.clientHeight;if(!width||!height)return;if(w!==width||h!==height){w=width;h=height;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  budget.tick(now);if(!paused)t+=dt;dynamic.forEach(fn=>fn(t));focus.lerp(goal,1-Math.exp(-dt*9));const d=dist*Math.max(1,1.52/camera.aspect);

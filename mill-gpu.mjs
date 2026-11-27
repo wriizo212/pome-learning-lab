@@ -1,14 +1,16 @@
-import {populate} from './process/crew.mjs?v=shift14';
-import {explore} from './process/explore.mjs?v=shift14';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift14';
-import {legend} from './process/molecules.mjs?v=shift14';
-import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift14';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './process/quality.mjs?v=shift14';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift14';
-import {arcadePlay} from './process/play.mjs?v=shift14';
-import {addWaves} from './process/molecules.mjs?v=shift14';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift14';
-import {frameBudget} from './process/frame-budget.mjs?v=shift14';
+import {populate} from './process/crew.mjs?v=shift15';
+import {explore} from './process/explore.mjs?v=shift15';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift15';
+import {legend} from './process/molecules.mjs?v=shift15';
+import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift15';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './process/quality.mjs?v=shift15';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift15';
+import {arcadePlay} from './process/play.mjs?v=shift15';
+import {addWaves} from './process/molecules.mjs?v=shift15';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift15';
+import {frameBudget} from './process/frame-budget.mjs?v=shift15';
+import {warmShaders,densityKnob} from './process/warmup.mjs?v=shift15';
+import {arcadeWeather} from './process/arcade-weather.mjs?v=shift15';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];
@@ -24,7 +26,7 @@ export function mount(T, host, onPick) {
   const scene=new T.Scene(), camera=new T.PerspectiveCamera(36,1,.1,190);
   scene.background=new T.Color(0x243833);
   scene.fog=new T.FogExp2(0x44574a,.021);
-  scene.add(new T.HemisphereLight(0xddeeff,0x91856c,2.05));
+  const hemi=new T.HemisphereLight(0xddeeff,0x91856c,2.05);scene.add(hemi);
   const sun=new T.DirectionalLight(0xffdda6,3.15);
   sun.position.set(-8,12,5);sun.castShadow=true;sun.shadow.mapSize.set(tier.shadowSize,tier.shadowSize);
   Object.assign(sun.shadow.camera,{left:-11,right:11,top:12,bottom:-12,near:.2,far:38});
@@ -176,9 +178,10 @@ export function mount(T, host, onPick) {
   const qualityLabel=document.createElement('label');qualityLabel.className='quality';qualityLabel.innerHTML='Quality <select aria-label="Rendering quality"><option value="auto">Auto</option><option value="high">High</option><option value="balanced">Balanced</option><option value="lite">Lite</option></select>';wrapper.append(qualityLabel);
   const qualitySelect=qualityLabel.querySelector('select');qualitySelect.value=savedChoice();
   const hdBadge=document.createElement('span');hdBadge.className='hd-badge';hdBadge.textContent='HD';hdBadge.hidden=true;viewport.append(hdBadge);
-  function applyTier(name){tierName=name;tier=TIERS[name];const shadowType=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap,recompile=renderer.shadowMap.enabled!==tier.shadows||renderer.shadowMap.type!==shadowType;renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=shadowType;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.pixels);budget.refreshShadows();if(recompile)scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
+  function applyTier(name){tierName=name;tier=TIERS[name];const shadowType=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap,recompile=renderer.shadowMap.enabled!==tier.shadows||renderer.shadowMap.type!==shadowType;renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=shadowType;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.pixels);budget.refreshShadows();if(recompile){scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});if(knob)warmShaders(renderer,scene,camera)}qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
   const fpsMeter=document.createElement('small');fpsMeter.className='fps-meter';fpsMeter.title='Rendered frames per second';qualityLabel.after(fpsMeter);
-  const budget=frameBudget(renderer,fps=>{fpsMeter.textContent=fps+' FPS'},{cap:tier.pixels,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false},onRecover(){const up=canRaise(tierName);if(up){applyTier(up);return true}return false}});
+  let knob=null;
+  const budget=frameBudget(renderer,fps=>{fpsMeter.textContent=fps+' FPS'},{cap:tier.pixels,onStruggle(){if(knob&&knob.level>.6){knob.set(knob.level-.2);return true}const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false},onRecover(){if(knob&&knob.level<1){knob.set(knob.level+.2);return true}const up=canRaise(tierName);if(up){applyTier(up);return true}return false}});
   const hd=hdZoom({budget,chem:flows.chem,sun,flows,details,getTier:()=>tier,near:9.5,far:11.5,onChange:on=>{hdBadge.hidden=!on}});
   qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
   const key=legend(viewport,{open:false});molecules.onclick=()=>{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);key.hidden=!on};
@@ -187,6 +190,10 @@ export function mount(T, host, onPick) {
   const visitor=explore(wrapper,canvas,camera,world,orbit,pick,switchSection,delta=>zoom(-delta*.16),true);
   const play=arcadePlay({scene,camera,canvas,viewport,wrapper,world,visitor,flows,outer,isPond:()=>pond.visible,isPolluted:()=>polluted});
   if(new URLSearchParams(location.search).has('debug'))window.__arcade={visitor,world,play,renderer,scene,camera,flows,scenery,extras,budget,hd};
+  // Game events shown on the plant: storm, alarm beacons, fireworks.
+  const weatherFx=arcadeWeather(scene,{sun,hemi,fogColor:0x44574a,engine:targets.gas?.clone()||new T.Vector3(1.6,0,-3.2)});
+  // Compile every shader now (hidden units too) so nothing stalls when it first appears.
+  warmShaders(renderer,scene,camera);knob=densityKnob(scene);
   wrapper.querySelector('.hand-start').addEventListener('click',()=>window.stopCamera?.(true),true);
   window.addEventListener('pome-quiz-camera',()=>visitor.stop());
   let visible=false;const center=new T.Vector3(0,.5,0);
@@ -195,7 +202,7 @@ export function mount(T, host, onPick) {
     frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
-    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);scenery.update(time);extras.update(time);siteDetail.update(time);outer.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
+    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);weatherFx.update(dt,time);scenery.update(time);extras.update(time);siteDetail.update(time);outer.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
     const ck=1-Math.exp(-dt*7);sy+=(yaw-sy)*ck;sp+=(pitch-sp)*ck;sd+=(distance-sd)*ck;const rr=sd*Math.max(1,1.25/camera.aspect);
@@ -205,5 +212,5 @@ export function mount(T, host, onPick) {
     renderer.render(scene,camera);budget.end();
   }
   host.replaceWith(wrapper);frame=requestAnimationFrame(draw);
-  return {update(s){if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){renderer.shadowMap.needsUpdate=true;const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s){polluted=s.success===false;waters.at(-1).material.color.set(polluted?0x756c42:0x436e64);}},reset,zoom,spin(s){spin=s;},rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.2,Math.min(1.33,pitch+tilt));},destroy(){visitor.stop();observer.disconnect();cancelAnimationFrame(frame);renderer.dispose();}};
+  return {update(s){weatherFx.set(s);if('stage'in s)stage=s.stage;if('paused'in s)paused=s.paused;if(s.pathway!==undefined){renderer.shadowMap.needsUpdate=true;const open=['pond','ponds','conventional','0'].includes(String(s.pathway));digester.visible=!open;pond.visible=open;fan.visible=!open;}if('success'in s){polluted=s.success===false;waters.at(-1).material.color.set(polluted?0x756c42:0x436e64);}},reset,zoom,spin(s){spin=s;},rotate(delta,tilt=0){yaw+=delta;pitch=Math.max(0.2,Math.min(1.33,pitch+tilt));},destroy(){visitor.stop();observer.disconnect();cancelAnimationFrame(frame);renderer.dispose();}};
 }

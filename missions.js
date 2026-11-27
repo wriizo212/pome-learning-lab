@@ -123,18 +123,18 @@
       rain.textContent = storm > 1.4 ? '🌧️🌧️🌧️ Heavy rain' : storm > 1 ? '🌧️🌧️ Rain' : '🌦️ Drizzle';
       storeLabel.textContent = S.cooldown > 0 ? 'pumping…' : S.storage + ' left';
       tools[0].disabled = S.storage <= 0;
-      api.model({success: S.river >= 45});
+      api.model({success: S.river >= 45, storm: clamp(.35 + .65 * S.t / S.end, 0, 1)});
       api.progress('Storm ' + Math.round(S.t / S.end * 100) + '% · Score ' + S.score, Math.min(5, 1 + Math.floor(S.t / S.end * 5)), 5);
       if (S.t >= S.end || S.river <= 0) end();
     });
     function end() {
-      S.over = true; stop();
+      S.over = true; stop(); api.model({storm: 0});
       const n = S.river >= 75 ? 3 : S.river >= 45 ? 2 : S.river > 0 ? 1 : 0;
       api.sound(n >= 2 ? 'win' : 'bad');
       api.finish(`${stars(n)} River health ${Math.round(S.river)}% · ${S.solved} alerts solved, ${S.missed} missed · score ${S.score}.`,
         n >= 2 ? 'You kept the river alive through the storm. Ponds have little spare room, which is why storage and quick action matter.' : 'The river suffered. Open ponds overflow in storms; covered tanks and storage give the plant more control.');
     }
-    return {key: use, state: () => ({locked: S.over, finished: S.over}), destroy: () => { S.over = true; stop(); }};
+    return {key: use, state: () => ({locked: S.over, finished: S.over}), destroy: () => { S.over = true; stop(); api.model({storm: 0}); }};
   }
 
   /* =========================================================================
@@ -310,19 +310,19 @@
         if (!alarm.dataset.hold) alarm.textContent = pH < 6.8 ? '🚨 pH is falling: acids are building up. The bacteria are being overfed.' : !S.scrub ? '🚨 H₂S alarm: the engine is corroding. Switch the scrubber on.' : Math.abs(S.temp - 37) > 3 ? '🌡️ The tank is ' + (S.temp < 37 ? 'too cold' : 'too hot') + ' for the bacteria.' : power < TARGET ? '⚡ Power is below target. Can the digester take a little more feed?' : '✅ Stable. Keep it steady!';
         alarm.dataset.tone = ok ? 'good' : 'bad';
       }
-      api.model({success: pH >= 6.8});
+      api.model({success: pH >= 6.8, alarm: !ok});
       api.progress('Time ' + Math.ceil(S.limit - S.t) + ' s · stable ' + Math.floor(S.stable) + ' / ' + S.need + ' s', Math.min(5, 1 + Math.floor(S.stable / S.need * 4)), 5);
       if (S.stable >= S.need) end(true); else if (S.t >= S.limit || S.health <= 0) end(false);
     });
     function alarmMsg(text) { alarm.textContent = text; alarm.dataset.hold = '1'; api.sound('alarm'); setTimeout(() => delete alarm.dataset.hold, 3500); }
     function end(win) {
-      S.over = true; stop();
+      S.over = true; stop(); api.model({alarm: false});
       const n = win ? (S.t < 80 ? 3 : S.t < 120 ? 2 : 1) : 0;
       api.sound(win ? 'win' : 'bad'); api.log(win ? 'Power restored' : 'Mission failed', win, '');
       api.finish(win ? `${stars(n)} Power restored in ${Math.round(S.t)} s · engine health ${Math.round(S.health)}%.` : `☆☆☆ ${S.health <= 0 ? 'The engine corroded: the H₂S was never scrubbed.' : 'Time ran out before the digester was stable.'}`,
         'A digester is alive: overfeeding makes acid, cold slows the bacteria, and H₂S damages engines. Steady feeding gives steady power.');
     }
-    return {key(i) { btn[i]?.click(); }, state: () => ({locked: false, finished: S.over}), destroy: () => { S.over = true; stop(); }};
+    return {key(i) { btn[i]?.click(); }, state: () => ({locked: false, finished: S.over}), destroy: () => { S.over = true; stop(); api.model({alarm: false}); }};
   }
 
   /* =========================================================================

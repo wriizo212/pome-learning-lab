@@ -19,7 +19,7 @@
 */
 export const FULL_HD=1920*1080;
 export function frameBudget(renderer,report,{cap=FULL_HD,onStruggle,onRecover}={}){
- const WARMUP=3500,BUSY=14.5,SLOW_FPS=48,FAST_FPS=57;
+ const WARMUP=3500,BUSY=13.5,SLOW_FPS=55,FAST_FPS=58;
  let pixels=cap>100?cap:FULL_HD,boostK=1,ratio=0;
  let start=0,frames=0,warmUntil=performance.now()+WARMUP,slowWindows=0,fastWindows=0,lastStruggle=-1e9,recoveredAt=-1e9,recoverBlocked=false;
  let frameStart=0,cpuMs=0,gpuMs=null,frameNo=0,active=null;const pending=[];
@@ -42,7 +42,7 @@ export function frameBudget(renderer,report,{cap=FULL_HD,onStruggle,onRecover}={
   const slow=fps<SLOW_FPS&&(measured?work>BUSY:true);
   if(slow){
    fastWindows=0;
-   if(++slowWindows>=4&&onStruggle){
+   if(++slowWindows>=3&&onStruggle){
     slowWindows=0;
     if(now-recoveredAt<20000)recoverBlocked=true; // the step up was too heavy: stay down
     if(onStruggle()){lastStruggle=now;warmUntil=now+WARMUP}
