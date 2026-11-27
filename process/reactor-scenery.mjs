@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift15';
-import {fauna} from './fauna.mjs?v=shift15';
+import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift16';
+import {fauna} from './fauna.mjs?v=shift16';
 
 /*
  Surroundings for the main UASB + aerobic simulator: ground, road and plantation,
@@ -192,6 +192,17 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier,emit=()=
  const compostTex=(()=>{const c=document.createElement("canvas");c.width=c.height=64;const g=c.getContext('2d');const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(240,240,235,.8)');gr.addColorStop(1,'rgba(240,240,235,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);return new T.CanvasTexture(c)})();
  const compostPuffs=Array.from({length:6},(_,i)=>{const s2=new T.Sprite(new T.SpriteMaterial({map:compostTex,transparent:true,depthWrite:false,opacity:.35}));s2.userData.o=i/6;integ.add(s2);return s2});
  for(const [k,x,y,z,w,h,d] of [['heat recovery',-7.5,.3,2.35,1.8,1.3,1.4],['technical cpo',-5.0,.45,-1.25,.7,.8,.7],['biogas holder',-4.3,.1,-3.88,1.3,.9,1.2],['h₂s scrubber',-2.45,.6,-3.9,.5,1.8,.5],['biocng',3.8,.1,-3.95,1.9,.8,.8],['uf / ro',6.85,.05,.15,1.1,.7,.7],['screw press',5.55,.0,-3.7,.9,.5,.5],['efb co-compost',7.7,0,-3.75,2.4,.8,1.3]])integ.add(hitBox(k,x,y,z,w,h,d));
+ // Living details: the gas holder breathes, BioCNG cylinders fill one by one, a turner works the compost, the membrane gauge settles.
+ const capMats=[],caps=new T.Group();integ.add(caps);for(let r=0;r<2;r++)for(let c=0;c<3;c++){const m=mat(0x3a4a44,.4,.3,{emissive:0x39ff7a,emissiveIntensity:0});capMats.push(m);const cap=add(new T.CylinderGeometry(.06,.06,.03,14),m,4.87,-.18+r*.19,-4.15+c*.2,caps);cap.rotation.z=Math.PI/2}
+ const turner=new T.Group();turner.position.set(6.8,-.29,-3.45);integ.add(turner);const tY=mat(0xe2b03a,.5,.3);
+ add(new T.BoxGeometry(.34,.34,.86),tY,0,.42,0,turner);add(new T.BoxGeometry(.24,.2,.24),mat(0x9ec6d0,.1,.3,{transparent:true,opacity:.7}),0,.69,.24,turner);
+ for(const z of [-.4,.4])for(const x of [-.14,.14])add(new T.CylinderGeometry(.08,.08,.06,12),dark,x,.08,z,turner).rotation.z=Math.PI/2;
+ const drum=add(new T.CylinderGeometry(.13,.13,.7,12),steel,0,.2,0,turner);drum.rotation.x=Math.PI/2;
+ const gauge=new T.Group();gauge.position.set(6.85,.42,.47);integ.add(gauge);add(new T.CylinderGeometry(.07,.07,.02,18),mat(0xf4f1e6,.4),0,0,0,gauge).rotation.x=Math.PI/2;const needle=add(new T.BoxGeometry(.008,.06,.008),mat(0xd8352a,.4),0,.02,.012,gauge);
+ dynamic.push(t=>{if(!integ.visible)return;dome.scale.y=.72+.1*Math.sin(t*.12);dome.scale.x=dome.scale.z=1+.025*Math.sin(t*.12);
+  const fill=(t*.08)%6;capMats.forEach((m,i)=>{m.emissiveIntensity=i<Math.floor(fill)?1.4:i===Math.floor(fill)?.4+.8*Math.abs(Math.sin(t*4)):0});
+  const tx=(t*.12)%2;turner.position.x=6.8+(tx<1?tx:2-tx)*1.8;turner.rotation.y=tx<1?0:Math.PI;drum.rotation.y=t*9;
+  needle.rotation.z=-.8+.15*Math.sin(t*1.3)+.05*Math.sin(t*7);});
  dynamic.push(t=>{if(!integ.visible)return;coolFan.rotation.y=t*6;fly.rotation.x=t*9;compostPuffs.forEach((p2,i)=>{const f=(p2.userData.o+t*.05)%1;p2.position.set(6.8+i*.36,-.1+f*1.1,-3.75+.3*Math.sin(i*2));const s3=.25+f*.7;p2.scale.set(s3,s3,1);p2.material.opacity=.35*(1-f)})});mergeStatic(integ);
  /* ---------- lookout tower: climb the stairs for a view over the whole plant ---------- */
  const TW={x0:12.6,x1:14.4,z0:.2,z1:2.0,top:2.9,sx0:12.65,sx1:13.35,sz0:2.0,sz1:5.0};

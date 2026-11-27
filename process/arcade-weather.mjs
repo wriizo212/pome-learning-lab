@@ -39,6 +39,7 @@ export function arcadeWeather(scene,{sun,hemi,fogColor=0x44574a,center=new T.Vec
   for(let k=0;k<60;k++){const i=(bursts.length*60+k)%SP;const a=rnd()*6.283,b=Math.acos(2*rnd()-1),s=2+rnd()*2.2;sparkPos.set([cx,cy,cz],i*3);vel.set([Math.sin(b)*Math.cos(a)*s,Math.cos(b)*s,Math.sin(b)*Math.sin(a)*s],i*3);sparkCol.set(c,i*3);life[i]=1}
   bursts.push(t)}
  return {
+  get storm(){return storm},get alarm(){return alarm},
   set(s){
    if('storm'in s)stormTarget=Math.max(0,Math.min(1,+s.storm||0));
    if('alarm'in s){alarm=!!s.alarm;beacons.forEach(b=>b.visible=alarm);if(!alarm){glow.intensity=0;beaconMat.emissiveIntensity=0}}

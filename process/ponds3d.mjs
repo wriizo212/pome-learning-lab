@@ -1,8 +1,8 @@
 import * as T from './three.module.min.js';
-import {texture,grass,concrete,oilPalm,palmMaterial,environment,rippleNormal,sky,wind} from './life.mjs?v=shift15';
-import {TIERS,resolveTier} from './quality.mjs?v=shift15';
-import {frameBudget} from './frame-budget.mjs?v=shift15';
-import {warmShaders} from './warmup.mjs?v=shift15';
+import {texture,grass,concrete,oilPalm,palmMaterial,environment,rippleNormal,sky,wind} from './life.mjs?v=shift16';
+import {TIERS,resolveTier} from './quality.mjs?v=shift16';
+import {frameBudget} from './frame-budget.mjs?v=shift16';
+import {warmShaders} from './warmup.mjs?v=shift16';
 
 /*
  Conventional ponding system in 3D (shown when "Conventional ponds" is the pathway).
@@ -114,6 +114,28 @@ function mount(){
  const rain=new T.LineSegments(rainGeo,new T.LineBasicMaterial({color:0xcfe3ea,transparent:true,opacity:.45}));rain.visible=false;rain.frustumCulled=false;scene.add(rain);
  const spill=add(new T.PlaneGeometry(1.8,1.2),mat(0x5a4426,.3,0,{transparent:true,opacity:0}),9.4,.06,-.6,scene,false);spill.rotation.x=-Math.PI/2;
  const fish=[0,1,2].map(i=>{const f=add(new T.SphereGeometry(.1,10,8),mat(0x9fb3b8,.3,.4),11.4,-1,-4+i*4,scene,false);f.scale.set(2.2,.8,.8);f.userData.o=i*1.7;return f});
+ /* ---- people and flows: a sampler walks the banks, an operator checks the inlet, POME moves through the weirs ---- */
+ const live=[];
+ function person(shirt,hat){const g=new T.Group();scene.add(g);const skin=mat(0x8d5a3b,.7),pants=mat(0x2d3a4a,.8);
+  const legs=[-.06,.06].map(x=>{const l=new T.Group();l.position.set(x,.42,0);g.add(l);add(new T.BoxGeometry(.08,.42,.09),pants,0,-.21,0,l);return l});
+  add(new T.BoxGeometry(.26,.34,.15),mat(shirt,.7),0,.6,0,g);add(new T.BoxGeometry(.27,.04,.16),mat(0xd8e24a,.5,0,{emissive:0x333300}),0,.66,0,g);
+  add(new T.SphereGeometry(.085,14,10),skin,0,.86,0,g);add(new T.SphereGeometry(.095,14,8,0,Math.PI*2,0,Math.PI/2),mat(hat,.4,.1),0,.89,0,g);
+  const arms=[-.17,.17].map(x=>{const a=new T.Group();a.position.set(x,.74,0);g.add(a);add(new T.BoxGeometry(.06,.3,.07),mat(shirt,.7),0,-.15,0,a);return a});
+  return {g,legs,arms}}
+ const sampler=person(0x2f6fa6,0xffffff),operator=person(0xd9772a,0xf2c230);
+ const bottle=add(new T.CylinderGeometry(.025,.025,.09,10),mat(0xd8ecf2,.1,0,{transparent:true,opacity:.8}),0,-.3,.04,sampler.arms[1]);
+ operator.g.position.set(-8.9,0,.45);operator.g.rotation.y=Math.PI;
+ const route=[[-6.8,3.5],[9.35,3.5],[9.35,1.9],[9.35,3.5]];let leg=0,legT=0;
+ live.push((dt,t)=>{const [ax,az]=route[leg],[bx,bz]=route[(leg+1)%route.length],len=Math.hypot(bx-ax,bz-az);legT+=dt*.7/len;if(legT>=1){legT=0;leg=(leg+1)%route.length}
+  const pause=leg===2;const k=pause?1:legT;sampler.g.position.set(ax+(bx-ax)*k,0,az+(bz-az)*k);sampler.g.rotation.y=Math.atan2(bx-ax,bz-az);
+  const sw=pause?0:Math.sin(t*7)*.5;sampler.legs[0].rotation.x=sw;sampler.legs[1].rotation.x=-sw;sampler.arms[0].rotation.x=-sw*.7;sampler.arms[1].rotation.x=pause?-1.1+.3*Math.sin(t*2):sw*.7;
+  operator.arms[1].rotation.x=-.9+.5*Math.sin(t*1.6);operator.arms[0].rotation.x=-.4;});
+ const parcelMat=mat(0x8a5a2a,.4,0,{emissive:0x2a1400}),parcelPaths=[[[-10.5,.9,-.5],[-9.8,.9,-.5]],[[-8,.35,-.5],[-6.9,.35,-.5]],[[-7.3,.45,.8],[-6.5,.45,.8]],[[-1.7,.45,.8],[-.4,.45,.8]],[[3.5,.45,.8],[4.7,.45,.8]],[[8,.45,.8],[9.8,.45,.8]]];
+ const parcels=new T.InstancedMesh(new T.SphereGeometry(.05,8,6),parcelMat,parcelPaths.length*3);parcels.frustumCulled=false;scene.add(parcels);
+ live.push((dt,t)=>{parcelPaths.forEach(([a,b],i)=>{for(let k=0;k<3;k++){const f=(t*.35+k/3+i*.13)%1;ro.position.set(a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f+.06,a[2]+(b[2]-a[2])*f);ro.rotation.set(0,0,0);ro.scale.setScalar(1);ro.updateMatrix();parcels.setMatrixAt(i*3+k,ro.matrix)}});parcels.instanceMatrix.needsUpdate=true});
+ // Floating scum slowly drifts on the anaerobic pond.
+ const crustBase=[];for(let i=0;i<26;i++){const m=new T.Matrix4();crust.getMatrixAt(i,m);crustBase.push(m)}
+ live.push((dt,t)=>{const m=new T.Matrix4(),off=new T.Matrix4();for(let i=0;i<26;i++){off.makeTranslation(Math.sin(t*.05+i)*.12,0,Math.cos(t*.04+i*1.7)*.1);m.multiplyMatrices(off,crustBase[i]);m.elements[13]=P1.surf.position.y+.012;crust.setMatrixAt(i,m)}crust.instanceMatrix.needsUpdate=true});
  /* ---- oil palms around the field ---- */
  const palmGeo=oilPalm({fronds:22,leaflets:14,height:2.4,seed:9,bunches:2,lod:1}),palms=[];
  for(let i=0;i<90;i++){const a=rnd()*6.28,rr=15+rnd()*20;const x=Math.cos(a)*rr*1.1,z=Math.sin(a)*rr*.8;if(x>8&&x<15)continue;palms.push([x,z])}
@@ -161,6 +183,7 @@ function mount(){
   aerators.forEach((r,i)=>{r.rotation.y=time*(5+i)});splash.forEach(s=>{const f=(s.userData.o+time*.9)%1,a=s.userData.o*6.28*2;s.position.set(s.userData.a.position.x+Math.cos(a)*(.3+f*.4),.5+Math.sin(f*Math.PI)*.35,s.userData.a.position.z+Math.sin(a)*(.3+f*.4));s.scale.setScalar(.18+f*.2);s.material.opacity=.6*(1-f)});
   smoke.forEach(s=>{const f=(s.userData.o+time*.05)%1;s.position.set(-11.2+f*2.5,4.6+f*4,-1.9+f*1.2);s.scale.setScalar(.6+f*2.4);s.material.opacity=.45*(1-f)});
   fish.forEach(f=>{const c=(time*.5+f.userData.o)%5;const healthy=stormT<.6;f.visible=healthy&&c<.7;if(f.visible){f.position.y=.05+Math.sin(c/.7*Math.PI)*.45;f.rotation.z=Math.cos(c/.7*Math.PI)*.9}});
+  for(const fn of live)fn(dt,time);
   arm.rotation.z=-.25+Math.sin(time*.6)*.25;fore.rotation.z=-.3+Math.sin(time*.6+1)*.35;
   // Smooth orbit camera.
   const k=1-Math.exp(-dt*6);sy+=(yaw-sy)*k;sp+=(pitch-sp)*k;sd+=(dist-sd)*k;look.lerp(goal,k);

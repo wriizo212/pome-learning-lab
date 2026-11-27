@@ -114,3 +114,9 @@ article[data-game=rescue]{--tone:#7fc8e8}article[data-game=train]{--tone:#e2c172
 @media(prefers-reduced-motion:reduce){.rescue-card,.arena-combo,.game-over,.train-slot.bad{animation:none}}
 /* Give the games more room beside the 3D view on wide screens. */
 @media(min-width:1100px){.layout{grid-template-columns:minmax(0,1.3fr) minmax(400px,1fr)}}
+/* Live plant status card on the arcade 3D view */
+.plant-hud{position:absolute;right:12px;bottom:12px;z-index:3;min-width:210px;padding:10px 12px;border-radius:14px;background:#0b1f1acc;backdrop-filter:blur(6px);border:1px solid #3f6a55;font-size:12.5px;pointer-events:none;box-shadow:0 8px 24px #0006}
+.plant-hud h4{margin:0 0 6px;font-size:13px;color:#e2fba1}.plant-hud h4 small{font-weight:400;color:#9fb5a5;font-size:11px}
+.plant-hud div{display:flex;justify-content:space-between;gap:12px;padding:2px 0}.plant-hud b{font-variant-numeric:tabular-nums}
+.plant-hud [data-tone=good] b{color:#c9f59a}.plant-hud [data-tone=warn] b{color:#ffd27a}.plant-hud [data-tone=bad] b{color:#ff9a8a}
+@media(max-width:700px){.plant-hud{display:none}}

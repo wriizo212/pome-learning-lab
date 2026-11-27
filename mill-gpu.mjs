@@ -1,16 +1,16 @@
-import {populate} from './process/crew.mjs?v=shift15';
-import {explore} from './process/explore.mjs?v=shift15';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift15';
-import {legend} from './process/molecules.mjs?v=shift15';
-import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift15';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './process/quality.mjs?v=shift15';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift15';
-import {arcadePlay} from './process/play.mjs?v=shift15';
-import {addWaves} from './process/molecules.mjs?v=shift15';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift15';
-import {frameBudget} from './process/frame-budget.mjs?v=shift15';
-import {warmShaders,densityKnob} from './process/warmup.mjs?v=shift15';
-import {arcadeWeather} from './process/arcade-weather.mjs?v=shift15';
+import {populate} from './process/crew.mjs?v=shift16';
+import {explore} from './process/explore.mjs?v=shift16';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift16';
+import {legend} from './process/molecules.mjs?v=shift16';
+import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift16';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './process/quality.mjs?v=shift16';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift16';
+import {arcadePlay} from './process/play.mjs?v=shift16';
+import {addWaves} from './process/molecules.mjs?v=shift16';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift16';
+import {frameBudget} from './process/frame-budget.mjs?v=shift16';
+import {warmShaders,densityKnob} from './process/warmup.mjs?v=shift16';
+import {arcadeWeather} from './process/arcade-weather.mjs?v=shift16';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];
@@ -192,6 +192,12 @@ export function mount(T, host, onPick) {
   if(new URLSearchParams(location.search).has('debug'))window.__arcade={visitor,world,play,renderer,scene,camera,flows,scenery,extras,budget,hd};
   // Game events shown on the plant: storm, alarm beacons, fireworks.
   const weatherFx=arcadeWeather(scene,{sun,hemi,fogColor:0x44574a,engine:targets.gas?.clone()||new T.Vector3(1.6,0,-3.2)});
+  // Live plant status card: river oxygen, captured biogas, power and weather follow the pathway and the games (illustrative values).
+  const hud=document.createElement('div');hud.className='plant-hud';viewport.append(hud);let hudT=1;
+  function hudUpdate(dt,t){if((hudT+=dt)<.5)return;hudT=0;const open=pond.visible,storm=weatherFx.storm,alarmOn=weatherFx.alarm;
+   const DO=polluted?2.1+.3*Math.sin(t):6.9-1.6*storm+.2*Math.sin(t*.7),gas=open?0:alarmOn?165+25*Math.sin(t*3):330+12*Math.sin(t*.9),kw=gas*2;
+   const row=(icon,name,value,tone)=>'<div data-tone="'+tone+'"><span>'+icon+' '+name+'</span><b>'+value+'</b></div>';
+   hud.innerHTML='<h4>Plant status <small>live · illustrative</small></h4>'+row('🐟','River oxygen',DO.toFixed(1)+' mg/L',DO<4?'bad':DO<5.5?'warn':'good')+row('🔥','Biogas',open?'escaping to air':Math.round(gas)+' m³/h',open?'bad':alarmOn?'warn':'good')+row('⚡','Power',open?'0 kW':Math.round(kw)+' kW',open?'bad':alarmOn?'warn':'good')+row(storm>.5?'⛈️':storm>.05?'🌧️':'☀️','Weather',storm>.5?'Storm':storm>.05?'Rain':'Clear',storm>.5?'warn':'good')+(alarmOn?row('🚨','Alarm','digester upset','bad'):'');}
   // Compile every shader now (hidden units too) so nothing stalls when it first appears.
   warmShaders(renderer,scene,camera);knob=densityKnob(scene);
   wrapper.querySelector('.hand-start').addEventListener('click',()=>window.stopCamera?.(true),true);
@@ -202,7 +208,7 @@ export function mount(T, host, onPick) {
     frame=requestAnimationFrame(draw);if(document.hidden||!visible||!wrapper.clientWidth){budget.idle();return}budget.tick(now);
     const dt=Math.min(.08,(now-previous)/1000);previous=now;
     if(!paused&&!reduced){time+=dt;if(spin)yaw+=dt*.18;fan.rotation.y+=dt*4;}
-    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);weatherFx.update(dt,time);scenery.update(time);extras.update(time);siteDetail.update(time);outer.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
+    const w=viewport.clientWidth,h=viewport.clientHeight;world.animate(time);weatherFx.update(dt,time);hudUpdate(dt,time);scenery.update(time);extras.update(time);siteDetail.update(time);outer.update(time);flows.update(time);play.update(dt);ripples.offset.set(time*.03,time*.05);
     if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();const radius=distance*Math.max(1,1.25/camera.aspect);
     const ck=1-Math.exp(-dt*7);sy+=(yaw-sy)*ck;sp+=(pitch-sp)*ck;sd+=(distance-sd)*ck;const rr=sd*Math.max(1,1.25/camera.aspect);
