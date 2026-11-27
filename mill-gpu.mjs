@@ -1,14 +1,14 @@
-import {populate} from './process/crew.mjs?v=shift13';
-import {explore} from './process/explore.mjs?v=shift13';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift13';
-import {legend} from './process/molecules.mjs?v=shift13';
-import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift13';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift13';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift13';
-import {arcadePlay} from './process/play.mjs?v=shift13';
-import {addWaves} from './process/molecules.mjs?v=shift13';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift13';
-import {frameBudget} from './process/frame-budget.mjs?v=shift13';
+import {populate} from './process/crew.mjs?v=shift14';
+import {explore} from './process/explore.mjs?v=shift14';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift14';
+import {legend} from './process/molecules.mjs?v=shift14';
+import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift14';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './process/quality.mjs?v=shift14';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift14';
+import {arcadePlay} from './process/play.mjs?v=shift14';
+import {addWaves} from './process/molecules.mjs?v=shift14';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift14';
+import {frameBudget} from './process/frame-budget.mjs?v=shift14';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];
@@ -176,9 +176,9 @@ export function mount(T, host, onPick) {
   const qualityLabel=document.createElement('label');qualityLabel.className='quality';qualityLabel.innerHTML='Quality <select aria-label="Rendering quality"><option value="auto">Auto</option><option value="high">High</option><option value="balanced">Balanced</option><option value="lite">Lite</option></select>';wrapper.append(qualityLabel);
   const qualitySelect=qualityLabel.querySelector('select');qualitySelect.value=savedChoice();
   const hdBadge=document.createElement('span');hdBadge.className='hd-badge';hdBadge.textContent='HD';hdBadge.hidden=true;viewport.append(hdBadge);
-  function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
+  function applyTier(name){tierName=name;tier=TIERS[name];const shadowType=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap,recompile=renderer.shadowMap.enabled!==tier.shadows||renderer.shadowMap.type!==shadowType;renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=shadowType;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.pixels);budget.refreshShadows();if(recompile)scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
   const fpsMeter=document.createElement('small');fpsMeter.className='fps-meter';fpsMeter.title='Rendered frames per second';qualityLabel.after(fpsMeter);
-  const budget=frameBudget(renderer,fps=>{fpsMeter.textContent=fps+' FPS'},{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
+  const budget=frameBudget(renderer,fps=>{fpsMeter.textContent=fps+' FPS'},{cap:tier.pixels,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false},onRecover(){const up=canRaise(tierName);if(up){applyTier(up);return true}return false}});
   const hd=hdZoom({budget,chem:flows.chem,sun,flows,details,getTier:()=>tier,near:9.5,far:11.5,onChange:on=>{hdBadge.hidden=!on}});
   qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
   const key=legend(viewport,{open:false});molecules.onclick=()=>{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);key.hidden=!on};

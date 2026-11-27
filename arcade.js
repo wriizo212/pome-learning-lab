@@ -8,7 +8,7 @@
     sludge: 'Sludge yard · Waste sludge drains through sand and gravel and dries in the sun. The cake is shovelled out and composted, and the warm compost heaps steam. Check quality before considering beneficial use.',
     river: 'Receiving river · Clean discharge keeps dissolved O₂ high, so fish and reeds thrive. Organic pollution feeds bacteria that use up that oxygen, so the fish disappear and scum forms.'
   };
-  let active, session, pending, history, finished;
+  let active, game, history = [], finished = false, result = null;
   const stationPicker = document.createElement('select');
   stationPicker.setAttribute('aria-label', 'Inspect a plant unit');
   stationPicker.add(new Option('Inspect a unit…', ''));
@@ -50,9 +50,14 @@
   track.className = 'mission-track';
   track.setAttribute('aria-hidden','true');
   el('progress').after(track);
+  // The game area replaces the old answer list; games build their own controls inside it.
+  const stage = el('actions');
+  stage.className = 'game-stage';
+  // Keyboard 1-4 and the camera gestures both arrive here.
+  function choose(index) { if (!finished) game?.key?.(index); }
   window.PomeMission = {
-    choose, next(){if(pending && !finished) el('next').click();},
-    state(){return {locked:!!pending, finished};},
+    choose, next(){ if (!el('next').hidden) el('next').click(); },
+    state(){ const s = game?.state?.() || {}; return {locked: !!s.locked, finished: finished || !!s.finished}; },
     rotate(x,y){renderer.rotate(x,y);}, zoom: model.zoom
   };
   let audio, audible = false, orbit = false, paused = false;
@@ -64,6 +69,21 @@
     }
     el('sound').textContent = audible ? 'Sound on' : 'Sound off';
   };
+  // Short synthesised effects, distinct for each kind of event.
+  const SOUNDS = {good:[[660,.09],[880,.12]], bad:[[240,.18]], tick:[[520,.04]], alarm:[[740,.08],[520,.08],[740,.08]], win:[[523,.1],[659,.1],[784,.1],[1047,.22]]};
+  function sound(kind) {
+    if (!audible || audio?.state !== 'running') return;
+    let t = audio.currentTime;
+    for (const [freq, len] of SOUNDS[kind] || SOUNDS.tick) {
+      const tone = audio.createOscillator(), volume = audio.createGain();
+      tone.type = kind === 'alarm' ? 'square' : kind === 'bad' ? 'sawtooth' : 'triangle';
+      tone.frequency.value = freq;
+      volume.gain.setValueAtTime(.05, t);
+      volume.gain.exponentialRampToValueAtTime(.001, t + len);
+      tone.connect(volume).connect(audio.destination);
+      tone.start(t); tone.stop(t + len + .02); t += len * .9;
+    }
+  }
   el('orbit').onclick = () => {
     model.spin(orbit = !orbit);
     el('orbit').textContent = orbit ? 'Stop orbit' : 'Auto-orbit';
@@ -72,99 +92,79 @@
     model.update({paused: paused = !paused});
     el('motion').textContent = paused ? 'Resume motion' : 'Pause motion';
   };
+  const api = {
+    get scenario(){ return el('scenario').value; },
+    model(change){ model.update({mode: active.id, ...change}); },
+    focus(id){ if (!sites[id]) return; stationPicker.value = id; el('inspect').textContent = sites[id]; model.update({mode: active.id, stage: id}); },
+    sound,
+    feedback(text, tone){ const f = el('feedback'); f.textContent = text; f.className = 'result' + (tone ? ' ' + tone : ''); f.hidden = !text; },
+    progress(label, step, total){
+      el('progress').textContent = active.title + ' · ' + label;
+      track.replaceChildren(...Array.from({length: total}, (_, index) => {
+        const segment = document.createElement('span');
+        segment.className = index < step - 1 ? 'complete' : index === step - 1 ? 'current' : '';
+        return segment;
+      }));
+    },
+    log(choice, success, feedback){ history.push({choice, success, feedback}); },
+    finish(summary, lesson){
+      if (finished) return;
+      finished = true; result = {summary, lesson};
+      window.stopCamera?.(true);
+      const banner = document.createElement('div');
+      banner.className = 'game-over';
+      banner.innerHTML = '<b></b><p></p>';
+      banner.querySelector('b').textContent = summary;
+      banner.querySelector('p').textContent = lesson || '';
+      stage.prepend(banner);
+      el('next').textContent = 'View mission record';
+      el('next').hidden = false;
+      el('next').focus({preventScroll:true});
+    }
+  };
   function start(id) {
     window.stopCamera?.(true);
-    active = Missions.games.find(game => game.id === id);
-    session = Missions.start(id, el('scenario').value);
-    history = [];
-    model.update({success:null,pathway:'uasb'});
-    finished = false;
+    game?.destroy?.();
+    active = Missions.games.find(g => g.id === id);
+    history = []; finished = false; result = null;
+    model.update({success:null, pathway:'uasb', mode:id});
     el('record').hidden = true;
     el('reflection').value = '';
-    el('games').querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.id === id)));
-    render();
-  }
-  function render() {
-    pending = null;
-    window.pauseCameraSelection?.(false);
-    const round = session.view();
-    el('progress').textContent = active.title + ' · ' + round.progress;
-    const [step, total] = round.progress.match(/\d+/g).slice(0,2).map(Number);
-    track.replaceChildren(...Array.from({length:total}, (_, index) => {
-      const segment = document.createElement('span');
-      segment.className = index < step - 1 ? 'complete' : index === step - 1 ? 'current' : '';
-      return segment;
-    }));
-    el('mission').textContent = round.title;
-    el('brief').textContent = round.prompt;
-    el('feedback').textContent = '';
     el('next').hidden = true;
-    el('actions').replaceChildren(...round.choices.map((choice, index) => {
-      const button = document.createElement('button');
-      const key = document.createElement('b');
-      button.className = 'option';
-      button.dataset.answer = index;
-      key.textContent = 'ABCD'[index];
-      button.append(key, document.createTextNode(choice));
-      button.onclick = () => choose(index);
-      return button;
-    }));
-    model.update({ mode: active.id, stage: round.stage });
-    stationPicker.value = round.stage;
-    el('inspect').textContent = sites[round.stage];
-  }
-  function choose(index) {
-    if (!session || pending || finished) return;
-    const round = session.view();
-    if (!round.choices[index]) return;
-    pending = session.act(index);
-    window.pauseCameraSelection?.(true);
-    history.push({ title: round.title, choice: round.choices[index], ...pending });
-    el('actions').querySelectorAll('button').forEach((button, i) => {
-      button.disabled = true;
-      if (i === index) button.dataset.outcome = pending.success ? 'success' : 'review';
-    });
-    el('feedback').className = 'result';
-    el('feedback').textContent = pending.feedback;
-    model.update({ mode: active.id, stage: pending.stage, success: pending.success, ...(pending.pathway ? {pathway:pending.pathway} : {}) });
-    if (audible && audio?.state === 'running') {
-      const tone = audio.createOscillator(), volume = audio.createGain();
-      tone.frequency.value = pending.success ? 660 : 240;
-      volume.gain.setValueAtTime(.055, audio.currentTime);
-      volume.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .22);
-      tone.connect(volume).connect(audio.destination);
-      tone.start(); tone.stop(audio.currentTime + .23);
-    }
-    el('next').textContent = pending.done ? 'View mission record' : 'Continue';
-    el('next').hidden = false;
-    el('next').focus({ preventScroll:true });
+    api.feedback('');
+    el('games').querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.id === id)));
+    el('mission').textContent = active.icon + ' ' + active.title;
+    el('brief').textContent = active.subtitle;
+    stage.closest('article').dataset.game = id;
+    game = Missions.mount(id, stage, api);
   }
   function finish() {
-    finished = true;
-    window.stopCamera?.(true);
     el('record').hidden = false;
     el('next').hidden = true;
-    el('summary').textContent = active.title + ' · ' + el('scenario').selectedOptions[0].text + ' · ' + history.filter(turn => turn.success).length + ' successful actions in ' + history.length + ' attempts.';
+    el('summary').textContent = active.title + ' · ' + el('scenario').selectedOptions[0].text + ' · ' + (result?.summary || '');
     el('log').replaceChildren(...history.map(turn => {
       const item = document.createElement('li');
-      item.textContent = turn.choice + ' — ' + turn.feedback;
+      item.textContent = (turn.success ? '✔ ' : '✖ ') + turn.choice + (turn.feedback ? ' — ' + turn.feedback : '');
       return item;
     }));
     el('record').scrollIntoView();
   }
-  Missions.games.forEach(game => {
+  Missions.games.forEach(g => {
     const button = document.createElement('button');
+    const icon = document.createElement('span');
+    icon.className = 'game-icon';
+    icon.textContent = g.icon;
     const title = document.createElement('strong');
-    title.textContent = game.title;
+    title.textContent = g.title;
     const description = document.createElement('small');
-    description.textContent = game.subtitle;
-    button.append(title, description);
-    button.title = game.subtitle;
-    button.dataset.id = game.id;
-    button.onclick = () => start(game.id);
+    description.textContent = g.subtitle;
+    button.append(icon, title, description);
+    button.title = g.subtitle;
+    button.dataset.id = g.id;
+    button.onclick = () => start(g.id);
     el('games').append(button);
   });
-  el('next').onclick = () => pending?.done ? finish() : render();
+  el('next').onclick = () => finished ? finish() : null;
   el('again').onclick = () => start(active.id);
   el('print').onclick = () => window.print();
   el('scenario').onchange = () => start(active.id);
@@ -176,7 +176,7 @@
   if(location.protocol !== 'file:') {
     Promise.all([
       import('./process/three.module.min.js'),
-      import('./mill-gpu.mjs?v=shift13')
+      import('./mill-gpu.mjs?v=shift14')
     ]).then(([three, assets]) => {
       const enhanced=assets.mount(three,el('plant'),inspect);
       renderer.destroy();renderer=enhanced;renderer.update(modelState);renderer.spin(autoOrbit);

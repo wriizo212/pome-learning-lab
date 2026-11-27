@@ -1,11 +1,13 @@
 /*
  Rendering quality tiers. "auto" picks a tier from the device, then the frame budget
- can step down at run time if the frame rate stays low. The choice is remembered.
+ can step down (or back up) at run time. The choice is remembered.
+ Every tier renders at the screen's native resolution up to its pixel budget
+ (balanced = Full HD), so lighter tiers trade effects, never sharpness.
 */
 export const TIERS={
- high:{label:'High',ratio:1.6,shadows:true,shadowSize:2048,molecules:1,detail:1,scenery:1,texture:1024},
- balanced:{label:'Balanced',ratio:1.25,shadows:true,shadowSize:1024,cheapShadows:true,molecules:.65,detail:.7,scenery:.65,texture:512},
- lite:{label:'Lite',ratio:.9,shadows:false,shadowSize:512,molecules:.4,detail:.45,scenery:.35,texture:256}
+ high:{label:'High',ratio:1.6,pixels:2560*1440,shadows:true,shadowSize:2048,molecules:1,detail:1,scenery:1,texture:1024},
+ balanced:{label:'Balanced',ratio:1.25,pixels:1920*1080,shadows:true,shadowSize:1024,cheapShadows:true,molecules:.65,detail:.7,scenery:.65,texture:512},
+ lite:{label:'Lite',ratio:1,pixels:1600*900,shadows:true,shadowSize:512,cheapShadows:true,molecules:.4,detail:.45,scenery:.35,texture:256}
 };
 const KEY='pome-quality';
 export function savedChoice(){try{return localStorage.getItem(KEY)||'auto'}catch{return 'auto'}}
@@ -25,3 +27,7 @@ export function autoTier(){
 }
 export function resolveTier(choice=savedChoice()){return TIERS[choice]?choice:autoTier()}
 export const lower=tier=>tier==='high'?'balanced':tier==='balanced'?'lite':null;
+export const higher=tier=>tier==='lite'?'balanced':tier==='balanced'?'high':null;
+const RANK={lite:0,balanced:1,high:2};
+// In auto mode, step back up after a temporary slowdown, but never above what the device was given.
+export function canRaise(current){const up=higher(current);return savedChoice()==='auto'&&up&&RANK[up]<=RANK[autoTier()]?up:null}

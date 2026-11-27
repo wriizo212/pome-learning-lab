@@ -18,7 +18,7 @@ export function hdZoom({renderer,budget,chem,sun,flows,details,getTier,near=8,fa
  function set(on,focus){
   hd=on;const tier=getTier();
   chem?.setDetail(on?2:tier.detail);chem?.setDensity(on?1:tier.molecules);
-  if(on)budget.boost(tier.ratio,tier.ratio>=1.5?2:tier.ratio>=1.1?1.5:1.1);else budget.setCap(tier.ratio,true);
+  if(on)budget.boost(1.6);else budget.unboost?.();
   if(details)details.visible=on;flows?.setHD?.(on);
   if(on){fit(focus,4.2);lastFocus.copy(focus)}else fit(new T.Vector3(),0);
   onChange?.(on);

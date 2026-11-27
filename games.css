@@ -1,0 +1,116 @@
+/* Mill Arcade games: shared HUD pieces plus one look per game. */
+article[data-game]{--tone:#9fd8cf;border-top:3px solid var(--tone);transition:border-color .3s}
+article[data-game=rescue]{--tone:#7fc8e8}article[data-game=train]{--tone:#e2c172}article[data-game=biogas]{--tone:#f0a866}article[data-game=manager]{--tone:#a9b8e0}article[data-game=arena]{--tone:#d8a6e0}
+.games button{min-height:118px}.games button[data-id=rescue]{--mission-tone:#7fc8e8}
+.games .game-icon{font-size:26px;line-height:1;filter:drop-shadow(0 3px 6px #0006)}
+.games button:hover .game-icon{transform:scale(1.12) rotate(-4deg);transition:transform .2s}
+#mission{display:flex;align-items:center;gap:8px}
+.game-stage{display:grid;gap:12px;margin:12px 0}
+.game-stage kbd{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 5px;border-radius:6px;background:#0c211b;border:1px solid #4d6c5c;font:700 12px system-ui;color:#e8f7cf;margin-right:6px}
+.g-cta,.g-ghost{border-radius:12px;padding:12px 16px;font-weight:700}
+.g-cta{background:linear-gradient(180deg,#e4fb9f,#c7ee6e)!important;color:#14301f!important;border:0!important;box-shadow:0 6px 18px #c7ee6e33}
+.g-cta:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.g-ghost{background:#163a30!important}
+.g-row{display:flex;flex-wrap:wrap;gap:8px}
+.g-tip{margin:0;font-size:13.5px}
+.g-intro{display:grid;gap:12px;padding:18px;border-radius:16px;background:radial-gradient(120% 120% at 0 0,color-mix(in srgb,var(--tone) 22%,transparent),#0f2620 60%);border:1px solid color-mix(in srgb,var(--tone) 45%,#355448)}
+.g-intro-icon{font-size:42px;line-height:1}
+.g-intro ol{margin:0;padding-left:20px;display:grid;gap:6px;color:#e3eedb}
+.g-start{justify-self:start;font-size:17px;padding:12px 22px}
+.g-hud{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:#0b1f1a;border:1px solid #2f4b40;font-weight:650}
+.g-clock{font-variant-numeric:tabular-nums;color:#fff3c9}
+.g-meters{display:grid;gap:8px}.g-meters.four{grid-template-columns:1fr 1fr}
+.g-meter{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;font-size:13px}
+.g-meter span{color:#d4e2cd;min-width:110px}.g-meter b{font-variant-numeric:tabular-nums;min-width:46px;text-align:right}
+.g-bar{height:12px;border-radius:999px;background:#0a1a16;border:1px solid #2c463c;overflow:hidden}
+.g-bar i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#7fc8e8,#b6f08a);transition:width .25s}
+.g-meter[data-tone=warn] .g-bar i{background:linear-gradient(90deg,#f2c45a,#f0a866)}
+.g-meter[data-tone=bad] .g-bar i{background:linear-gradient(90deg,#ff6b5a,#ff9a6a)}
+.g-meter[data-tone=bad] b{color:#ff9a8a}
+.g-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g-tool{display:grid!important;grid-template-columns:auto auto 1fr;grid-template-rows:auto auto;align-items:center;gap:0 8px;text-align:left;padding:10px 12px!important;border-radius:12px;position:relative}
+.g-tool kbd{grid-row:span 2}.g-tool-icon{grid-row:span 2;font-size:24px}
+.g-tool b{font-size:14px}.g-tool small{grid-column:3;font-size:11.5px;color:#bcd0bf}
+.g-tool em{position:absolute;right:10px;top:8px;font-size:11px;font-style:normal;color:#ffe3a3}
+.g-tool.on{background:#2d5a3c!important;border-color:#b6f08a!important}
+.g-tool:active,.arena-opt:active,.mgr-card:active{transform:scale(.97)}
+.result{border-radius:10px;transition:background .2s}.result.good{background:#1f4a32;border-left-color:#b6f08a}.result.bad{background:#4a2421;border-left-color:#ff8a76}
+.shake{animation:g-shake .35s}@keyframes g-shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.game-over{display:grid;gap:6px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#2c4f2c,#163a30);border:1px solid #b6f08a;animation:g-pop .4s}
+.game-over b{font-size:17px;color:#f2ffd5}.game-over p{margin:0}
+@keyframes g-pop{from{transform:scale(.94);opacity:0}}
+
+/* 1. POME Rescue */
+.rescue-hud .g-rain{color:#bfe3ff}
+.rescue-incidents{display:grid;gap:8px;min-height:64px}
+.rescue-card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#3a2620;border:1px solid #ff8a76;animation:g-pop .3s, g-pulse 1.4s infinite}
+.rescue-icon{font-size:24px}.rescue-card b{color:#ffe1d6}
+.rescue-timer{--p:1;width:30px;height:30px;border-radius:50%;background:conic-gradient(#ffb36b calc(var(--p)*360deg),#25150f 0)}
+.rescue-card.solved{background:#1f4a32;border-color:#b6f08a;animation:g-out .45s forwards}
+.rescue-card.missed{background:#2a1212;animation:g-out .45s forwards}
+@keyframes g-out{to{opacity:0;transform:translateX(30px)}}
+@keyframes g-pulse{50%{box-shadow:0 0 0 4px #ff8a7633}}
+
+/* 2. Treatment train */
+.train-board{display:grid;gap:10px;padding:12px;border-radius:14px;background:repeating-linear-gradient(0deg,#0d221c 0 23px,#10281f 23px 24px),#0d221c;border:1px solid #2f4b40}
+.train-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.train-label{flex:0 0 100%;font-size:12px;font-weight:700;letter-spacing:.04em;color:#e2c172}
+.train-end{font-size:12px;padding:6px 8px;border-radius:8px;background:#20352d;color:#d7e6cf;white-space:nowrap}
+.train-slot{position:relative;flex:1 1 92px;min-height:58px;border-radius:12px;border:2px dashed #4e6d5f!important;background:#0a1a15!important;display:grid;place-items:center;padding:4px!important}
+.train-slot .train-pipe{position:absolute;left:-8px;right:-8px;top:50%;height:6px;margin-top:-3px;background:#2a4239;z-index:0;border-radius:3px}
+.train-slot.filled{border-style:solid!important;border-color:#6d8c7d!important}
+.train-slot.ok{border-color:#b6f08a!important;background:#173c28!important}
+.train-slot.ok .train-pipe{background:#7fc8e8}
+.train-slot.bad{border-color:#ff8a76!important;background:#3a1d19!important;animation:g-shake .35s}
+.train-slot.flow{box-shadow:0 0 0 3px #7fc8e8,0 0 18px #7fc8e8aa}
+.train-slot.glow{box-shadow:0 0 0 3px #ffe27a,0 0 16px #ffe27a99}
+.train-slot .train-tile{position:relative;z-index:1;width:100%}
+.train-tray{display:flex;flex-wrap:wrap;gap:6px;padding:10px;border-radius:12px;background:#0b1f1a;border:1px solid #2f4b40;min-height:52px}
+.train-tile{display:flex!important;align-items:center;gap:6px;padding:8px 10px!important;border-radius:10px;background:linear-gradient(180deg,#2b4a3c,#1e3a2f)!important;font-size:12.5px;cursor:grab;box-shadow:0 3px 0 #0a1a15}
+.train-tile span{font-size:18px}
+.train-tile.picked{outline:2px solid #ffe27a!important;transform:translateY(-3px)}
+.train-tile:disabled{opacity:1;cursor:default;box-shadow:none}
+.train-cod{display:flex;justify-content:space-between;padding:8px 12px;border-radius:10px;background:#20352d;font-size:13px}.train-cod b{font-variant-numeric:tabular-nums;color:#ffe3a3}
+
+/* 3. Biogas control room */
+.bio-alarm{padding:10px 12px;border-radius:12px;font-weight:650;background:#3a2620;border:1px solid #ff8a76}
+.bio-alarm[data-tone=good]{background:#1f4a32;border-color:#b6f08a}
+.bio-gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.gauge{display:grid;justify-items:center;gap:2px;padding:8px 4px;border-radius:12px;background:#0b1f1a;border:1px solid #2f4b40;font-size:12px}
+.gauge-dial{position:relative;width:100%;max-width:92px;aspect-ratio:2/1;border-radius:92px 92px 0 0;overflow:hidden;background:conic-gradient(from -90deg at 50% 100%,#5a2a24 0 calc(var(--lo)*180deg),#2f6b3f calc(var(--lo)*180deg) calc(var(--hi)*180deg),#5a2a24 calc(var(--hi)*180deg) 180deg,transparent 0)}
+.gauge-dial:after{content:"";position:absolute;inset:22% 22% -40%;border-radius:50%;background:#0b1f1a}
+.gauge-needle{position:absolute;left:calc(50% - 2px);bottom:0;width:4px;height:88%;background:#fff3c9;border-radius:2px;transform-origin:50% 100%;transform:rotate(-90deg);transition:transform .3s;z-index:1;box-shadow:0 0 6px #fff3c988}
+.gauge b{font-size:14px;font-variant-numeric:tabular-nums}.gauge span{color:#bcd0bf}
+.gauge[data-tone=bad] b{color:#ff9a8a}.gauge[data-tone=good] b{color:#c9f59a}
+.bio-controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:13.5px}
+.bio-controls input{vertical-align:middle;accent-color:#f0a866;width:130px}
+.bio-chart{width:100%;height:90px;border-radius:12px;background:#0b1f1a;border:1px solid #2f4b40}
+
+/* 4. Manager cards */
+.mgr-coins{color:#ffe3a3}.mgr-year{color:#d8e4ff}
+.mgr-hand{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mgr-card{position:relative;display:grid!important;gap:4px;text-align:left;padding:12px!important;border-radius:14px;background:linear-gradient(160deg,#25344f,#172338)!important;border:1px solid #6c7fa8!important;min-height:150px;transition:transform .15s}
+.mgr-card:hover{transform:translateY(-3px) rotate(-.5deg)}
+.mgr-card kbd{position:absolute;left:8px;top:8px}
+.mgr-cost{position:absolute;right:10px;top:8px;font-weight:800;color:#ffe3a3}
+.mgr-icon{font-size:28px;margin-top:18px}.mgr-card b{font-size:14.5px}.mgr-card small{font-size:12px;color:#c8d3ea}.mgr-card em{font-style:normal;font-size:12px;color:#d7f88e}
+.mgr-card.locked{filter:grayscale(.7);opacity:.75}.mgr-card.locked em{color:#ffb3a3}
+.mgr-card.poor .mgr-cost{color:#ff9a8a}
+.mgr-built{display:flex;flex-wrap:wrap;gap:6px;font-size:12.5px;align-items:center}
+.mgr-built i{font-style:normal;padding:4px 8px;border-radius:999px;background:#20352d;border:1px solid #3f6a55}
+
+/* 5. Quiz arena */
+.arena-hud .arena-best{color:#ffe3a3}
+.arena-timer{height:10px;border-radius:999px;background:#0a1a16;overflow:hidden;border:1px solid #2c463c}
+.arena-timer i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#d8a6e0,#9fd8ff);transition:width .1s linear}
+.arena-timer[data-low=true] i{background:linear-gradient(90deg,#ff6b5a,#ffb36b)}
+.arena-q{margin:4px 0;font-size:19px;line-height:1.3}
+.arena-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.arena-opt{text-align:left;padding:14px!important;border-radius:14px;min-height:64px;background:linear-gradient(160deg,#2f2840,#1e1a2b)!important;border:1px solid #6f5d84!important}
+.arena-opt[data-outcome=success]{background:#1f4a32!important;border-color:#b6f08a!important}
+.arena-opt[data-outcome=review]{background:#4a2421!important;border-color:#ff8a76!important}
+.arena-combo{min-height:1.4em;font-weight:800;color:#d8a6e0}.arena-combo[data-hot=true]{color:#ffb36b;animation:g-pulse 1s infinite}
+@media(max-width:560px){.g-tools,.mgr-hand,.arena-opts,.g-meters.four{grid-template-columns:1fr}.bio-gauges{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){.rescue-card,.arena-combo,.game-over,.train-slot.bad{animation:none}}
+/* Give the games more room beside the 3D view on wide screens. */
+@media(min-width:1100px){.layout{grid-template-columns:minmax(0,1.3fr) minmax(400px,1fr)}}

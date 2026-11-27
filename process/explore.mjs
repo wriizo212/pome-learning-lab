@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {gestures} from './visitor-hands.mjs?v=shift13';
+import {gestures} from './visitor-hands.mjs?v=shift14';
 
 /*
  Walk the plant as one of the workers. Orbit, first-person and third-person views;

@@ -1,16 +1,16 @@
-import {frameBudget} from './frame-budget.mjs?v=shift13';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift13';
-import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift13';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift13';
-import {hdZoom,hardware} from './hd.mjs?v=shift13';
-import {reactorPlay} from './play.mjs?v=shift13';
+import {frameBudget} from './frame-budget.mjs?v=shift14';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './quality.mjs?v=shift14';
+import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift14';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift14';
+import {hdZoom,hardware} from './hd.mjs?v=shift14';
+import {reactorPlay} from './play.mjs?v=shift14';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift13';
-import {explore} from './explore.mjs?v=shift13';
-import {reactorProcess} from './reactor-flows.mjs?v=shift13';
-import {legend} from './molecules.mjs?v=shift13';
+import {populate} from './crew.mjs?v=shift14';
+import {explore} from './explore.mjs?v=shift14';
+import {reactorProcess} from './reactor-flows.mjs?v=shift14';
+import {legend} from './molecules.mjs?v=shift14';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -164,9 +164,9 @@ function build(){
  let w=0,h=0;
  const meter=document.createElement('small');meter.title='Rendered frames per second';view.querySelector('.reactor-controls').append(meter);
  const qualitySelect=view.querySelector('[data-quality]');qualitySelect.value=savedChoice();
- function applyTier(name){tierName=name;tier=TIERS[name];renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.ratio);budget.refreshShadows();
-  scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
- const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'},{cap:tier.ratio,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false}});
+ function applyTier(name){tierName=name;tier=TIERS[name];const shadowType=tier.cheapShadows?T.PCFShadowMap:T.PCFSoftShadowMap,recompile=renderer.shadowMap.enabled!==tier.shadows||renderer.shadowMap.type!==shadowType;renderer.shadowMap.enabled=tier.shadows;renderer.shadowMap.type=shadowType;sun.castShadow=tier.shadows;flows.chem.setDensity(tier.molecules);budget.setCap(tier.pixels);budget.refreshShadows();
+  if(recompile)scene.traverse(m=>{if(m.material)m.material.needsUpdate=true});qualitySelect.options[0].textContent=savedChoice()==='auto'?'Auto ('+tier.label+')':'Auto'}
+ const budget=frameBudget(renderer,fps=>{meter.textContent=fps+' FPS'},{cap:tier.pixels,onStruggle(){const next=savedChoice()==='auto'&&lower(tierName);if(next){applyTier(next);return true}return false},onRecover(){const up=canRaise(tierName);if(up){applyTier(up);return true}return false}});
  qualitySelect.onchange=()=>{saveChoice(qualitySelect.value);applyTier(resolveTier(qualitySelect.value));hd.refresh()};applyTier(tierName);
  const hdBadge=document.createElement('span');hdBadge.className='hd-badge';hdBadge.textContent='HD';hdBadge.hidden=true;view.querySelector('.reactor-frame').append(hdBadge);
  const hd=hdZoom({budget,chem:flows.chem,sun,flows,details,getTier:()=>tier,near:8.2,far:10.5,onChange:on=>{hdBadge.hidden=!on}});
