@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift12';
-import {fauna} from './fauna.mjs?v=shift12';
+import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift13';
+import {fauna} from './fauna.mjs?v=shift13';
 
 /*
  Surroundings for the main UASB + aerobic simulator: ground, road and plantation,
@@ -23,6 +23,8 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier,emit=()=
  function signPost(spec,x,z,face=0,h=.78){const t=sign(spec);const g=new T.Group();g.position.set(x,.09,z);g.rotation.y=face;scene.add(g);
   add(new T.CylinderGeometry(.022,.022,h,8),steel,0,h/2,0,g);const p=add(new T.PlaneGeometry(.56,.35),new T.MeshStandardMaterial({map:t,roughness:.6}),0,h,.026,g);p.castShadow=false;p.userData.info=spec.title.toLowerCase();add(new T.BoxGeometry(.58,.37,.02),dark,0,h,.012,g);return g}
  const dynamic=[];
+ // Units that exist only in the integrated resource-recovery pathway (Part A poster, stages 1-5).
+ const integ=new T.Group();integ.visible=false;scene.add(integ);
  const hitBox=(key,x,y,z,w,h,d)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshBasicMaterial({visible:false}));m.position.set(x,y,z);m.userData.info=key;return m};
 
  /* ---------- sky, ground, road ---------- */
@@ -115,7 +117,7 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier,emit=()=
  cyl(8.45,-.29,1.75,.85,2.1,tankMat,stat,.85,28);cyl(8.45,1.81,1.75,.88,.08,dark);
  box(8.45,-.25,2.62,.08,1.9,.02,mat(0x223030,.5),stat);const level=box(8.45,-.25,2.64,.05,1.4,.02,mat(0x6fd3e0,.3,0,{emissive:0x2c8da0,emissiveIntensity:.6}),scene);
  for(let k=0;k<12;k++)box(7.58,-.2+k*.17,1.75,.03,.02,.3,steel);for(const s of [-1,1])box(7.58,-.29,1.75+s*.15,.025,2.15,.025,steel);
- label('REUSE WATER',8.45,2.35,1.75,1.35);run([[6.15,.34,.7],[7.25,.34,.7],[7.25,.34,1.75],[7.6,.34,1.75]],.06,teal);
+ integ.add(label('REUSE WATER',8.45,2.35,1.75,1.35));const holdLabel=label('FINAL EFFLUENT',8.45,2.35,1.75,1.35);run([[6.15,.34,.7],[7.25,.34,.7],[7.25,.34,1.75],[7.6,.34,1.75]],.06,teal);
  const tote=mat(0xf2f2ea,.3,0,{transparent:true,opacity:.78}),cage=mat(0x9aa49f,.4,.6);
  for(const x of [6.75,7.55]){box(x,-.29,3.1,.62,.12,.62,cage);box(x,-.17,3.1,.56,.6,.56,tote);box(x,-.17,3.1,.5,.38,.5,mat(0xd9e6b8,.3,0));
   for(const dx of [-.3,.3])for(const dz of [-.3,.3])box(x+dx,-.17,3.1+dz,.02,.62,.02,cage);cyl(x,.45,3.1,.08,.06,mat(0x2d6fb0,.5),stat)}
@@ -157,6 +159,40 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier,emit=()=
 
  // Steps down from the platform to the yard on both sides and at the front.
  const stepMat=mat(0xb9b3a4,.85);for(const [x,z,ax] of [[-6.38,.7,'x'],[6.38,-.4,'x'],[-2.2,3.42,'z'],[2.6,3.42,'z']])for(let k=0;k<3;k++){const o2=(k+.5)*.12;const w=ax==='x'?.12:.9,d=ax==='x'?.9:.12;box(x+(ax==='x'?Math.sign(x)*(o2-.18):0),-.29,z+(ax==='z'?Math.sign(z)*(o2-.18):0),w,.38-k*.12,d,stepMat)}
+ /* ---------- integrated resource recovery units ---------- */
+ const ia=(geo,m,x,y,z)=>add(geo,m,x,y,z,integ),ib=(x,y,z,w,h,d,m)=>ia(new T.BoxGeometry(w,h,d),m,x,y+h/2,z),ic=(x,y,z,r,h,m,r2=r,n=18)=>ia(new T.CylinderGeometry(r,r2,h,n),m,x,y+h/2,z);
+ function ipipe(a,b,r,m){const s0=new T.Vector3(...a),e=new T.Vector3(...b),d=e.clone().sub(s0);const o2=ia(new T.CylinderGeometry(r,r,d.length(),10),m,...s0.clone().lerp(e,.5).toArray());o2.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return o2}
+ const irun=(pts,r,m)=>pts.slice(1).forEach((q2,i)=>ipipe(pts[i],q2,r,m));
+ const ilabel=(text,x,y,z,w,color)=>integ.add(label(text,x,y,z,w,color));
+ const white=mat(0xeef0ea,.35,.2),orange=mat(0xd9772a,.45,.3),skid=mat(0x3f7f55,.5,.3),gasPipe=mat(0xd99a45,.45,.4),membrane=mat(0x2f6fa6,.4,.3),hot=mat(0xc96a3a,.5,.3);
+ // Stage 1: plate heat exchanger + cooling tower (about 85 -> 37 °C) and technical CPO recovery.
+ ib(-7.05,-.29,1.95,.7,.75,.42,mat(0x9aa7a0,.4,.6));for(let k=0;k<8;k++)ib(-7.36+k*.088,-.2,1.95,.03,.6,.44,steel);
+ ic(-8.05,-.29,2.75,.36,1.05,mat(0x8a9c95,.6,.2),.42);const coolFan=new T.Group();coolFan.position.set(-8.05,.8,2.75);integ.add(coolFan);
+ for(let k=0;k<4;k++){const b=add(new T.BoxGeometry(.06,.012,.3),dark,Math.sin(k*Math.PI/2)*.14,0,Math.cos(k*Math.PI/2)*.14,coolFan);b.rotation.y=k*Math.PI/2}
+ irun([[-6.2,2.05,1.45],[-7.05,2.05,1.45],[-7.05,2.05,1.95],[-7.05,.46,1.95]],.05,hot);irun([[-7.4,.2,1.95],[-8.05,.2,2.4]],.045,teal);irun([[-6.7,-.15,1.95],[-6.25,-.15,1.95]],.045,hot);
+ ilabel('HEAT RECOVERY',-7.5,1.65,2.35,1.5,'#ffd39b');
+ ic(-5.0,.09,-1.25,.3,.72,orange);ic(-5.0,.81,-1.25,.31,.05,dark);irun([[-5.0,.86,-.2],[-5.0,.86,-1.25]],.03,orange);ilabel('TECHNICAL CPO',-5.0,1.3,-1.25,1.25,'#ffd39b');
+ // Stages 2-3: biogas holder, H2S scrubber, CHP engine (already on the platform) and BioCNG compression.
+ const dome=ia(new T.SphereGeometry(.58,28,14,0,Math.PI*2,0,Math.PI/2),mat(0x2f4f3f,.6,.1),-4.3,-.29,-3.88);dome.scale.y=.8;ic(-4.3,-.29,-3.88,.6,.08,cement);
+ ic(-2.45,-.29,-3.9,.22,1.75,mat(0x7a8f99,.4,.5));for(let k=0;k<4;k++)ic(-2.45,.02+k*.38,-3.9,.235,.04,dark);
+ irun([[-3.75,.0,-3.9],[-2.67,.0,-3.9]],.05,gasPipe);irun([[-2.45,1.46,-3.9],[-2.45,2.1,-3.9],[-.9,2.1,-3.9],[-.9,2.1,-2.85],[-.9,.95,-2.85]],.05,gasPipe);
+ ilabel('BIOGAS HOLDER',-4.3,1.05,-3.88,1.4,'#ffe27a');ilabel('H₂S SCRUBBER',-2.45,2.45,-3.9,1.4,'#ffe27a');
+ ib(3.2,-.29,-3.95,.7,.45,.5,skid);const fly=new T.Group();fly.position.set(2.82,-.02,-3.95);integ.add(fly);const fw=add(new T.CylinderGeometry(.14,.14,.05,16),dark,0,0,0,fly);fw.rotation.z=Math.PI/2;
+ for(let r=0;r<2;r++)for(let c=0;c<3;c++){const c2=ia(new T.CylinderGeometry(.09,.09,1.1,14),white,4.3,-.18+r*.19,-4.15+c*.2);c2.rotation.z=Math.PI/2}
+ ib(4.3,-.29,-3.95,1.2,.06,.7,dark);irun([[-.4,.9,-2.95],[-.4,2.1,-2.95],[-.4,2.1,-3.5],[3.2,2.1,-3.5],[3.2,.16,-3.75]],.035,gasPipe);ilabel('BioCNG',3.8,1.0,-3.95,.95,'#ffe27a');
+ // Stage 4: UF/RO membrane skid between the outlet and the reuse tank.
+ ib(6.85,-.29,.15,1.0,.06,.6,dark);for(const [x,y] of [[6.55,.0],[6.55,.2],[6.85,.0],[6.85,.2],[7.15,.0],[7.15,.2]]){const v=ia(new T.CylinderGeometry(.07,.07,.56,14),membrane,x,y,.15);v.rotation.x=Math.PI/2}
+ for(const x of [6.4,7.3])ib(x,-.29,.15,.04,.6,.58,steel);ic(7.4,-.23,-.25,.08,.2,skid);irun([[6.6,.34,.7],[6.6,.34,.45]],.035,teal);ilabel('UF / RO',6.85,.85,.15,.85,'#bfe8f0');
+ // Stage 5: screw press and EFB + sludge co-composting windrows.
+ ib(5.55,-.29,-3.7,.8,.35,.35,mat(0x8a9c95,.5,.4));const screw=ia(new T.CylinderGeometry(.1,.1,.75,12),steel,5.55,.18,-3.7);screw.rotation.z=Math.PI/2;
+ const compost=mat(0x5e4529,.97),efb=mat(0x8a6a3e,.95);
+ for(const z of [-3.45,-4.05]){const w=ia(new T.CylinderGeometry(.34,.34,2.2,14,1,false,0,Math.PI),compost,7.7,-.29,z);w.rotation.z=Math.PI/2;
+  for(let k=0;k<9;k++)ia(new T.IcosahedronGeometry(.07,0),efb,6.75+k*.24,.0+(k%2)*.03,z+(k%3-1)*.1)}
+ ilabel('EFB CO-COMPOST',7.7,.75,-3.75,1.6,'#d9f58a');ilabel('SCREW PRESS',5.55,.6,-3.7,1.2,'#d9f58a');
+ const compostTex=(()=>{const c=document.createElement("canvas");c.width=c.height=64;const g=c.getContext('2d');const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(240,240,235,.8)');gr.addColorStop(1,'rgba(240,240,235,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);return new T.CanvasTexture(c)})();
+ const compostPuffs=Array.from({length:6},(_,i)=>{const s2=new T.Sprite(new T.SpriteMaterial({map:compostTex,transparent:true,depthWrite:false,opacity:.35}));s2.userData.o=i/6;integ.add(s2);return s2});
+ for(const [k,x,y,z,w,h,d] of [['heat recovery',-7.5,.3,2.35,1.8,1.3,1.4],['technical cpo',-5.0,.45,-1.25,.7,.8,.7],['biogas holder',-4.3,.1,-3.88,1.3,.9,1.2],['h₂s scrubber',-2.45,.6,-3.9,.5,1.8,.5],['biocng',3.8,.1,-3.95,1.9,.8,.8],['uf / ro',6.85,.05,.15,1.1,.7,.7],['screw press',5.55,.0,-3.7,.9,.5,.5],['efb co-compost',7.7,0,-3.75,2.4,.8,1.3]])integ.add(hitBox(k,x,y,z,w,h,d));
+ dynamic.push(t=>{if(!integ.visible)return;coolFan.rotation.y=t*6;fly.rotation.x=t*9;compostPuffs.forEach((p2,i)=>{const f=(p2.userData.o+t*.05)%1;p2.position.set(6.8+i*.36,-.1+f*1.1,-3.75+.3*Math.sin(i*2));const s3=.25+f*.7;p2.scale.set(s3,s3,1);p2.material.opacity=.35*(1-f)})});mergeStatic(integ);
  /* ---------- lookout tower: climb the stairs for a view over the whole plant ---------- */
  const TW={x0:12.6,x1:14.4,z0:.2,z1:2.0,top:2.9,sx0:12.65,sx1:13.35,sz0:2.0,sz1:5.0};
  const timber=mat(0x7a5a3c,.85),rail=mat(0xe8c440,.45,.3);
@@ -194,5 +230,5 @@ export function reactorScenery(scene,{steel,brass,dark,cement,teal,tier,emit=()=
   for(const f of flies){const k=t*.5+f.ph;f.g.position.set(f.cx+1.2*Math.sin(k*.7)+.3*Math.sin(k*3.1),-.05+.25*Math.abs(Math.sin(k*1.3)),f.cz+.5*Math.sin(k*.9));f.g.rotation.y=k;const flap=1.1*Math.sin(t*28+f.ph);f.l.rotation.y=flap;f.r.rotation.y=Math.PI-flap}
   for(const fn of dynamic)fn(t);
  }
- return {update,palmSpots,tower:TW,cows:animals.cows,airMain,reusePipe:[[6.15,.34,.7],[7.25,.34,.7],[7.25,.34,1.75],[7.6,.34,1.75]]};
+ return {update,setIntegrated(on){integ.visible=on;holdLabel.visible=!on},palmSpots,tower:TW,cows:animals.cows,airMain,reusePipe:[[6.15,.34,.7],[7.25,.34,.7],[7.25,.34,1.75],[7.6,.34,1.75]]};
 }

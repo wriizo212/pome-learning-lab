@@ -1,14 +1,14 @@
-import {populate} from './process/crew.mjs?v=shift12';
-import {explore} from './process/explore.mjs?v=shift12';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift12';
-import {legend} from './process/molecules.mjs?v=shift12';
-import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift12';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift12';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift12';
-import {arcadePlay} from './process/play.mjs?v=shift12';
-import {addWaves} from './process/molecules.mjs?v=shift12';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift12';
-import {frameBudget} from './process/frame-budget.mjs?v=shift12';
+import {populate} from './process/crew.mjs?v=shift13';
+import {explore} from './process/explore.mjs?v=shift13';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift13';
+import {legend} from './process/molecules.mjs?v=shift13';
+import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift13';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './process/quality.mjs?v=shift13';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift13';
+import {arcadePlay} from './process/play.mjs?v=shift13';
+import {addWaves} from './process/molecules.mjs?v=shift13';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift13';
+import {frameBudget} from './process/frame-budget.mjs?v=shift13';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];

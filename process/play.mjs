@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {createSound} from './sound.mjs?v=shift12';
-import {createLearning} from './learn.mjs?v=shift12';
+import {createSound} from './sound.mjs?v=shift13';
+import {createLearning} from './learn.mjs?v=shift13';
 
 /*
  Interactive play layer shared by the Mill Arcade and the main UASB simulator: walk as a
@@ -45,7 +45,8 @@ const INFO={
  'blowers':['Aeration blowers','Blowers push air down the air main to the diffusers in the aeration basin. One can run while the other is serviced.'],
  'air blowers':['Aeration blowers','Blowers push air down the air main to the diffusers in the aeration basin. One can run while the other is serviced.'],
  'control':['Control room','Operators watch flows, gas production, temperatures and generator output here. Walk up to the door and press E to read the log.'],
- 'reuse':['Reuse water tank','Treated water that passes its tests is stored here for washing and cooling, saving river water. The blue strip shows the level.'],
+ 'reuse':['Treated-water tank','Treated water that passes its tests is stored here for washing and cooling, saving river water. The blue strip shows the level.'],
+ 'final effluent':['Final effluent tank','With UASB + aerobic treatment only, treated water is held here for monitoring and then discharged within the permit limits. Reusing it in the mill would need the membrane polishing of the integrated design.'],
  'reuse water':['Reuse water tank','Treated water that passes its tests is stored here for washing and cooling, saving river water. The blue strip shows the level.'],
  'windsock':['Windsock','Shows the wind direction, so in a gas leak everyone moves upwind, away from the gas.'],
  'extinguisher':['Fire extinguisher','For small fires only. Pull the pin, aim at the base of the fire, squeeze and sweep.'],
@@ -72,7 +73,15 @@ const INFO={
  'ffb pile':['FFB collection point','Harvested bunches are stacked here for the lorry. They should reach the mill within about a day.'],
  'footbridge':['Footbridge','Villagers cross here to the plantation. From the middle you can look upstream to the outfall.'],
  'kampung house':['Kampung house','A village home on stilts, safe from floods. Families downstream fish in and use the river, so the mill’s effluent matters to them.'],
- 'tractor':['Tractor and trailer','Carries empty fruit bunches from the mill back to the palms, where they are spread as mulch.']
+ 'tractor':['Tractor and trailer','Carries empty fruit bunches from the mill back to the palms, where they are spread as mulch.'],
+ 'heat recovery':['Stage 1 · Heat recovery','Raw POME leaves the mill at about 85 °C. A plate heat exchanger and a cooling tower bring it to about 37 °C, the mesophilic range digesters work best in, and the recovered heat can warm boiler feed water.'],
+ 'technical cpo':['Stage 1 · Technical CPO recovery','Residual oil skimmed from the inlet is collected as technical crude palm oil — a saleable product that would otherwise foul the digester.'],
+ 'biogas holder':['Stage 2 · Biogas holder','A membrane dome stores the captured biogas (roughly 60–65 % methane) so the engine and compressor get a steady supply instead of flaring or venting the surplus.'],
+ 'h₂s scrubber':['Stage 3 · H₂S scrubber','Desulphurisation removes hydrogen sulphide before the gas is used, protecting the engine and compressor from corrosion and cutting sulphur emissions.'],
+ 'biocng':['Stage 3 · BioCNG skid','Cleaned biogas is upgraded and compressed into cylinders as BioCNG, a renewable fuel for lorries — useful where the grid cannot take exported power.'],
+ 'uf / ro':['Stage 4 · UF/RO membranes','Ultrafiltration then reverse osmosis remove fine solids, salts and remaining organics so treated water can be reused in the mill, reducing river-water intake. The reject concentrate still needs safe handling.'],
+ 'screw press':['Stage 5 · Screw press','Dewaters excess sludge so it is lighter and easier to compost; the pressed water returns to treatment.'],
+ 'efb co-compost':['Stage 5 · EFB co-composting','Dewatered sludge is mixed with shredded empty fruit bunches and composted into bio-fertiliser for the palms — after its quality has been checked.']
 };
 const ROLE_INFO={operator:'Runs the inlet screen and the reactor feed.',sampler:'Samples and tests water from every stage.',tech:'Keeps the gas engine, meters and instruments working.',handler:'Handles sludge drying, the wheelbarrow and the compost heap.',officer:'Checks for gas leaks and keeps the flare and permits safe.',guard:'Signs people in, checks PPE, logs lorries and patrols the fence.',harvester:'Cuts ripe bunches with the egrek and carries them to the collection point.',angler:'A villager who fishes downstream — the river tells him how well the plant is working.'};
 // Quick questions each crew member can ask ("Quiz me!").
@@ -268,7 +277,7 @@ export function createPlay({scene,camera,canvas,viewport,world,visitor,flows,isP
 /* ======================= scene configs ======================= */
 
 function crewTrees(ctx,words){
- const {world,quests,renderQuests,isPond,isPolluted,job,JOBTALK}=ctx,{reactor,basin,waterQ,waterA,shovelSpot,binder}=words;
+ const {world,quests,renderQuests,isPond,isPolluted,job,JOBTALK}=ctx,{reactor,basin,waterQ,waterA,cakeA,shovelSpot,binder}=words;
  const trees=[
   {start:()=>`Morning! I'm ${world.roles[0].person}, shift operator. Careful — the POME comes in at about 80 degrees.`,
    options:()=>[['What are you doing right now?','now'],['Why rake the screen?','why'],[`How do you know the ${reactor} is healthy?`,'health'],quests.screen.done?['Screen looks clean now.','thanks']:['Can I help?','help'],['See you later.','end']],
@@ -295,7 +304,7 @@ function crewTrees(ctx,words){
    options:()=>[['What are you doing now?','now'],['Why dry the sludge?','dry'],['What happens to the cake?','cake'],quests.cake.done?['I turned the cake.','thanks']:['Can I help?','help'],['See you!','end']],
    now:()=>`I'm ${JOBTALK[job(3).job]||'busy'}.`,
    dry:'Wet sludge is heavy and smelly. On the drying bed the water drains through sand and gravel or evaporates in the sun, so the cake is light and easy to handle.',
-   cake:'We mix it with empty fruit bunches and compost it. After the quality is checked it goes back to the plantation as a soil conditioner.',
+   cake:()=>cakeA?.()||'We mix it with empty fruit bunches and compost it. After the quality is checked it goes back to the plantation as a soil conditioner.',
    help:()=>{quests.cake.on=true;renderQuests();return `There is a spare shovel ${shovelSpot}. Stand at the edge of the drying area and press F to turn the cake.`},
    thanks:'Thank you! Turning the cake helps it dry evenly.'}
  ];
@@ -401,6 +410,8 @@ export function reactorPlay(env){
  // Height of the ground (platform, yard, tower stairs and deck). y is the walker's current height.
  const groundAt=(x,z,y=.11)=>{if(onPlatform(x,z))return .11;if(TW){if(x>TW.x0&&x<TW.x1&&z>TW.z0&&z<TW.z1&&y>TW.top-.7)return TW.top+.02;
    if(x>TW.sx0&&x<TW.sx1&&z>TW.sz0&&z<TW.sz1){const h=TW.top-(TW.top+.29)*(z-TW.sz0)/(TW.sz1-TW.sz0)+.02;if(y>h-.75)return h}}return -.27};
+ // Footprints of the integrated-recovery units, solid only while that pathway is shown.
+ const INTEG_UNITS=[[-7.45,-6.65,1.7,2.2],[-8.5,-7.6,2.3,3.2],[-5.35,-4.65,-1.6,-.9],[-4.95,-3.65,-4.5,-3.3],[-2.7,-2.2,-4.15,-3.65],[2.8,4.95,-4.35,-3.6],[6.35,7.35,-.15,.45],[5.1,6.0,-3.9,-3.5],[6.55,8.85,-4.45,-3.05]];
  return createPlay(env,{
   key:'reactor',
   trail:[
@@ -412,11 +423,11 @@ export function reactorPlay(env){
    {at:[4.8,-1.05],title:'Sludge drying bed',fact:'Excess sludge dries on sand and gravel; the cake is composted.',quiz:{q:'How does the sludge cake dry?',options:['Water drains through sand and gravel and evaporates','It is boiled','Bacteria drink the water'],answer:0,why:'The underdrain removes water and the sun evaporates the rest.'}},
    {at:[-16,-2.0],y:-.26,title:'FFB harvesting',fact:'Outside the fence, harvesters cut ripe bunches with a long-pole sickle (egrek) and carry them to the collection point.',quiz:{q:'How does a harvester know a bunch is ripe?',options:['A few loose fruits have dropped to the ground','The fronds turn blue','The trunk gets taller'],answer:0,why:'Ripe bunches turn reddish-orange and shed a few loose fruits.'}},
    {at:[13.0,4.6],y:-.26,title:'Lookout tower',fact:'Climb the stairs and look back over every stage of the plant.',quiz:{q:'In which order does POME flow through this plant?',options:['Inlet → UASB → aeration → outlet','Outlet → aeration → UASB → inlet','Aeration → inlet → outlet → UASB'],answer:0,why:'Solids out first, then anaerobic digestion makes biogas, then aeration polishes the water.'}},
-   {at:[8.45,.55],y:-.26,title:'Reuse water tank',fact:'Water that passes its tests is reused for washing and cooling.',quiz:{q:'Why reuse treated water at the mill?',options:['It saves river water and cuts discharge','It makes more biogas','It is required to cool the flare'],answer:0,why:'Every cubic metre reused is one less taken from, or sent to, the river.'}}],
+   {at:[8.45,.55],y:-.26,title:'Treated-water tank',fact:'Treated water is held here. Reusing it for washing and cooling needs membrane polishing (integrated design); otherwise it is discharged within the permit.',quiz:{q:'Why reuse treated water at the mill?',options:['It saves river water and cuts discharge','It makes more biogas','It is required to cool the flare'],answer:0,why:'Every cubic metre reused is one less taken from, or sent to, the river.'}}],
   stages:[{name:'Raw POME (inlet)',at:[-4.55,.9],cod:codIn},{name:'After UASB',at:[-1.4,0],cod:()=>Math.round(codIn()*.15)},{name:'After aeration',at:[1.8,.5],cod:()=>Math.round(codOut()*1.3)},{name:'Outlet',at:[4.75,.7],cod:codOut}],
   walk:{bounds:{x:32,z0:-26,z1:22},ground:groundAt,
    // Railings: once up on the tower you can only leave by the stairs.
-   block:(x,z)=>{if(!TW||env.visitor.position.y<TW.top-.6)return false;const deck=x>TW.x0+.06&&x<TW.x1-.06&&z>TW.z0+.06&&z<TW.z1-.06,stairs=x>TW.sx0+.03&&x<TW.sx1-.03&&z>=TW.z1-.12&&z<TW.sz1;return !(deck||stairs)},
+   block:(x,z)=>{if(env.isIntegrated?.()&&INTEG_UNITS.some(([a,b,c,d])=>x>a&&x<b&&z>c&&z<d))return true;if(!TW||env.visitor.position.y<TW.top-.6)return false;const deck=x>TW.x0+.06&&x<TW.x1-.06&&z>TW.z0+.06&&z<TW.z1-.06,stairs=x>TW.sx0+.03&&x<TW.sx1-.03&&z>=TW.z1-.12&&z<TW.sz1;return !(deck||stairs)},
    circles:[...(sc?.palmSpots||[]).map(([x,z])=>[x,z,.34]),[-17.6,-4.5,.34],[-14.4,-3,.34],[-17.6,-.5,.34],[-14.4,1,.34],[-17.6,3.5,.34],[-14.4,5.2,.34],[-21,-9,.1],[19,9,.1],[22,-14,.1],...[-18,-12,-6,0,6,12,18].map(x=>[x,7.95,.1]),...(TW?[[TW.x0+.08,TW.z0+.08,.12],[TW.x1-.08,TW.z0+.08,.12],[TW.x0+.08,TW.z1-.08,.12],[TW.x1-.08,TW.z1-.08,.12]]:[])],
    obstacles:[[-5.83,-3.26,-.13,1.94],[-2.91,.1,-1.55,1.55],[.32,3.3,-.83,1.87],[-1.57,.76,-2.9,-1.47],[2,4.44,-2.68,-1.22],[3.8,5.68,-.23,1.65],[5.34,6.16,1.5,1.98],
     [-9.95,-7.15,-1.1,.28],[6.4,8.7,-2.55,-.95],[7.55,9.35,.85,2.65],[6.4,7.9,2.75,3.45],[-7.45,-6.95,.6,1.3],[-6.1,-5.4,2.55,3.0],[.75,1.5,-3.2,-2.45],
@@ -440,7 +451,7 @@ export function reactorPlay(env){
   spots:[{zone:'bench',label:'Test the sample',run:'testSample',needs:'sample',d:.3},{zone:'control',label:'Read the control room log',run:'readLog'},{zone:'valve',label:'Turn the UASB feed valve',run:'turnValve'},
    {zone:'flowmeter',label:'Read the flow meter',run:'card',card:()=>['Effluent flow meter',`${(12.5+.6*Math.sin(performance.now()/3000)).toFixed(1)} m³/h leaving the aeration basin (about 300 m³ a day).`]},
    {zone:'blowers',label:'Check the blowers',run:'card',card:['Aeration blowers','Duty blower running · discharge 0.45 bar · air flow about 620 Nm³/h. Standby blower ready. (Illustrative values.)']},
-   {zone:'reuse',label:'Read the reuse tank level',run:'card',card:()=>['Reuse water tank',`Level ${Math.round(72+8*Math.sin(performance.now()/20000))} % · used for washing and cooling. Water only comes here after it passes its tests.`]}],
+   {zone:'reuse',label:'Read the treated-water tank level',run:'card',card:()=>{const on=env.isIntegrated?.(),lvl=Math.round(72+8*Math.sin(performance.now()/20000));return on?['Reuse water tank',`Level ${lvl} % · membrane-polished water used for washing and cooling. Water only comes here after it passes its tests.`]:['Final effluent tank',`Level ${lvl} % · treated water held for monitoring, then discharged to the drain within the permit. No reuse without membrane polishing.`]}}],
   samples:{aeration:o=>sampleCards.basin('Aeration basin',o),outlet:()=>['Outlet sample','pH 7.4 · COD 95 mg/L · suspended solids 40 mg/L · NO₃-N 12 mg/L\nReady to check against the permit or reuse needs. (Illustrative values.)'],intake:sampleCards.intake},
   sampleNames:{aeration:'aeration basin',outlet:'outlet',intake:'raw POME'},sampleQuest:'aeration',sampleHint:'Stand at a sample point first: the aeration basin edge, the outlet or the inlet.',
   benchZone:'bench',rakeZone:'intake',shovelZone:'drying',logZone:'control',log:controlLog,
@@ -449,7 +460,8 @@ export function reactorPlay(env){
   ambient:[['hum',-.4,-2.18,{freq:52,gain:.2,radius:6}],['hum',7.55,-1.75,{freq:118,gain:.14,radius:6}],['bubbles',1.8,.5,{freq:520,gain:.07,radius:3.5}],['bubbles',-1.4,0,{freq:400,gain:.05,radius:3}],['water',-5.45,1.45,{gain:.1,radius:3}],['water',0,3.55,{gain:.06,radius:2,line:[-6,6]}],['hum',-7.13,-.6,{freq:160,gain:.05,radius:3}]],
   surface:(x,z)=>onPlatform(x,z)?'gravel':Math.abs(x)<8.3&&z>-5.4&&z<5.8?'gravel':'grass',
   roleInfo:['Runs the inlet screen and the UASB feed.','Samples and tests water from every stage.','Keeps the biogas engine, meters and instruments working.','Handles the drying bed, the wheelbarrow and the compost heap.'],
-  words:{reactor:'UASB reactor',basin:'aeration basin',waterQ:'Where does the treated water go?',waterA:()=>'From the outlet it goes to the reuse tank on the right, for washing and cooling — but only after the tests pass. If not, it goes back for more treatment.',shovelSpot:'beside the outlet chamber',binder:{rake:'on the walkway by the inlet'}},
+  words:{reactor:'UASB reactor',basin:'aeration basin',waterQ:'Where does the treated water go?',waterA:()=>env.isIntegrated?.()?'In the integrated design it passes the UF/RO membranes, then goes to the reuse tank for washing and cooling — only after the tests pass. If not, it goes back for more treatment.':'With UASB + aerobic only, it is held in the final effluent tank and discharged within the permit limits. The integrated design would polish it with membranes and reuse it instead.',
+   cakeA:()=>env.isIntegrated?.()?'In the integrated design the screw press squeezes it first, then we co-compost it with shredded EFB in the windrows behind the blowers. Once the quality is checked it goes back to the palms as bio-fertiliser.':'Here we just dry it and send the cake off for composting or disposal. The integrated design would co-compost it with EFB into bio-fertiliser.',shovelSpot:'beside the outlet chamber',binder:{rake:'on the walkway by the inlet'}},
   trees:ctx=>crewTrees(ctx,ctx.W)
  });
 }

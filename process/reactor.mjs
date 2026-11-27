@@ -1,16 +1,16 @@
-import {frameBudget} from './frame-budget.mjs?v=shift12';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift12';
-import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift12';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift12';
-import {hdZoom,hardware} from './hd.mjs?v=shift12';
-import {reactorPlay} from './play.mjs?v=shift12';
+import {frameBudget} from './frame-budget.mjs?v=shift13';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower} from './quality.mjs?v=shift13';
+import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift13';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift13';
+import {hdZoom,hardware} from './hd.mjs?v=shift13';
+import {reactorPlay} from './play.mjs?v=shift13';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift12';
-import {explore} from './explore.mjs?v=shift12';
-import {reactorProcess} from './reactor-flows.mjs?v=shift12';
-import {legend} from './molecules.mjs?v=shift12';
+import {populate} from './crew.mjs?v=shift13';
+import {explore} from './explore.mjs?v=shift13';
+import {reactorProcess} from './reactor-flows.mjs?v=shift13';
+import {legend} from './molecules.mjs?v=shift13';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
@@ -133,10 +133,11 @@ function build(){
   'Sludge drying bed · Waste sludge is spread over sand and gravel. Water drains to the underdrain or evaporates, and the cracked cake is shovelled out for composting. Check sludge quality before any land use.',
   'Outlet chamber · Treated water spirals towards the draw-off strainer while the last flocs settle out. Whether it can be discharged or reused depends on verified effluent quality (BOD, COD and suspended solids).'];
  const caption=view.querySelector('.reactor-caption');
+ const mode={integrated:false},homeCaption=()=>mode.integrated?'Integrated recovery · UASB, aeration and resource recovery':'UASB section · aerobic basin';
  const targets=[[-4.55,.85,.9],[x,1.96,0],[1.8,.91,.5],[-.4,.7,-2.18],[3.2,.55,-1.95],[4.75,.76,.7]];
  let yaw=.18,pitch=.45,dist=14,cy=.18,cp=.45,cd=14,goal=v(0,1.25,0),focus=goal.clone(),cut=true,paused=matchMedia('(prefers-reduced-motion:reduce)').matches,drag=null,vis=false,last=0,t=0;
  const ray=new T.Raycaster();
- function home(){visitor.setMode('orbit');caption.textContent='UASB section · aerobic basin';select.value='';goal.set(0,1.25,0);dist=14;yaw=.18;pitch=.45}
+ function home(){visitor.setMode('orbit');caption.textContent=homeCaption();select.value='';goal.set(0,1.25,0);dist=14;yaw=.18;pitch=.45}
  function inspect(i){if(i===''){home();return}visitor.setMode('orbit');select.value=String(i);caption.textContent=descriptions[i];goal.set(...targets[i]);dist=i===1?7.2:6;units[i].dispatchEvent(new Event('click'))}
  select.onchange=()=>inspect(select.value===''?'':Number(select.value));
  function zoom(delta){dist=T.MathUtils.clamp(dist+delta,3.4,34)}
@@ -145,7 +146,7 @@ function build(){
  const orbit=(dx,dy)=>{yaw-=dx;pitch=T.MathUtils.clamp(pitch+dy,.11,1.4)};
  const visitor=explore(view,canvas,camera,world,orbit,pick,()=>toggle.click(),zoom);
  // Play as a worker: tools, talking crew, clickable labels, sound.
- const play=reactorPlay({scene,camera,canvas,viewport:view.querySelector('.reactor-frame'),world,visitor,flows,scenery});
+ const play=reactorPlay({scene,camera,canvas,viewport:view.querySelector('.reactor-frame'),world,visitor,flows,scenery,isIntegrated:()=>mode.integrated});
  const UNIT_INFO=['inlet','uasb','aeration','biogas engine','drying bed','outlet'];
  updateMotion();view.querySelector('.reactor-controls').onclick=e=>{switch(e.target.dataset.command){case 'home':home();break;case 'in':zoom(-1);break;case 'out':zoom(1);break;case 'motion':paused=!paused;updateMotion();break;case 'molecules':{const on=molecules.getAttribute('aria-pressed')!=='true';molecules.setAttribute('aria-pressed',String(on));flows.chem.show(on);view.querySelector('.chem-legend').hidden=!on;break}case 'section':budget.refreshShadows();cut=!cut;solids.forEach(m=>m.visible=!cut);toggle.setAttribute('aria-pressed',String(cut));break}};
  solids.forEach(m=>m.visible=false);
@@ -155,8 +156,10 @@ function build(){
   if(!play.handleClick(u,v)){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false).find(h=>h.object.visible);if(hit){const id=hit.object.parent.userData.id;if(visitor.isWalking())play.showInfo(UNIT_INFO[id]);else inspect(id)}}}drag=null};
  canvas.onwheel=e=>{e.preventDefault();zoom(Math.sign(e.deltaY)*.6)};
  canvas.onkeydown=e=>{const actions={ArrowLeft:()=>yaw-=.13,ArrowRight:()=>yaw+=.13,ArrowUp:()=>pitch=Math.min(1.4,pitch+.1),ArrowDown:()=>pitch=Math.max(.11,pitch-.1),'+':()=>zoom(-1),'-':()=>zoom(1),Home:home};if(actions[e.key]){e.preventDefault();actions[e.key]()}};
- function sync(){const active=document.querySelector('[data-option="1"]').classList.contains('active');if(!active)visitor.stop();view.hidden=!active;diagram.style.display=active?'none':''}
- new MutationObserver(sync).observe(document.querySelector('[data-option="1"]'),{attributes:true,attributeFilter:['class']});sync();
+ // One 3D plant serves both recovery pathways; the integrated one adds the poster's resource-recovery units.
+ function sync(){const is=o=>document.querySelector(`[data-option="${o}"]`).classList.contains('active'),integrated=is(2),active=is(1)||integrated;if(!active)visitor.stop();view.hidden=!active;diagram.style.display=active?'none':'';
+  if(mode.integrated!==integrated){mode.integrated=integrated;scenery.setIntegrated(integrated);budget.refreshShadows?.()}if(!select.value)caption.textContent=homeCaption()}
+ for(const o of [1,2])new MutationObserver(sync).observe(document.querySelector(`[data-option="${o}"]`),{attributes:true,attributeFilter:['class']});sync();
  new IntersectionObserver(es=>{vis=es[0].isIntersecting;if(!vis&&!view.getBoundingClientRect().height)visitor.stop()}).observe(canvas);
  let w=0,h=0;
  const meter=document.createElement('small');meter.title='Rendered frames per second';view.querySelector('.reactor-controls').append(meter);
