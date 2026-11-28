@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift22';
-import {fauna} from './fauna.mjs?v=shift22';
+import {wind,windify,texture,concrete,grass,gravel,asphalt,corrugated,sign,platformDecal,blobShadow,mergeStatic,sky,oilPalm,palmMaterial} from './life.mjs?v=shift23';
+import {fauna} from './fauna.mjs?v=shift23';
 
 /*
  Surroundings for the main UASB + aerobic simulator: ground, road and plantation,

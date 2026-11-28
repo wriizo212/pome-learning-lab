@@ -1,12 +1,12 @@
 import * as T from './three.module.min.js';
-import {texture,canvas as drawCanvas,grass,gravel,concrete,corrugated,sign,oilPalm,palmMaterial,environment,rippleNormal,sky,wind,premiumSurfaces,contactShadow,mergeStatic} from './life.mjs?v=shift22';
-import {TIERS,resolveTier} from './quality.mjs?v=shift22';
-import {frameBudget} from './frame-budget.mjs?v=shift22';
-import {warmShaders} from './warmup.mjs?v=shift22';
-import {populate} from './crew.mjs?v=shift22';
-import {explore} from './explore.mjs?v=shift22';
-import {pondsPlay} from './play.mjs?v=shift22';
-import {chemistry,seeds,legend} from './molecules.mjs?v=shift22';
+import {texture,canvas as drawCanvas,grass,gravel,concrete,corrugated,sign,oilPalm,palmMaterial,environment,rippleNormal,sky,wind,premiumSurfaces,contactShadow,mergeStatic} from './life.mjs?v=shift23';
+import {TIERS,resolveTier} from './quality.mjs?v=shift23';
+import {frameBudget} from './frame-budget.mjs?v=shift23';
+import {warmShaders} from './warmup.mjs?v=shift23';
+import {populate} from './crew.mjs?v=shift23';
+import {explore} from './explore.mjs?v=shift23';
+import {pondsPlay} from './play.mjs?v=shift23';
+import {chemistry,seeds,legend} from './molecules.mjs?v=shift23';
 
 /*
  Conventional ponding system in 3D (shown when "Conventional ponds" is the pathway).
@@ -24,7 +24,7 @@ import {chemistry,seeds,legend} from './molecules.mjs?v=shift22';
  the air (no cover), smell drifts away, sludge has to be dug out, and a storm can make
  the ponds overflow into the river ("Storm test").
 */
-const panel=document.querySelector('.stage'),diagram=panel?.querySelector('svg'),option=document.querySelector('[data-option="0"]');
+const panel=document.querySelector('.stage'),diagram=panel?.querySelector('svg:not(.ico)'),option=document.querySelector('[data-option="0"]');
 if(panel&&diagram&&option)mount();
 
 function mount(){
