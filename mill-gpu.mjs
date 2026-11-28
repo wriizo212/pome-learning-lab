@@ -1,16 +1,16 @@
-import {populate} from './process/crew.mjs?v=shift20';
-import {explore} from './process/explore.mjs?v=shift20';
-import {arcadeProcess} from './process/arcade-flows.mjs?v=shift20';
-import {legend} from './process/molecules.mjs?v=shift20';
-import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift20';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './process/quality.mjs?v=shift20';
-import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift20';
-import {arcadePlay} from './process/play.mjs?v=shift20';
-import {addWaves} from './process/molecules.mjs?v=shift20';
-import {hdZoom,hardware} from './process/hd.mjs?v=shift20';
-import {frameBudget} from './process/frame-budget.mjs?v=shift20';
-import {warmShaders,densityKnob} from './process/warmup.mjs?v=shift20';
-import {arcadeWeather} from './process/arcade-weather.mjs?v=shift20';
+import {populate} from './process/crew.mjs?v=shift21';
+import {explore} from './process/explore.mjs?v=shift21';
+import {arcadeProcess} from './process/arcade-flows.mjs?v=shift21';
+import {legend} from './process/molecules.mjs?v=shift21';
+import {arcadeScenery,arcadeExtras,arcadeDetails,arcadeWorld} from './process/arcade-scenery.mjs?v=shift21';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './process/quality.mjs?v=shift21';
+import {windify,texture,concrete as concreteCanvas,grass,oilPalm,palmMaterial,environment,rippleNormal,premiumSurfaces,contactShadow} from './process/life.mjs?v=shift21';
+import {arcadePlay} from './process/play.mjs?v=shift21';
+import {addWaves} from './process/molecules.mjs?v=shift21';
+import {hdZoom,hardware} from './process/hd.mjs?v=shift21';
+import {frameBudget} from './process/frame-budget.mjs?v=shift21';
+import {warmShaders,densityKnob} from './process/warmup.mjs?v=shift21';
+import {arcadeWeather} from './process/arcade-weather.mjs?v=shift21';
 /* GPU mill diorama. Dimensions share a single model-space scale. */
 export function mount(T, host, onPick) {
   let tierName=resolveTier(),tier=TIERS[tierName];

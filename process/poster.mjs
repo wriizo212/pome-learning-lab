@@ -38,7 +38,8 @@ const PRED={removal:'Just clean the water',recovery:'Clean it and recover resour
 
 function choose(i){document.querySelector(`[data-option="${i}"]`)?.click()}
 function scrollTo(sel){document.querySelector(sel)?.scrollIntoView({behavior:'smooth',block:'start'})}
-function openUnit(i){choose(i===0?1:2);setTimeout(()=>{document.querySelector('.reactor-view:not(.ponds-view)')?.scrollIntoView({behavior:'smooth',block:'center'});const sel=document.querySelector('.reactor-view:not(.ponds-view) .reactor-controls select');if(sel){sel.value=String(i);sel.onchange?.()}},250)}
+// The 3D plant may still be loading, so wait for it (up to 8 s) before jumping to the unit.
+function openUnit(i){choose(i===0?1:2);window.pomeLoad3D?.('reactor');let n=0;const go=()=>{const sel=document.querySelector('.reactor-view:not(.ponds-view) .reactor-controls select');if(!sel){if(++n<32)setTimeout(go,250);return}document.querySelector('.reactor-view:not(.ponds-view)')?.scrollIntoView({behavior:'smooth',block:'center'});sel.value=String(i);sel.onchange?.()};setTimeout(go,250)}
 function tick(id){if(!S.focus[id]){S.focus[id]=true;save();render()}}
 
 const section=document.createElement('section');section.className='brief';section.setAttribute('aria-labelledby','brief-title');

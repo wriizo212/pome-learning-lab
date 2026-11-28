@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift20';
+import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift21';
 
 // Each worker has a person behind the role (used for name tags and conversations).
 const PEOPLE=['Azlan','Mei Ling','Ravi','Siti','Farid','Hafiz','Joko','Pak Ali'];

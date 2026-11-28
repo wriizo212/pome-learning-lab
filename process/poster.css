@@ -155,3 +155,11 @@
 .lesson-record input{width:100%;padding:8px;border-radius:8px;border:1px solid #3f6a55;background:#0b1f1a;color:var(--ink)}
 .lesson-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);opacity:0;padding:12px 18px;border-radius:14px;background:#2b231a;border:1px solid #ffd39b;color:#ffe3c4;z-index:60;transition:.3s;pointer-events:none}.lesson-toast.show{opacity:1;transform:translate(-50%,0)}
 @media print{body.print-record>*:not(.lesson-record){display:none!important}.lesson-record{position:static;display:block;color:#000;background:#fff;border:0}.lesson-record th,.lesson-record td{color:#000}.lesson-record .lesson-test-btns{display:none}}
+/* ===== Lazy 3D note, first-time 3D tips, decision scaffolding ===== */
+.load3d{margin:6px 0;color:var(--amber);font-size:14px}
+.tips3d{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;width:min(420px,90%);padding:16px 18px;border-radius:18px;background:#0f2620f2;border:1px solid var(--lime);box-shadow:0 18px 40px #0008;color:var(--ink)}
+.tips3d h4{margin:0 0 8px;color:var(--lime)}.tips3d ol{margin:0 0 12px;padding-left:18px;display:grid;gap:6px;font-size:14px}.tips3d button{background:var(--lime);color:#14342b;border-color:var(--lime);font-weight:800}
+.dec-help p{margin:4px 0 6px;color:var(--muted);font-size:13.5px}
+.dec-starters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.dec-starters button{padding:6px 10px;border-radius:999px;font-size:13px;background:#123627;border:1px solid #3f7a55}
+.dec-check{list-style:none;margin:8px 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}.dec-check li{padding:5px 10px;border-radius:999px;background:#1d2b2a;border:1px solid #4a5a57;font-size:13px;color:var(--muted)}
+.dec-check li.ok{background:#1f4a32;border-color:#b6f08a;color:#eaffd5}.dec-check .dec-score{margin-left:auto;font-weight:800;color:var(--lime)}

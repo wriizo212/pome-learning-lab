@@ -1,7 +1,7 @@
 import * as T from './three.module.min.js';
-import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift20';
-import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky,grass,asphalt,oilPalm,palmMaterial} from './life.mjs?v=shift20';
-import {fauna} from './fauna.mjs?v=shift20';
+import {seeds,smooth,band,lerpPath} from './molecules.mjs?v=shift21';
+import {wind,windify,texture,corrugated,sign,blobShadow,mergeStatic,sky,grass,asphalt,oilPalm,palmMaterial} from './life.mjs?v=shift21';
+import {fauna} from './fauna.mjs?v=shift21';
 
 /*
  Extra life for the Mill Arcade diorama: the mill that produces the POME, the hot feed
