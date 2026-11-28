@@ -6,7 +6,7 @@
  While a scene loads, the flat diagram stays visible with a small "Loading 3D…" note.
  The first time a 3D view appears, a short how-to card explains the controls.
 */
-const V='shift21';
+const V='shift22';
 const stage=document.querySelector('.stage'),opt=i=>document.querySelector(`[data-option="${i}"]`);
 const T=(en,ms)=>window.pomeLang?.()==='en'?en:ms;
 const note=document.createElement('p');note.className='load3d';note.hidden=true;stage?.querySelector('svg')?.before(note);

@@ -112,6 +112,9 @@ const P=[
  [/^Mission progress:$/,'Kemajuan misi:'],
  [/^Scenario (\d+) saved\. Open Compare to review your experiments\.$/,'Senario $1 disimpan. Buka Bandingkan untuk menyemak eksperimen anda.']
 ];
+// icons.js swaps emoji for SVG icons and leaves the words as separate text, so register the words alone too.
+const EMO=/(?:\p{Extended_Pictographic}️?(?:‍\p{Extended_Pictographic}️?)*)|[★☆✓✕]/u;
+for(const [en,ms] of [...D]){if(!EMO.test(en))continue;const re=new RegExp(EMO.source,'gu'),a2=en.split(re),b2=ms.split(re);if(a2.length!==b2.length)continue;a2.forEach((f,k)=>{const e=f.trim(),m=b2[k].trim();if(e&&m&&!D.has(e))D.set(e,m)})}
 const back=new Map();for(const [en,ms] of D)back.set(ms,en);
 function translate(text,to){const lead=text.match(/^\s*/)[0],trail=text.match(/\s*$/)[0],core=text.trim();if(!core)return null;
  if(to==='ms'){const hit=D.get(core);if(hit!==undefined)return lead+hit+trail;for(const [re,rep] of P)if(re.test(core))return lead+core.replace(re,rep)+trail;return null}

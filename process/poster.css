@@ -163,3 +163,5 @@
 .dec-starters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.dec-starters button{padding:6px 10px;border-radius:999px;font-size:13px;background:#123627;border:1px solid #3f7a55}
 .dec-check{list-style:none;margin:8px 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}.dec-check li{padding:5px 10px;border-radius:999px;background:#1d2b2a;border:1px solid #4a5a57;font-size:13px;color:var(--muted)}
 .dec-check li.ok{background:#1f4a32;border-color:#b6f08a;color:#eaffd5}.dec-check .dec-score{margin-left:auto;font-weight:800;color:var(--lime)}
+/* Compact lesson bar on narrow screens */
+@media(max-width:760px){.lesson-bar{padding:6px 10px;gap:6px}.lesson-steps{flex-wrap:nowrap;overflow-x:auto}.lesson-steps button{font-size:12px;padding:4px 8px;white-space:nowrap}.lesson-steps small{display:none}.lesson-now p{display:none}.lesson-ctl button{padding:4px 8px;font-size:12px}}

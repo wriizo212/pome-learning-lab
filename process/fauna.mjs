@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {blobShadow} from './life.mjs?v=shift21';
+import {blobShadow} from './life.mjs?v=shift22';
 
 /*
  Plantation animals, each with a real role on an oil palm estate:
