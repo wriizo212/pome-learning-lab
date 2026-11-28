@@ -117,7 +117,8 @@
  const mo=new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')fix(m.target);else m.addedNodes.forEach(scan)}});
  function start(){scan(document.body);mo.observe(document.body,{subtree:true,childList:true,characterData:true})}
  if(document.body)start();else document.addEventListener('DOMContentLoaded',start);
- const css=document.createElement('style');css.textContent=`.ico{width:1.2em;height:1.2em;vertical-align:-.22em;margin-right:.3em;fill:none;stroke:var(--c,var(--c0));stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;display:inline-block}
+ const css=document.createElement('style');css.textContent=`svg.ico,svg.ico[class]{width:1.2em!important;height:1.2em!important;max-width:none!important;min-width:0!important;position:static!important;display:inline-block!important;vertical-align:-.22em!important;margin:0 .3em 0 0!important}
+.ico{width:1.2em;height:1.2em;vertical-align:-.22em;margin-right:.3em;fill:none;stroke:var(--c,var(--c0));stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;display:inline-block}
 .ico.fill{fill:var(--c,var(--c0));stroke-width:1.2}
 .active .ico,.on .ico,[aria-pressed=true] .ico,[aria-current=step] .ico,.primary .ico,.g-cta .ico,.lesson-start .ico,.pwa-install .ico,.sc-save .ico,.brief-predict [aria-pressed=true] .ico{--c:currentColor}`;
  document.head.append(css);
