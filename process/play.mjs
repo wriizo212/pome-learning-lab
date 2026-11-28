@@ -1,6 +1,6 @@
 import * as T from './three.module.min.js';
-import {createSound} from './sound.mjs?v=shift17';
-import {createLearning} from './learn.mjs?v=shift17';
+import {createSound} from './sound.mjs?v=shift18';
+import {createLearning} from './learn.mjs?v=shift18';
 
 /*
  Interactive play layer shared by the Mill Arcade and the main UASB simulator: walk as a
@@ -462,6 +462,80 @@ export function reactorPlay(env){
   roleInfo:['Runs the inlet screen and the UASB feed.','Samples and tests water from every stage.','Keeps the biogas engine, meters and instruments working.','Handles the drying bed, the wheelbarrow and the compost heap.'],
   words:{reactor:'UASB reactor',basin:'aeration basin',waterQ:'Where does the treated water go?',waterA:()=>env.isIntegrated?.()?'In the integrated design it passes the UF/RO membranes, then goes to the reuse tank for washing and cooling — only after the tests pass. If not, it goes back for more treatment.':'With UASB + aerobic only, it is held in the final effluent tank and discharged within the permit limits. The integrated design would polish it with membranes and reuse it instead.',
    cakeA:()=>env.isIntegrated?.()?'In the integrated design the screw press squeezes it first, then we co-compost it with shredded EFB in the windrows behind the blowers. Once the quality is checked it goes back to the palms as bio-fertiliser.':'Here we just dry it and send the cake off for composting or disposal. The integrated design would co-compost it with EFB into bio-fertiliser.',shovelSpot:'beside the outlet chamber',binder:{rake:'on the walkway by the inlet'}},
+  trees:ctx=>crewTrees(ctx,ctx.W)
+ });
+}
+
+/* Conventional ponds: walk the banks, skim the oil trap, sample every pond, gas-test the open pond. */
+function pondLog({isPolluted}){const dirty=isPolluted();
+ return ['Pump house log',`Transfer pump: running · 7.8 m³/h · 3.1 kW\nAnaerobic pond level: ${dirty?'1.9 m (OVERFLOW RISK)':'1.4 m'} · scum crust 0.3 m\nBiogas captured: 0 m³/h — open ponds vent methane to the air\nAerobic pond DO: ${dirty?'0.8':'3.4'} mg/L\nFinal discharge BOD: ${dirty?'180':'45'} mg/L (illustrative)`]}
+export function pondsPlay(env){
+ const {world}=env,E=p=>env.edge(p.x,p.z);
+ return createPlay(env,{
+  key:'ponds',
+  walk:{bounds:{x:24,z0:-16,z1:14},ground:(x,z)=>env.groundAt(x,z),block:(x,z)=>env.blocked(x,z),
+   obstacles:[[-14.4,-10.8,-2.5,1.3],[-14,-11.2,-4.8,-2.4],[-15,-12.9,-1.4,.95],[-10.05,-7.75,-1.05,.65],[-10.45,-8.75,-3.75,-2.25],[-8.75,-8.05,-3.85,-3.35],[-3.95,-1.25,-6.45,-4.75],[-.95,1.75,-6.45,-4.75],[8.4,9.0,2.3,2.8],[8.3,9.0,1.25,1.95],[8.85,9.95,1.3,1.9],[-6.1,-4.3,-4.8,-3.4],[2.3,3.7,-7.9,-6.3],[-7.6,-.6,4.3,4.4],[.8,9.2,4.3,4.4],[9.65,13.15,-36,36]],
+   circles:[...(env.palmSpots||[]).map(([x,z])=>[x,z,.34]),[-11.4,-2.1,.32],[-13.4,6,.3],[-13.4,8.2,.3],[-15.6,6,.3],[-15.6,8.2,.3],[-13.4,10.4,.3],[-15.6,10.4,.3]]},
+  trail:[
+   {at:[-9.2,1.45],title:'Oil trap',fact:'Hot POME from the mill slows down here so oil floats to the top and is skimmed off.',quiz:{q:'Why skim the oil before the ponds?',options:['Oil forms a film that blocks oxygen and clogs the ponds','To make the POME hotter','Oil helps bacteria grow'],answer:0,why:'Oil and grease coat surfaces and stop oxygen reaching the water. Skimmed oil can even be sold.'}},
+   {at:[-4.2,3.8],title:'Anaerobic pond',fact:'A deep pond with no air at the bottom. Bacteria break the waste down slowly and make methane.',quiz:{q:'Where does the methane from an open pond go?',options:['Straight into the air','Into an engine','Into the river'],answer:0,why:'There is no cover, so the methane escapes. It traps far more heat than CO₂.'}},
+   {at:[1.4,3.8],title:'Facultative pond',fact:'Oxygen at the top, none at the bottom: two kinds of bacteria keep cleaning the water.',quiz:{q:'Where does the top layer of a facultative pond get oxygen?',options:['From the air and from algae','From the methane','From the sludge'],answer:0,why:'Wind mixes in air and algae make oxygen in sunlight.'}},
+   {at:[6.4,3.8],title:'Aerobic pond',fact:'A shallow green pond. Aerators splash in oxygen so bacteria can finish the job.',quiz:{q:'Why is the aerobic pond green?',options:['Algae grow in the sunlit, nutrient-rich water','It is painted','Oil turns it green'],answer:0,why:'Algae feed on the nutrients and release oxygen during the day.'}},
+   {at:[9.0,3.1],title:'Final discharge',fact:'Treated water flows over a V-notch weir. The flow is measured and samples are tested before it reaches the river.',quiz:{q:'What must the discharge meet before it enters the river?',options:['The DOE BOD limit','A colour chart only','Nothing'],answer:0,why:'The Department of Environment sets the limits; samples prove the mill meets them.'}},
+   {at:[-1.1,-7.0],title:'Desludging yard',fact:'Sludge dug out of the anaerobic pond dries on concrete beds before it is handled further.',quiz:{q:'Why must sludge be dug out of the pond?',options:['It fills the pond so the POME stays a shorter time and is treated less','It makes the pond deeper','It cools the pond'],answer:0,why:'Less space means less treatment time, so the water leaving is dirtier.'}},
+   {at:[9.35,-3.6],title:'River bank',fact:'The village fishes here. What the ponds release flows straight past them.',quiz:{q:'What happens to fish if the ponds overflow in a storm?',options:['Oxygen in the river drops and fish die or leave','Fish grow bigger','Nothing'],answer:0,why:'Bacteria feeding on the escaped waste use up the oxygen in the river.'}}],
+  stages:[{name:'Raw POME (oil trap)',at:[-8.9,-.2],cod:()=>50000},{name:'After the anaerobic pond',at:[-4.2,0],cod:()=>8000},{name:'After the facultative pond',at:[1.4,0],cod:()=>2000},{name:'Final discharge',at:[9.3,1.6],cod:()=>env.isPolluted()?900:300}],
+  items:{bottle:{name:'Sample bottle',at:[3.75,.615,4.0]},rake:{name:'Skimming rake',at:[-9.7,.02,1.0]},shovel:{name:'Shovel',at:[-1.1,.02,-7.0]},detector:{name:'Gas detector',at:[-8.6,.43,-2.1]},extinguisher:{name:'Fire extinguisher',at:[-8.85,0,-2.55]}},
+  crates:[[-8.6,0,-2.1]],
+  quests:{screen:{giver:0,title:'Skim the oil trap',hint:'Take the rake by the oil trap, stand in front of the trap and press F.'},
+   sample:{giver:1,title:'Test an aerobic-pond sample',hint:'Bottle on the field bench → F on the aerobic pond bank → E at the bench.'},
+   power:{giver:2,title:'Read the pump house log',hint:'Walk to the pump house door and press E to read the log.'},
+   cake:{giver:3,title:'Turn the drying sludge',hint:'Shovel by the drying beds → stand beside a bed and press F.'},
+   gas:{giver:4,title:'Gas-test the open pond',hint:'Detector on the crate by the pump house → climb the anaerobic pond bank and press F.'}},
+  zones:{
+   intake:{near:p=>p.x>-10&&p.x<-7.8&&p.z>.8&&p.z<1.7,face:p=>P(p.x,-.2)},
+   anaerobic:{near:p=>E(p)===0,face:()=>P(-4.2,0)},
+   facult:{near:p=>E(p)===1,face:()=>P(1.4,0)},
+   aerobic:{near:p=>E(p)===2,face:()=>P(6.4,0)},
+   discharge:{near:p=>Math.hypot(p.x-9.3,p.z-2.45)<.65,face:()=>P(9.3,1.6)},
+   river:{near:p=>p.x>9.05&&p.x<9.65&&(p.z<-2||p.z>3),face:p=>P(11.4,p.z)},
+   bench:{near:p=>Math.hypot(p.x-4.0,p.z-3.55)<.6,face:()=>P(4.0,4.0)},
+   control:{near:p=>Math.hypot(p.x+8.45,p.z+3.0)<.6,face:()=>P(-9.6,-3)},
+   valve:{near:p=>Math.hypot(p.x-world.valvePosition.x,p.z-world.valvePosition.z-.55)<.6,face:()=>P(world.valvePosition.x,world.valvePosition.z)},
+   drying:{near:p=>p.x>-4&&p.x<1.8&&p.z>-7.2&&p.z<-6.4,face:p=>P(p.x,-5.6)}},
+  spots:[{zone:'bench',label:'Test the sample',run:'testSample',needs:'sample',d:.3},{zone:'control',label:'Read the pump house log',run:'readLog'},{zone:'valve',label:'Turn the pond inlet valve',run:'turnValve'},
+   {zone:'discharge',label:'Read the V-notch weir',run:'card',card:()=>['V-notch weir',`Water height over the notch: ${(4.2+.3*Math.sin(performance.now()/4000)).toFixed(1)} cm → about ${(7.4+.6*Math.sin(performance.now()/4000)).toFixed(1)} m³/h leaving the ponds. The deeper the water over the V, the bigger the flow. (Illustrative values.)`]}],
+  samples:{anaerobic:()=>['Anaerobic pond sample','pH 7.0 · COD about 8,000 mg/L · dark brown with a thick scum\nStill strong: open ponds need a long time to clean POME. (Illustrative values.)'],
+   facult:()=>['Facultative pond sample','pH 7.6 · DO 1.2 mg/L near the top · COD about 2,000 mg/L\nCleaner, with oxygen only near the surface. (Illustrative values.)'],
+   aerobic:o=>o.isPolluted()?['Aerobic pond sample','pH 7.4 · DO 0.8 mg/L · COD about 900 mg/L\nThe storm has flushed half-treated water through. (Illustrative values.)']:['Aerobic pond sample','pH 8.1 · DO 3.4 mg/L · COD about 300 mg/L\nAlgae and aerators keep the oxygen up. (Illustrative values.)'],
+   discharge:o=>o.isPolluted()?['Final discharge sample','BOD 180 mg/L · suspended solids high\nOver the limit: report it and hold the flow if you can. (Illustrative values.)']:['Final discharge sample','BOD 45 mg/L · pH 7.8 · suspended solids low\nCheck against the DOE limit that applies to this mill. (Illustrative values.)'],
+   river:o=>o.isPolluted()?['River sample','DO 2.0 mg/L · brown and smelly\nToo little oxygen for most fish. (Illustrative values.)']:['River sample','DO 6.6 mg/L · clear\nHealthy for river life. (Illustrative values.)'],intake:sampleCards.intake},
+  sampleNames:{anaerobic:'anaerobic pond',facult:'facultative pond',aerobic:'aerobic pond',discharge:'final discharge',river:'river',intake:'raw POME'},sampleQuest:'aerobic',sampleHint:'Stand on a pond bank, at the weir, on the river bank or at the oil trap first.',
+  benchZone:'bench',rakeZone:'intake',shovelZone:'drying',logZone:'control',log:pondLog,
+  gasSources:[{x:-4.2,z:0,r:2.6,lel:2,pond:16,h2s:2,pondH2s:10,fall:.9},{x:1.4,z:0,r:2.2,pond:3,pondH2s:2,fall:.6},{x:-8.9,z:-.2,h2s:3,fall:1.1}],
+  gasQuest:p=>E(p)===0,
+  infoBoxes:[['skip',[-9.9,.25,2.1],[.65,.5,.5]],['bench',[4,.45,4],[.85,.9,.5]],['ponds:heap',[2.5,.2,-4.9],[.8,.4,.8]],['valve',[-8.3,.9,1.15],[.35,.35,.3]],['extinguisher',[-8.85,.2,-2.55],[.15,.45,.15]],['ponds:flow meter',[-8.3,.9,-1.6],[.4,.9,.2]]],
+  ambient:[['hum',-12.6,-.6,{freq:58,gain:.16,radius:9}],['hum',-9.6,-3,{freq:92,gain:.12,radius:5}],['hum',6.4,0,{freq:140,gain:.08,radius:4.5}],['bubbles',-4.2,0,{freq:300,gain:.08,radius:4.5}],['water',9.5,1.6,{gain:.14,radius:3}],['water',11.4,-3,{gain:.12,radius:4}],['water',11.4,6,{gain:.12,radius:4}],['water',-8.9,-.2,{gain:.08,radius:2.5}]],
+  surface:(x,z)=>env.edge(x,z)>=0||Math.abs(z-4.95)<.65||Math.abs(z+7.1)<.65?'gravel':'grass',
+  roleInfo:['Runs the oil trap and the pond inlet.','Samples every pond, the discharge and the river.','Keeps the transfer pump and meters working.','Dries and moves the sludge dug out of the ponds.','Checks the open ponds for methane and H₂S.','Cuts ripe bunches in the palms next to the ponds.','Fishes in the river below the ponds.'],
+  words:{reactor:'anaerobic pond',basin:'aerobic pond',waterQ:'Is the river safe below the ponds?',waterA:dirty=>dirty?'Not after this storm. The ponds overflowed, so half-treated POME went into the river and the oxygen dropped.':'Most days, yes, if the ponds are not overloaded. But they are slow and they fill up with sludge, so we sample every day.',
+   cakeA:()=>'We dig it out of the anaerobic pond every so often, dry it on these beds, then it is checked and composted or sent for disposal. Ponds do not turn it into fertiliser by themselves.',shovelSpot:'by the drying beds',binder:{rake:'by the oil trap'}},
+  info:{'ponds:mill':['Palm oil mill','Fresh fruit bunches are sterilised with steam, pressed for oil and clarified. Each tonne of bunches leaves behind hot, oily wastewater: POME.'],
+   'ponds:sterilisers':['Sterilisers','Steam cooks the fruit bunches. The condensate is one of the main sources of POME.'],
+   'ponds:oil trap':['Oil trap','A tank with baffles. The POME slows down, oil floats and is skimmed off, and some heat escapes before the ponds.'],
+   'ponds:pump house':['Pump house and control room','Pumps move POME between ponds when gravity is not enough. The log records levels, flows and pump hours.'],
+   'ponds:anaerobic pond':['Anaerobic pond','Deep and uncovered. Bacteria without air break down most of the waste and make biogas, but the methane escapes and the smell drifts. Sludge slowly fills the bottom.'],
+   'ponds:facultative pond':['Facultative pond','Oxygen near the surface, none at the bottom. Aerobic and anaerobic bacteria keep lowering the BOD, slowly.'],
+   'ponds:aerobic pond':['Aerobic pond','Shallow, sunlit and green. Algae and floating aerators add oxygen so bacteria can finish the clean-up.'],
+   'ponds:river':['River','The ponds discharge here. The village downstream fishes and washes in it, so the water must be safe.'],
+   'ponds:sampling point':['Final discharge sampling point','Samples taken here show whether the water leaving the ponds meets the DOE limit.'],
+   'ponds:drying beds':['Sludge drying beds','Sludge dug out of the ponds drains and dries here before it is moved.'],
+   'ponds:desludging':['Desludging','An excavator digs settled sludge out of the anaerobic pond so it keeps enough space to treat the POME.'],
+   'ponds:ponds need a lot of land':['Land footprint','A chain of ponds holds POME for a long time, so it needs far more land than a closed digester.'],
+   'ponds:flow meter':['Inlet flow meter','Shows how much POME the mill sends to the ponds each hour. More flow means more load on the ponds.'],
+   'ponds:heap':['Sludge stockpile','Dried sludge waits here for testing before composting or disposal.'],
+   'ponds:aerator':['Floating aerator','A motor spins paddles that throw water into the air, mixing in oxygen for the aerobic bacteria.'],
+   'ponds:egret':['Cattle egret','Water birds come to the shallow aerobic pond to feed. Clean, oxygen-rich water supports more life.']},
   trees:ctx=>crewTrees(ctx,ctx.W)
  });
 }

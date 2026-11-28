@@ -1,8 +1,12 @@
 import * as T from './three.module.min.js';
-import {texture,canvas as drawCanvas,grass,gravel,concrete,corrugated,sign,oilPalm,palmMaterial,environment,rippleNormal,sky,wind,premiumSurfaces,contactShadow,mergeStatic} from './life.mjs?v=shift17';
-import {TIERS,resolveTier} from './quality.mjs?v=shift17';
-import {frameBudget} from './frame-budget.mjs?v=shift17';
-import {warmShaders} from './warmup.mjs?v=shift17';
+import {texture,canvas as drawCanvas,grass,gravel,concrete,corrugated,sign,oilPalm,palmMaterial,environment,rippleNormal,sky,wind,premiumSurfaces,contactShadow,mergeStatic} from './life.mjs?v=shift18';
+import {TIERS,resolveTier} from './quality.mjs?v=shift18';
+import {frameBudget} from './frame-budget.mjs?v=shift18';
+import {warmShaders} from './warmup.mjs?v=shift18';
+import {populate} from './crew.mjs?v=shift18';
+import {explore} from './explore.mjs?v=shift18';
+import {pondsPlay} from './play.mjs?v=shift18';
+import {chemistry,seeds,legend} from './molecules.mjs?v=shift18';
 
 /*
  Conventional ponding system in 3D (shown when "Conventional ponds" is the pathway).
@@ -34,7 +38,7 @@ function mount(){
  ];
  const tierName=resolveTier(),tier=TIERS[tierName],hi=tier.detail>=.65;
  const view=document.createElement('div');view.className='reactor-view ponds-view';view.hidden=true;
- view.innerHTML='<div class="reactor-frame"><canvas tabindex="0" aria-label="Conventional ponding system in 3D. Drag to orbit, scroll to zoom, click a pond to learn about it."></canvas><span class="reactor-caption">Conventional ponds · open to the air</span><span class="ponds-alert" hidden>⚠ Overflow! Untreated POME is reaching the river</span><span class="hd-badge" hidden>HD</span></div><div class="reactor-controls"><label>Inspect <select aria-label="Inspect a pond"><option value="">Pond overview</option></select></label><button data-act="storm" aria-pressed="false">🌧️ Storm test</button><button data-act="gas" aria-pressed="true">CH₄ bubbles</button><button data-act="out" aria-label="Zoom out">−</button><button data-act="in" aria-label="Zoom in">+</button><button data-act="home">Reset view</button><small class="fps-meter"></small></div>';
+ view.innerHTML='<div class="reactor-frame"><canvas tabindex="0" aria-label="Conventional ponding system in 3D. Drag to orbit, scroll to zoom, click a pond to learn about it."></canvas><span class="reactor-caption">Conventional ponds · open to the air</span><span class="ponds-alert" hidden>⚠ Overflow! Untreated POME is reaching the river</span><span class="hd-badge" hidden>HD</span></div><div class="reactor-controls"><label>Inspect <select aria-label="Inspect a pond"><option value="">Pond overview</option></select></label><button data-act="storm" aria-pressed="false">🌧️ Storm test</button><button data-act="gas" aria-pressed="true">CH₄ bubbles</button><button data-act="mol" aria-pressed="false">Molecules</button><button data-act="out" aria-label="Zoom out">−</button><button data-act="in" aria-label="Zoom in">+</button><button data-act="home">Reset view</button><small class="fps-meter"></small></div>';
  diagram.before(view);
  const canvasEl=view.querySelector('canvas'),caption=view.querySelector('.reactor-caption'),alert=view.querySelector('.ponds-alert'),select=view.querySelector('select'),fps=view.querySelector('.fps-meter'),hdBadge=view.querySelector('.hd-badge');
  STAGES.forEach((s,i)=>select.add(new Option(s.name,i)));
@@ -58,7 +62,7 @@ function mount(){
  function pipe(a,b,r,m,p){const s=new T.Vector3(...a),e=new T.Vector3(...b),d=e.clone().sub(s);const o=add(new T.CylinderGeometry(r,r,d.length(),14),m,...s.clone().lerp(e,.5).toArray(),p);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return o}
  const run=(pts,r,m,p)=>pts.slice(1).forEach((q,i)=>pipe(pts[i],q,r,m,p));
  const pickables=[];
- function label(text,x,y,z,w,key,color='#e3ead9'){const c=document.createElement('canvas');c.width=1024;c.height=192;const g=c.getContext('2d');g.scale(2,2);g.fillStyle='#172d2b';g.fillRect(0,0,512,96);g.fillStyle=color;g.font='bold 40px Arial';g.textAlign='center';g.fillText(text,256,62);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.anisotropy=8;const s=new T.Sprite(new T.SpriteMaterial({map:t}));s.position.set(x,y,z);w*=1.35;s.scale.set(w,w*96/512,1);s.userData.stage=key;scene.add(s);if(key!==undefined)pickables.push(s);return s}
+ function label(text,x,y,z,w,key,color='#e3ead9'){const c=document.createElement('canvas');c.width=1024;c.height=192;const g=c.getContext('2d');g.scale(2,2);g.fillStyle='#172d2b';g.fillRect(0,0,512,96);g.fillStyle=color;g.font='bold 40px Arial';g.textAlign='center';g.fillText(text,256,62);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.anisotropy=8;const s=new T.Sprite(new T.SpriteMaterial({map:t}));s.position.set(x,y,z);w*=1.35;s.scale.set(w,w*96/512,1);s.userData.stage=key;s.userData.info='ponds:'+text.toLowerCase();scene.add(s);if(key!==undefined)pickables.push(s);return s}
 
  /* ---------- materials and textures ---------- */
  const TS=tier.texture;
@@ -168,7 +172,7 @@ function mount(){
  label('OIL TRAP',-8.9,1.55,-.2,1.25,0);
  const brownPipe=mat(0x6e4a2a,.5,.3);run([[-10.9,1.0,-.2],[-10.1,1.0,-.2],[-10.1,.65,-.2]],.09,brownPipe);run([[-7.8,.35,-.2],[-7.2,.35,-.2],[-7.2,.82,.8],[-6.2,.82,.8]],.09,brownPipe);
  for(const p of [[-10.5,1.0,-.2],[-7.5,.35,-.2]]){const f=add(new T.TorusGeometry(.11,.025,8,16),steel,...p);f.rotation.y=Math.PI/2}
- const wheel=add(new T.TorusGeometry(.1,.015,6,16),mat(0xc0392b,.5,.3),-7.2,1.05,.2);wheel.rotation.x=Math.PI/2;cyl(-7.2,.82,.2,.015,.22,steel);
+ cyl(-8.3,0,1.15,.03,.72,steel);
  // Pump house with transformer.
  const brick=mat(0xffffff,.85,0,{map:texture(drawCanvas(128,(g,s)=>{g.fillStyle='#9c5a3c';g.fillRect(0,0,s,s);g.fillStyle='#c9b9a3';for(let y=0;y<s;y+=16){g.fillRect(0,y,s,2);for(let x=(y/16%2)*16;x<s;x+=32)g.fillRect(x,y,2,16)}}),{repeat:[3,2]})});
  box(-9.6,0,-3,1.6,1.2,1.4,brick);box(-9.6,1.2,-3,1.9,.08,1.7,roofM);box(-8.79,0,-3,.02,.8,.5,mat(0x3f5a64,.5,.4));label('PUMP HOUSE',-9.6,1.8,-3,1.4,0);
@@ -190,9 +194,9 @@ function mount(){
  label('SAMPLING POINT',8.7,1.5,2.55,1.5,4,'#bfe8f0');
 
  /* ---------- fence, gate, signs and lifebuoys ---------- */
- const postGeo=new T.CylinderGeometry(.03,.03,.95,6),posts=[];for(let x=-7.6;x<=9.2;x+=.9)posts.push([x,4.35]);for(let z=-3.8;z<4.35;z+=.9)posts.push([-7.6,z]);
+ const postGeo=new T.CylinderGeometry(.03,.03,.95,6),posts=[];for(let x=-7.6;x<=9.2;x+=.9)posts.push([x,4.35]);
  const postMesh=new T.InstancedMesh(postGeo,steel,posts.length);posts.forEach(([x,z],i)=>{o.position.set(x,.47,z);o.rotation.set(0,0,0);o.scale.set(1,1,1);o.updateMatrix();postMesh.setMatrixAt(i,o.matrix)});postMesh.castShadow=true;scene.add(postMesh);
- for(const y of [.3,.6,.88]){pipe([-7.6,y,4.35],[-.6,y,4.35],.008,steel);pipe([.8,y,4.35],[9.2,y,4.35],.008,steel);pipe([-7.6,y,-3.8],[-7.6,y,4.35],.008,steel)}
+ for(const y of [.3,.6,.88]){pipe([-7.6,y,4.35],[-.6,y,4.35],.008,steel);pipe([.8,y,4.35],[9.2,y,4.35],.008,steel)}
  function signPost(spec,x,z,face=0){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=face;stat.add(g);add(new T.CylinderGeometry(.025,.025,1,8),steel,0,.5,0,g);const p=add(new T.PlaneGeometry(.6,.38),new T.MeshStandardMaterial({map:sign(spec),roughness:.6}),0,.95,.02,g);p.castShadow=false;add(new T.BoxGeometry(.62,.4,.02),dark,0,.95,0,g)}
  signPost({title:'DANGER',lines:['Deep water','No swimming'],symbol:'!'},-3,4.45);signPost({title:'NOTICE',lines:['Effluent ponds','Authorised only'],band:'#1f6fb2',symbol:'i'},.1,4.45);signPost({title:'CAUTION',lines:['Biogas & H₂S','No naked flames'],band:'#e2b03a',symbol:'!'},-6.6,4.45);
  const buoyMat=new T.MeshStandardMaterial({map:texture(drawCanvas(64,(g,s)=>{for(let i=0;i<8;i++){g.fillStyle=i%2?'#f4f1e6':'#e8541e';g.fillRect(i*s/8,0,s/8,s)}}),{repeat:[1,1]}),roughness:.5});
@@ -224,31 +228,20 @@ function mount(){
  const reedMesh=new T.InstancedMesh(tuftGeo,reedMat,reeds.length);reeds.forEach(([x,y,z],i)=>{o.position.set(x,y,z);o.rotation.set(0,rnd()*3,0);o.scale.set(.8,1.6+rnd()*.8,.8);o.updateMatrix();reedMesh.setMatrixAt(i,o.matrix)});scene.add(reedMesh);
  const palmGeo=oilPalm({fronds:hi?24:18,leaflets:hi?14:10,height:2.4,seed:9,bunches:2,lod:2}),palms=[];
  for(let i=0;i<(hi?110:80);i++){const a=rnd()*6.28,rr=16+rnd()*20;const x=Math.cos(a)*rr*1.1,z=Math.sin(a)*rr*.8;if(x>8&&x<15)continue;palms.push([x,z])}
- for(let x=-14;x<=8;x+=2.6)palms.push([x+(rnd()-.5)*.6,-9.4+(rnd()-.5)*.6]);
- const palmMesh=new T.InstancedMesh(palmGeo,palmMaterial(.02),palms.length);palms.forEach(([x,z],i)=>{o.position.set(x,0,z);o.rotation.set(0,rnd()*6.28,0);o.scale.setScalar(.85+rnd()*.35);o.updateMatrix();palmMesh.setMatrixAt(i,o.matrix)});palmMesh.castShadow=true;scene.add(palmMesh);
+ const nearPalms=[];for(let x=-14;x<=8;x+=2.6)nearPalms.push([x+(rnd()-.5)*.6,-9.4+(rnd()-.5)*.6]);
+ const nearGeo=oilPalm({fronds:hi?32:24,leaflets:hi?24:16,height:2.7,seed:13,bunches:3,lod:0}),nearMesh=new T.InstancedMesh(nearGeo,palmMaterial(.022),nearPalms.length);
+ nearPalms.forEach(([x,z],i)=>{o.position.set(x,0,z);o.rotation.set(0,rnd()*6.28,0);o.scale.setScalar(.95+rnd()*.25);o.updateMatrix();nearMesh.setMatrixAt(i,o.matrix)});nearMesh.castShadow=nearMesh.receiveShadow=true;nearMesh.userData.info='palm';scene.add(nearMesh);
+ const palmMesh=new T.InstancedMesh(palmGeo,palmMaterial(.02),palms.length);palms.forEach(([x,z],i)=>{o.position.set(x,0,z);o.rotation.set(0,rnd()*6.28,0);o.scale.setScalar(.85+rnd()*.35);o.updateMatrix();palmMesh.setMatrixAt(i,o.matrix)});palmMesh.castShadow=true;palmMesh.userData.info='palm';scene.add(palmMesh);
 
  /* ---------- moving things: aerators, egrets, people, flows, gas, rain, fish ---------- */
  const puffTex=new T.CanvasTexture(drawCanvas(64,(g,s)=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,.85)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)}));
  const sprite=(opts)=>{const s=new T.Sprite(new T.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:0,...opts}));scene.add(s);return s};
- const aerators=[[5.6,-.9],[7.2,1]].map(([x,z])=>{const g=new T.Group();g.position.set(x,WATER+.02,z);scene.add(g);add(new T.CylinderGeometry(.28,.32,.12,18),mat(0xd9d4c4,.5,.2),0,0,0,g);add(new T.CylinderGeometry(.06,.06,.3,8),mat(0x52605d,.4,.6),0,.2,0,g);const rot=new T.Group();g.add(rot);for(let k=0;k<4;k++){const b=add(new T.BoxGeometry(.34,.03,.07),mat(0x2f3a38,.5,.5),0,.32,0,rot);b.rotation.y=k*Math.PI/4}return {g,rot}});
+ const aerators=[[5.6,-.9],[7.2,1]].map(([x,z])=>{const g=new T.Group();g.position.set(x,WATER+.02,z);scene.add(g);add(new T.CylinderGeometry(.28,.32,.12,18),mat(0xd9d4c4,.5,.2),0,0,0,g).userData.info='ponds:aerator';add(new T.CylinderGeometry(.06,.06,.3,8),mat(0x52605d,.4,.6),0,.2,0,g);const rot=new T.Group();g.add(rot);for(let k=0;k<4;k++){const b=add(new T.BoxGeometry(.34,.03,.07),mat(0x2f3a38,.5,.5),0,.32,0,rot);b.rotation.y=k*Math.PI/4}return {g,rot}});
  const splash=Array.from({length:14},(_,i)=>{const s=sprite({color:0xe8fff4});s.userData={o:i/14,a:aerators[i%2].g};return s});
  const smoke=Array.from({length:8},(_,i)=>{const s=sprite({});s.userData.o=i/8;return s});
  const egretMat=mat(0xf6f4ee,.6),legMat=mat(0x2b2b28,.6);
- const egrets=[[5.3,1.3],[7.4,-1.2],[6.2,1.8]].map(([x,z],i)=>{const g=new T.Group();g.position.set(x,WATER-.05,z);g.rotation.y=i*2;g.scale.setScalar(.7);scene.add(g);const body=add(new T.SphereGeometry(.09,12,8),egretMat,0,.28,0,g);body.scale.set(1.6,1,1);const neck=new T.Group();neck.position.set(.11,.32,0);g.add(neck);add(new T.CylinderGeometry(.018,.022,.2,8),egretMat,0,.1,0,neck);add(new T.SphereGeometry(.03,10,8),egretMat,0,.21,0,neck);add(new T.ConeGeometry(.012,.09,6),mat(0xe6b33a,.5),.05,.21,0,neck).rotation.z=-Math.PI/2;for(const z of [-.03,.03])add(new T.CylinderGeometry(.007,.007,.24,5),legMat,0,.12,z,g);return {g,neck,o:i*1.3}});
+ const egrets=[[5.3,1.3],[7.4,-1.2],[6.2,1.8]].map(([x,z],i)=>{const g=new T.Group();g.position.set(x,WATER-.05,z);g.rotation.y=i*2;g.scale.setScalar(.7);scene.add(g);const body=add(new T.SphereGeometry(.09,12,8),egretMat,0,.28,0,g);body.userData.info='ponds:egret';body.scale.set(1.6,1,1);const neck=new T.Group();neck.position.set(.11,.32,0);g.add(neck);add(new T.CylinderGeometry(.018,.022,.2,8),egretMat,0,.1,0,neck);add(new T.SphereGeometry(.03,10,8),egretMat,0,.21,0,neck);add(new T.ConeGeometry(.012,.09,6),mat(0xe6b33a,.5),.05,.21,0,neck).rotation.z=-Math.PI/2;for(const z of [-.03,.03])add(new T.CylinderGeometry(.007,.007,.24,5),legMat,0,.12,z,g);return {g,neck,o:i*1.3}});
  const live=[];
- function person(shirt,hat){const g=new T.Group();scene.add(g);const skin=mat(0x8d5a3b,.7),pants=mat(0x2d3a4a,.8);
-  const legs=[-.06,.06].map(x=>{const l=new T.Group();l.position.set(x,.42,0);g.add(l);add(new T.BoxGeometry(.08,.42,.09),pants,0,-.21,0,l);return l});
-  add(new T.BoxGeometry(.26,.34,.15),mat(shirt,.7),0,.6,0,g);add(new T.BoxGeometry(.27,.04,.16),mat(0xd8e24a,.5,0,{emissive:0x333300}),0,.66,0,g);
-  add(new T.SphereGeometry(.085,14,10),skin,0,.86,0,g);add(new T.SphereGeometry(.095,14,8,0,Math.PI*2,0,Math.PI/2),mat(hat,.4,.1),0,.89,0,g);
-  const arms=[-.17,.17].map(x=>{const a=new T.Group();a.position.set(x,.74,0);g.add(a);add(new T.BoxGeometry(.06,.3,.07),mat(shirt,.7),0,-.15,0,a);return a});return {g,legs,arms}}
- const sampler=person(0x2f6fa6,0xffffff),operator=person(0xd9772a,0xf2c230),driver=person(0x3f7f55,0xf2c230);
- add(new T.CylinderGeometry(.025,.025,.09,10),mat(0xd8ecf2,.1,0,{transparent:true,opacity:.8}),0,-.3,.04,sampler.arms[1]);
- operator.g.position.set(-8.9,.62,.72);operator.g.rotation.y=Math.PI;driver.g.position.set(-4.4,0,-4.9);driver.g.rotation.y=.6;
- const route=[[-6.8,3.75],[8.3,3.75],[8.3,2.55],[8.3,3.75]];let leg=0,legT=0;
- live.push((dt,t)=>{const [ax,az]=route[leg],[bx,bz]=route[(leg+1)%route.length],len=Math.hypot(bx-ax,bz-az);legT+=dt*.7/len;if(legT>=1){legT=0;leg=(leg+1)%route.length}
-  const pause=leg===2;const k=pause?1:legT;sampler.g.position.set(ax+(bx-ax)*k,0,az+(bz-az)*k);sampler.g.rotation.y=Math.atan2(bx-ax,bz-az);
-  const sw=pause?0:Math.sin(t*7)*.5;sampler.legs[0].rotation.x=sw;sampler.legs[1].rotation.x=-sw;sampler.arms[0].rotation.x=-sw*.7;sampler.arms[1].rotation.x=pause?-1.1+.3*Math.sin(t*2):sw*.7;
-  operator.arms[1].rotation.x=-.9+.5*Math.sin(t*1.6);operator.arms[0].rotation.x=-.4;driver.arms[0].rotation.x=-.3+.2*Math.sin(t*.8)});
  const parcelPaths=[[[-10.9,1.0,-.2],[-10.1,1.0,-.2]],[[-7.8,.35,-.2],[-7.2,.35,-.2]],[[-7.2,.82,.8],[-6.2,.82,.8]],[[-1.55,.7,.8],[-.95,.7,.8]],[[3.65,.7,.8],[4.55,.7,.8]],[[9.0,.74,1.6],[9.9,.2,1.6]]];
  const parcels=new T.InstancedMesh(new T.SphereGeometry(.05,8,6),mat(0x8a5a2a,.4,0,{emissive:0x2a1400}),parcelPaths.length*3);parcels.frustumCulled=false;scene.add(parcels);
  live.push((dt,t)=>{parcelPaths.forEach(([a,b],i)=>{for(let k=0;k<3;k++){const f=(t*.35+k/3+i*.13)%1;o.position.set(a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f+.06,a[2]+(b[2]-a[2])*f);o.rotation.set(0,0,0);o.scale.setScalar(1);o.updateMatrix();parcels.setMatrixAt(i*3+k,o.matrix)}});parcels.instanceMatrix.needsUpdate=true});
@@ -266,6 +259,25 @@ function mount(){
  const fish=[0,1,2].map(i=>{const f=add(new T.SphereGeometry(.1,10,8),mat(0x9fb3b8,.3,.4),11.4,-1,-4+i*4,scene,false);f.scale.set(2.2,.8,.8);f.userData.o=i*1.7;return f});
  const birds=Array.from({length:5},(_,i)=>{const g=new T.Group();scene.add(g);const w1=add(new T.BoxGeometry(.3,.01,.08),mat(0x2b2b28,.7),.15,0,0,g,false),w2=add(new T.BoxGeometry(.3,.01,.08),mat(0x2b2b28,.7),-.15,0,0,g,false);return {g,w1,w2,a:i*1.25,r:9+i*1.6,h:5+i*.5}});
 
+ /* ---------- embankment ground model: crest height, slopes and the water you cannot walk into ---------- */
+ function sdPond(P,x,z){const r=.9,qx=Math.abs(x-P.cx)-(P.w/2-r),qz=Math.abs(z)-(P.d/2-r);return Math.hypot(Math.max(qx,0),Math.max(qz,0))+Math.min(Math.max(qx,qz),0)-r}
+ function bankHeight(sd){if(sd>=1.35)return 0;if(sd>=.55)return CREST*(1.35-sd)/.8;if(sd>=0)return CREST;if(sd>=-.8)return CREST+(FLOOR-CREST)*(-sd/.8);return FLOOR}
+ const groundAt=(x,z)=>Math.max(0,...ponds.map(P=>bankHeight(sdPond(P,x,z))));
+ const edge=(x,z)=>ponds.findIndex(P=>{const d=sdPond(P,x,z);return d>-.12&&d<.62});
+ const blocked=(x,z)=>ponds.some(P=>sdPond(P,x,z)<-.14);
+ /* ---------- the crew: every worker has a shift of real jobs around the ponds ---------- */
+ const world=populate(scene,{steel,brass:mat(0xc9a23f,.4,.6),cement:cementMat,dark,base:mat(0x6f7f60,.9),leaf:mat(0x506a43,.78)},'ponds');
+ /* ---------- molecules: what happens inside each pond (toggle "Molecules") ---------- */
+ const C=chemistry(scene,{ch4:120,co2:120,o2:160,h2o:120,nh4:40,no3:40,h2s:30,acetate:60,cod:160,oil:50,floc:60,bubble:120},1.3,{density:tier.molecules,detail:hi?1:.7});C.show(false);
+ const MS={anC:seeds(70,3,201),anG:seeds(26,3,203),fa:seeds(40,3,207),ae:seeds(40,3,211),oil:seeds(24,3,213),nit:seeds(16,3,217)};
+ function molecules(t){C.begin();const y1=P1.surf.position.y,y3=P3.surf.position.y;
+  for(const [a,b,c] of MS.anC){const f=(a+t*.03)%1;C.put(f<.5?'cod':'acetate',-4.2+(b-.5)*4.2+.3*Math.sin(t*.2+a*9),.12+.3*c+.05*Math.sin(t+b*7),(c-.5)*3.4,.07,t*.5+a*6)}
+  for(const [a,b,c] of MS.anG){const f=(a+t*.12)%1;const x=-4.2+(b-.5)*4,z=(c-.5)*3.2;C.put(b<.82?'ch4':'h2s',x,f<.45?.1+f*.95:y1+(f-.45)*3.2,z+(f>.45?(f-.45)*.8:0),.085,t+a*5);if(f>.45&&b<.3)C.put('co2',x+.2,y1+(f-.45)*2.6,z,.07,t+b*4)}
+  for(const [a,b,c] of MS.fa){const f=(a+t*.05)%1,x=1.4+(b-.5)*3.8,z=(c-.5)*3.2;if(c<.5)C.put('o2',x,P2.surf.position.y-.05-.06*f,z,.07,t+a*4);else C.put(f<.6?'cod':'co2',x,.2+.25*f,z,.06,t+a*6)}
+  for(const [a,b,c] of MS.ae){const f=(a+t*.2)%1,ar=aerators[b<.5?0:1].g.position,ang=a*6.283+t*.3;C.put('o2',ar.x+Math.cos(ang)*(.3+f*1.1),y3-.05-.2*f,ar.z+Math.sin(ang)*(.3+f*1.1),.07,t+a*3)}
+  for(const [a,b,c] of MS.nit){const f=(a+t*.06)%1,x=6.4+(b-.5)*2.8,z=(c-.5)*3;C.put(f<.5?'nh4':'no3',x,y3-.12,z,.075,t+a*5);if(c<.3)C.put('floc',x+.15,y3-.2,z,.06,t)}
+  for(const [a,b,c] of MS.oil){const x=-8.9+(b-.5)*1.7,z=-.2+(c-.5)*1.2;C.put('oil',x+.05*Math.sin(t+a*7),.565,z,.07,a*3)}
+  C.end()}
  premiumSurfaces(scene,tier,renderer);mergeStatic(stat);
 
  /* ---------- camera, picking, controls ---------- */
@@ -274,15 +286,23 @@ function mount(){
  function inspect(i){const s=STAGES[i];if(!s)return home();select.value=String(i);goal.set(...s.at);dist=s.d;caption.textContent=s.text;budget.refreshShadows()}
  select.onchange=()=>select.value===''?home():inspect(+select.value);
  let drag=null,moved=0;const ray=new T.Raycaster();
+ const orbit=(dx,dy)=>{yaw-=dx;pitch=Math.max(.12,Math.min(1.35,pitch+dy))};
+ function pick(u,v){ray.setFromCamera(new T.Vector2(u*2-1,1-v*2),camera);const hit=ray.intersectObjects(pickables,false)[0];if(hit)inspect(hit.object.userData.stage)}
+ const visitor=explore(view,canvasEl,camera,world,orbit,pick,()=>{},d=>{dist=Math.max(3.5,Math.min(34,dist+d))});
+ let stormT=0;
+ const play=pondsPlay({scene,camera,canvas:canvasEl,viewport:view.querySelector('.reactor-frame'),world,visitor,flows:{},isPond:()=>true,isPolluted:()=>stormT>.7,groundAt,edge,blocked,palmSpots:nearPalms});
+ world.setRiverHealth?.(()=>stormT<.6);
+ const chemKey=legend(view.querySelector('.reactor-frame'),{open:false});chemKey.hidden=true;
  canvasEl.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};moved=0;canvasEl.setPointerCapture(e.pointerId)});
- canvasEl.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;moved+=Math.abs(dx)+Math.abs(dy);yaw-=dx*.006;pitch=Math.max(.12,Math.min(1.35,pitch+dy*.005));drag={x:e.clientX,y:e.clientY}});
- canvasEl.addEventListener('pointerup',e=>{if(drag&&moved<6){const r=canvasEl.getBoundingClientRect();ray.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1),camera);const hit=ray.intersectObjects(pickables,false)[0];if(hit)inspect(hit.object.userData.stage)}drag=null});
- canvasEl.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(3.5,Math.min(34,dist*(e.deltaY>0?1.1:.9)))},{passive:false});
- canvasEl.addEventListener('keydown',e=>{const k={ArrowLeft:()=>yaw+=.12,ArrowRight:()=>yaw-=.12,ArrowUp:()=>pitch=Math.min(1.35,pitch+.08),ArrowDown:()=>pitch=Math.max(.12,pitch-.08)}[e.key];if(k){k();e.preventDefault()}});
- let storm=false,stormT=0;
+ canvasEl.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;moved+=Math.abs(dx)+Math.abs(dy);if(visitor.isWalking())visitor.look(dx*.009,dy*.007);else orbit(dx*.006,dy*.005);drag={x:e.clientX,y:e.clientY}});
+ canvasEl.addEventListener('pointerup',e=>{if(drag&&moved<6&&document.pointerLockElement!==canvasEl){const r=canvasEl.getBoundingClientRect(),u=(e.clientX-r.left)/r.width,v=(e.clientY-r.top)/r.height;if(!play.handleClick(u,v)&&!visitor.isWalking())pick(u,v)}drag=null});
+ canvasEl.addEventListener('wheel',e=>{if(visitor.isWalking())return;e.preventDefault();dist=Math.max(3.5,Math.min(34,dist*(e.deltaY>0?1.1:.9)))},{passive:false});
+ canvasEl.addEventListener('keydown',e=>{if(visitor.isWalking())return;const k={ArrowLeft:()=>yaw+=.12,ArrowRight:()=>yaw-=.12,ArrowUp:()=>pitch=Math.min(1.35,pitch+.08),ArrowDown:()=>pitch=Math.max(.12,pitch-.08)}[e.key];if(k){k();e.preventDefault()}});
+ let storm=false;
  view.querySelector('.reactor-controls').addEventListener('click',e=>{const a=e.target.closest('button')?.dataset.act;if(!a)return;
   if(a==='storm'){storm=!storm;e.target.setAttribute('aria-pressed',String(storm));rain.visible=storm;caption.textContent=storm?'Storm test · heavy rain fills the open ponds. Watch the last pond and the river.':'Conventional ponds · open to the air';if(storm){goal.set(5,0,0);dist=18}}
   if(a==='gas'){const on=e.target.getAttribute('aria-pressed')!=='true';e.target.setAttribute('aria-pressed',String(on));bubbles.visible=rings.visible=on;gas.forEach(s=>s.visible=on)}
+  if(a==='mol'){const on=e.target.getAttribute('aria-pressed')!=='true';e.target.setAttribute('aria-pressed',String(on));C.show(on);chemKey.hidden=!on}
   if(a==='in')dist=Math.max(3.5,dist*.85);if(a==='out')dist=Math.min(34,dist*1.18);if(a==='home')home()});
 
  /* ---------- loop ---------- */
@@ -312,17 +332,18 @@ function mount(){
   birds.forEach(b=>{const a=b.a+time*.25;b.g.position.set(-1+Math.cos(a)*b.r,b.h+.3*Math.sin(time+b.a),Math.sin(a)*b.r*.6);b.g.rotation.y=-a;const fl=.6*Math.sin(time*9+b.a*4);b.w1.rotation.z=fl;b.w2.rotation.z=-fl});
   fish.forEach(f=>{const c=(time*.5+f.userData.o)%5;const healthy=stormT<.6;f.visible=healthy&&c<.7;if(f.visible){f.position.y=.05+Math.sin(c/.7*Math.PI)*.45;f.rotation.z=Math.cos(c/.7*Math.PI)*.9}});
   for(const fn of live)fn(dt,time);
+  world.animate(time);const walking=visitor.frame(dt);play.update(dt);if(C.root.visible)molecules(time);
   upper.rotation.y=Math.sin(time*.35)*.5;arm.rotation.z=-.15+Math.sin(time*.6)*.22;fore.rotation.z=-.35+Math.sin(time*.6+1)*.35;bed.rotation.z=Math.max(0,Math.sin(time*.2))*.35;
   const k=1-Math.exp(-dt*6);sy+=(yaw-sy)*k;sp2+=(pitch-sp2)*k;sd+=(dist-sd)*k;look.lerp(goal,k);
-  camera.position.set(look.x+sd*Math.cos(sp2)*Math.sin(sy),look.y+sd*Math.sin(sp2),look.z+sd*Math.cos(sp2)*Math.cos(sy));camera.lookAt(look);
+  if(!walking){camera.position.set(look.x+sd*Math.cos(sp2)*Math.sin(sy),look.y+sd*Math.sin(sp2),look.z+sd*Math.cos(sp2)*Math.cos(sy));camera.lookAt(look)}else look.copy(visitor.position);
   // HD when close: shadows fitted tightly around what you are looking at.
-  if(!close&&sd<8.5)fitShadow(true);else if(close&&sd>10.5)fitShadow(false);else if(close&&look.distanceTo(lastFit)>1.5){fitShadow(true)}
+  const near=walking||sd<8.5;if(!close&&near)fitShadow(true);else if(close&&!walking&&sd>10.5)fitShadow(false);else if(close&&look.distanceTo(lastFit)>1.5){fitShadow(true)}
   if(close&&look.distanceTo(lastFit)>1.5)lastFit.copy(look);
   renderer.render(scene,camera);budget.end();
  }
  requestAnimationFrame(frame);
- function sync(){const on=option.classList.contains('active');view.hidden=!on;if(on){diagram.style.display='none';budget.refreshShadows()}}
+ function sync(){const on=option.classList.contains('active');view.hidden=!on;if(!on)visitor.stop();if(on){diagram.style.display='none';budget.refreshShadows()}}
  new MutationObserver(sync).observe(option,{attributes:true,attributeFilter:['class']});sync();
  canvasEl.addEventListener('webglcontextlost',()=>{view.remove();delete panel.dataset.ponds3d;diagram.style.display=''});
- if(new URLSearchParams(location.search).has('debug'))window.__ponds={renderer,scene,camera,budget,inspect,atmosphere};
+ if(new URLSearchParams(location.search).has('debug'))window.__ponds={renderer,scene,camera,budget,inspect,atmosphere,world,visitor,play,groundAt,edge,blocked};
 }

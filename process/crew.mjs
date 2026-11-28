@@ -1,5 +1,5 @@
 import * as T from './three.module.min.js';
-import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift17';
+import {blobShadow,oilPalm,palmMaterial} from './life.mjs?v=shift18';
 
 // Each worker has a person behind the role (used for name tags and conversations).
 const PEOPLE=['Azlan','Mei Ling','Ravi','Siti','Farid','Hafiz','Joko','Pak Ali'];
@@ -144,7 +144,72 @@ const LAYOUTS={
    ]}
   ],
   harvest:{palms:[[10.2,-3],[12.8,-1.5],[10.2,0],[12.8,1.5],[10.2,2.9],[12.8,-4.2]],pile:[11.5,-4.7],y:0,worker:5},
-  fishing:{worker:6,spots:[[1.7,3.48],[-1.0,3.48]]}}
+  fishing:{worker:6,spots:[[1.7,3.48],[-1.0,3.48]]}},
+ // Conventional ponds (ponds3d.mjs): ground at y=0, embankment crests at y=.7.
+ ponds:{
+  y0:0,backdrop:false,
+  skip:[-9.9,2.1],heap:[2.5,-4.9],valve:[-8.3,.9,1.15],stile:null,barrow:[-2.6,-7.2],
+  bench:[4.0,4.0],dial:[-8.3,-1.6],
+  roles:[
+   {name:'Shift operator',kit:'operator',skin:0xb98767,helmet:0xf0ede0,start:[-9.2,1.35],toss:1,plan:[
+    ['do','rake',10,[-8.9,-.2],'Skimming oil and fibre off the oil trap'],
+    ['go',[[-9.9,1.7]],{tool:'rake',label:'Carrying skimmings to the skip'}],
+    ['do','dump',3,[-9.9,2.1],'Tipping skimmings into the skip'],
+    ['go',[[-8.3,1.75]],{label:'Walking to the pond inlet valve'}],
+    ['do','valve',6,[-8.3,1.15],'Adjusting the POME flow into the anaerobic pond'],
+    ['go',[[-8.4,3.8],[-4.2,3.8],[-4.2,3.1,.39],[-4.2,2.55,.7]],{label:'Climbing the bank to check the anaerobic pond'}],
+    ['do','clipboard',6,[-4.2,0],'Logging the pond level and the thickness of the scum crust'],
+    ['go',[[-4.2,3.1,.39],[-4.2,3.8],[-8.4,3.8],[-9.2,1.35]],{label:'Returning to the oil trap'}]
+   ]},
+   {name:'Water sampler',kit:'sampler',skin:0x875846,helmet:0xffbf39,start:[6.4,3.8],plan:[
+    ['go',[[6.4,3.1,.39],[6.4,2.55,.7]],{label:'Climbing the bank of the aerobic pond'}],
+    ['do','dip',7,[6.4,0],'Dipping a sample from the aerobic pond'],
+    ['go',[[6.4,3.1,.39],[6.4,3.8],[4.0,3.8],[4.0,3.55]],{carry:'bottle',label:'Carrying the sample to the field bench'}],
+    ['do','test',9,[4.0,4.0],'Testing pH, dissolved oxygen and BOD'],
+    ['do','clipboard',4,[4.0,4.0],'Recording the results in the pond log'],
+    ['go',[[4.0,3.8],[8.9,3.8],[9.3,2.45]],{carry:'bottle',label:'Walking to the final discharge sampling point'}],
+    ['do','dip',6,[9.3,1.6],'Sampling the final discharge at the V-notch weir'],
+    ['go',[[8.9,3.8],[6.4,3.8]],{carry:'bottle',label:'Heading back to the aerobic pond'}]
+   ]},
+   {name:'Pump technician',kit:'tech',skin:0xc59878,helmet:0xffc548,start:[-8.3,-2.2],plan:[
+    ['do','tablet',6,[-8.3,-1.6],'Reading the pond inlet flow meter'],
+    ['go',[[-8.35,-3.0]],{label:'Walking to the pump house'}],
+    ['do','kneel',10,[-8.8,-3.0],'Servicing the transfer pump: seals, bearings and strainer'],
+    ['do','tablet',5,[-8.8,-3.0],'Logging pump hours and power use'],
+    ['go',[[-8.3,-2.2]],{label:'Returning to the flow meter'}]
+   ]},
+   {name:'Sludge handler',kit:'handler',skin:0x9c6b4f,helmet:0x74c8a4,start:[-2.6,-6.75],toss:1,plan:[
+    ['do','shovel',10,[-2.6,-5.6],'Shovelling dried sludge cake into the barrow'],
+    ['go',[[-.9,-7.05],[2.1,-6.2],[2.1,-5.45]],{push:true,label:'Wheeling sludge cake to the stockpile'}],
+    ['do','tip',3.5,[2.5,-4.9],'Tipping cake onto the stockpile'],
+    ['go',[[2.1,-6.2],[-.9,-7.05],[-2.6,-6.75]],{push:true,label:'Returning with the empty barrow'}]
+   ]},
+   {name:'Gas safety officer',kit:'officer',skin:0xa77657,helmet:0xf4f1e6,start:[-2.0,3.8],plan:[
+    ['go',[[-2.0,3.1,.39],[-2.0,2.55,.7]],{label:'Climbing to the anaerobic pond'}],
+    ['do','detector',8,[-3.2,0],'Measuring CH₄ and H₂S above the open pond'],
+    ['go',[[-2.0,3.1,.39],[-2.0,3.8],[8.6,3.8],[9.1,2.6]],{label:'Patrolling to the discharge channel'}],
+    ['do','detector',6,[9.5,1.6],'Checking the discharge for foam, odour and colour'],
+    ['go',[[8.6,3.8],[-2.0,3.8]],{label:'Walking back to the ponds'}]
+   ]},
+   {name:'FFB harvester',kit:'harvester',skin:0x7a4e35,helmet:0xd8c9a0,start:[-11.2,6.0],plan:[
+    ['go',[[-12.4,6.0]],{tool:'pole',label:'Walking the harvest path'}],
+    ['do','harvest',7,[-13.4,6.0],'Cutting a ripe bunch with the egrek'],
+    ['do','gather',3,[-13.4,6.0],'Picking up the bunch and loose fruit'],
+    ['go',[[-12.4,8.2]],{carry:'ffb',label:'Moving to the next ripe palm'}],
+    ['do','harvest',7,[-13.4,8.2],'Cutting a ripe bunch with the egrek'],
+    ['do','gather',3,[-13.4,8.2],'Picking up the bunch and loose fruit'],
+    ['go',[[-11.2,6.0]],{carry:'ffb',label:'Carrying bunches to the collection point'}],
+    ['do','load',3,[-10.4,6.0],'Stacking bunches for the mill lorry']
+   ]},
+   {name:'Village angler',kit:'angler',skin:0x6e4a33,helmet:0x2a2a2a,start:[9.3,-3],plan:[
+    ['do','fish',24,[11.4,-3],'Fishing from the river bank below the ponds'],
+    ['go',[[9.3,-4.8],[9.3,-6.5]],{tool:'rod',label:'Moving to a new fishing spot'}],
+    ['do','fish',20,[11.4,-6.5],'Fishing from the river bank'],
+    ['go',[[9.3,-4.8],[9.3,-3]],{tool:'rod',label:'Moving back to the first spot'}]
+   ]}
+  ],
+  harvest:{palms:[[-13.4,6.0],[-13.4,8.2],[-15.6,6.0],[-15.6,8.2],[-13.4,10.4],[-15.6,10.4]],pile:[-10.4,6.0],y:0,worker:5},
+  fishing:{worker:6,spots:[[9.3,-3],[9.3,-6.5]]}}
 };
 
 const ease=x=>.5-.5*Math.cos(Math.PI*Math.min(1,Math.max(0,x)));
@@ -172,7 +237,7 @@ function compile(role){
 
 export function populate(scene, materials, arcade=false){
  const {steel,brass,cement,dark,base}=materials;
- const layout=arcade?LAYOUTS.arcade:LAYOUTS.reactor;
+ const layout=typeof arcade==='string'?LAYOUTS[arcade]:arcade?LAYOUTS.arcade:LAYOUTS.reactor,Y0=layout.y0??.11;
  const mat=(color,roughness=.78,metalness=0)=>new T.MeshStandardMaterial({color,roughness,metalness});
  const navy=mat(0x273e50),stripe=mat(0xe1ebad),boots=mat(0x342d29),leaf=materials.leaf||mat(0x506a43),bark=mat(0x79634a),roof=mat(0x688383);
  const wood=mat(0x9a7448,.85),rubber=mat(0x1d2222,.9),glove=mat(0xd9c46a,.85),paper=mat(0xf2efe2,.9),screen=new T.MeshStandardMaterial({color:0x5fd4e6,emissive:0x2b8fa8,emissiveIntensity:.9,roughness:.3});
@@ -428,7 +493,7 @@ export function populate(scene, materials, arcade=false){
  const player=roles[0].actor;
 
  /* ---------- shared world props: skip, valve wheel, stile, barrow, compost heap ---------- */
- const skip=new T.Group();skip.position.set(layout.skip[0],.09,layout.skip[1]);scene.add(skip);
+ const skip=new T.Group();skip.position.set(layout.skip[0],Y0-.02,layout.skip[1]);scene.add(skip);
  box(skip,mat(0x2f6b5a,.6,.3),0,.2,0,.62,.4,.44);box(skip,dark,0,.41,0,.66,.03,.48);
  const skipFill=box(skip,screenings,0,.38,0,.56,.06,.38);for(let k=0;k<7;k++)oval(skip,screenings,-.22+k*.075,.43,(k%3-1)*.1,.05,.035,.04);
  const valve=new T.Group();valve.position.set(...layout.valve);scene.add(valve);
@@ -440,7 +505,7 @@ export function populate(scene, materials, arcade=false){
  if(layout.stile){const [sx,sz]=layout.stile,stile=new T.Group();stile.position.set(sx,.09,sz);scene.add(stile);
   box(stile,mat(0x9aa7a0,.4,.6),0,.19,0,.42,.035,.46);for(const dz of [-.37,.37])box(stile,mat(0x9aa7a0,.4,.6),0,.09,dz,.42,.03,.2);
   for(const dx of [-.2,.2]){for(const dz of [-.18,.18])box(stile,steel,dx,.095,dz,.03,.2,.03);box(stile,brass,dx,.48,0,.025,.025,.5);for(const dz of [-.22,.22])box(stile,brass,dx,.34,dz,.025,.3,.025)}}
- const heap=new T.Group();heap.position.set(layout.heap[0],.09,layout.heap[1]);scene.add(heap);
+ const heap=new T.Group();heap.position.set(layout.heap[0],Y0-.02,layout.heap[1]);scene.add(heap);
  for(let k=0;k<9;k++){const a=k*2.3,r=k?.18+.06*(k%3):0;oval(heap,cake,Math.cos(a)*r,.06+(k?0:.08),Math.sin(a)*r,.24-r*.4,.13+(k?0:.05),.22-r*.3)}
  for(let k=0;k<3;k++)oval(heap,leaf,-.2+k*.18,.05,.28,.06,.03,.05);
  const barrow=new T.Group();scene.add(barrow);
@@ -451,7 +516,7 @@ export function populate(scene, materials, arcade=false){
  const tyre=new T.Mesh(new T.TorusGeometry(.11,.035,8,18),rubber);tyre.rotation.y=Math.PI/2;tyre.position.set(0,.14,-.33);tyre.castShadow=true;tray.add(tyre);
  const barrowLoad=oval(tray,cake,0,.4,0,.17,.08,.22);
  tray.traverse(o=>{if(o.isMesh)o.castShadow=false});const barrowBlob=blobShadow(.42,.32);barrowBlob.position.set(0,.006,0);barrow.add(barrowBlob);
- let barrowPos=new T.Vector3(layout.barrow[0],.09,layout.barrow[1]),barrowHeading=0;
+ let barrowPos=new T.Vector3(layout.barrow[0],Y0-.02,layout.barrow[1]),barrowHeading=0;
 
  /* ---------- instanced backdrop: fence, shed, pipe rack, palms, bench, dial ---------- */
  const batches=new Map();
@@ -459,6 +524,8 @@ export function populate(scene, materials, arcade=false){
   const key=geo.uuid+m.uuid;if(!batches.has(key))batches.set(key,{geo,m,list:[]});
   const o=new T.Object3D();o.position.set(x,y,z);o.scale.set(w,h,d);o.rotation.set(rx,ry,rz);o.updateMatrix();batches.get(key).list.push(o.matrix);
  }
+ const po=new T.Object3D();
+ if(layout.backdrop!==false){
  for(let i=-10;i<=10;i++){repeat(cube,steel,i,-.03+.66,-4.6,.048,1.4,.048);if(i<10)for(const y of [.35,.9])repeat(cube,steel,i+.5,y,-4.6,1,.03,.035)}
  for(let i=0;i<6;i++){repeat(cube,brass,-5.7+i*2.2,.112,2.91,.9,.011,.055)}
  box(scene,base,-6,.8,-7,4.6,1.9,2.35);for(let i=0;i<45;i++)repeat(cube,roof,-8.24+i*.102,.9,-5.81,.039,1.94,.04);
@@ -467,9 +534,10 @@ export function populate(scene, materials, arcade=false){
  for(const z of [-5.9,-6.48]){repeat(cube,steel,1.52,.53,z,.09,1.1,.09);repeat(cube,steel,4.18,.53,z,.09,1.1,.09);repeat(cube,brass,2.85,.71,z,2.83,.055,.065)}
  for(let k=0;k<5;k++)repeat(tube,steel,2.85,.84,-5.88-k*.145,.07,3.4,.07,0,0,Math.PI/2);
  // Background oil palms (instanced, sway in the wind).
- const backPalms=new T.InstancedMesh(oilPalm({fronds:16,leaflets:9,height:2.9,seed:31,bunches:1,lod:1}),palmMaterial(.012),22),po=new T.Object3D();
+ const backPalms=new T.InstancedMesh(oilPalm({fronds:16,leaflets:9,height:2.9,seed:31,bunches:1,lod:1}),palmMaterial(.012),22);
  for(let i=0;i<22;i++){const x=-18+(i%11)*3.5,z=-11-Math.floor(i/11)*5-Math.sin(i*3)*1.3,h=2.8+.48*Math.sin(i*5.2);po.position.set(x,layout.harvest?.y??0,z);po.rotation.set(0,i*1.7,0);po.scale.setScalar(h/2.9);po.updateMatrix();backPalms.setMatrixAt(i,po.matrix)}
  backPalms.castShadow=true;backPalms.receiveShadow=true;backPalms.userData.info='palm';scene.add(backPalms);
+ }
  /* ---------- harvest block: palms with ripe bunches, collection pile ---------- */
  const harvest=layout.harvest,harvestState=[];
  if(harvest){const hp=new T.InstancedMesh(oilPalm({fronds:24,leaflets:15,height:2.6,seed:61,bunches:2,lod:1}),palmMaterial(.02),harvest.palms.length);hp.userData.info='palm';
@@ -483,7 +551,7 @@ export function populate(scene, materials, arcade=false){
   const hr=roles[harvest.worker];harvestState.forEach(h=>{const k=hr.steps.findIndex(s=>s.job==='harvest'&&s.face&&Math.hypot(s.face[0]-h.x,s.face[1]-h.z)<.01);h.hs=k;
    const sx=k>=0?hr.steps[k].at[0]:h.x+1,sz=k>=0?hr.steps[k].at[1]:h.z,d=Math.hypot(sx-h.x,sz-h.z)||1;h.cx=h.x+(sx-h.x)/d*.24;h.cz=h.z+(sz-h.z)/d*.24;h.gx=h.x+(sx-h.x)*.55;h.gz=h.z+(sz-h.z)*.55})}
  const fishing=layout.fishing;let line=null,bobber=null,fish=null;
- if(fishing){for(const [x,z] of fishing.spots){box(scene,wood,x,.11,z+.05,.2,.18,.18);rod(scene,mat(0x3f6fa0,.5),x+.25,.07,z,.06,.14)}
+ if(fishing){for(const [x,z] of fishing.spots){box(scene,wood,x,Y0,z+.05,.2,.18,.18);rod(scene,mat(0x3f6fa0,.5),x+.25,.07,z,.06,.14)}
   line=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(),new T.Vector3()]),new T.LineBasicMaterial({color:0xe8e8e0,transparent:true,opacity:.7}));scene.add(line);
   bobber=new T.Group();oval(bobber,mat(0xd83a2a,.4),0,.015,0,.022,.022,.022);oval(bobber,mat(0xf4f1e6,.4),0,-.005,0,.02,.016,.02);scene.add(bobber);
   fish=new T.Group();oval(fish,mat(0xa9b8b8,.3,.6),0,0,0,.08,.03,.025);fish.visible=false;scene.add(fish)}
@@ -542,12 +610,12 @@ export function populate(scene, materials, arcade=false){
    a.tag.visible=tagsOn;a.setTag(step.label);
    if(step.kind==='go'){
     const d=walkDistance(step,τ),p=pointAt(step,d),ahead=pointAt(step,Math.min(step.len,d+.35)),speed=walkSpeed(step,τ);
-    a.g.position.set(p[0],.11+p[2],p[1]);
+    a.g.position.set(p[0],Y0+p[2],p[1]);
     const want=Math.hypot(ahead[0]-p[0],ahead[1]-p[1])>.02?faceTo(p,ahead):faceTo(step.segs.at(-1).a,step.segs.at(-1).b);
     a.heading+=wrapAngle(want-a.heading)*k;a.g.rotation.y=a.heading;
     a.pose(t+r.phase0,.25+.75*speed,'',τ,{...step.opts,phase:d/STRIDE*Math.PI*2,loaded:step.opts.tool==='rake'&&step===r.steps[1]});
    }else{
-    a.g.position.set(step.at[0],.11+(step.at[2]||0),step.at[1]);
+    a.g.position.set(step.at[0],Y0+(step.at[2]||0),step.at[1]);
     const turn=wrapAngle(step.h1-a.heading);a.heading+=turn*(dt<0||dt>.5?1:1-Math.exp(-dt*4.5));a.g.rotation.y=a.heading;
     // Small shuffling steps while turning on the spot, then the job pose.
     if(Math.abs(turn)>.16){a.turnPhase=(a.turnPhase||0)+Math.abs(turn)*Math.max(0,dt)*9;a.pose(t+r.phase0,Math.min(.45,Math.abs(turn)),'',τ,{phase:a.turnPhase})}
