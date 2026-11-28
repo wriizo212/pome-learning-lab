@@ -1,12 +1,12 @@
 import * as T from './three.module.min.js';
-import {texture,canvas as drawCanvas,grass,gravel,concrete,corrugated,sign,oilPalm,palmMaterial,environment,rippleNormal,sky,wind,premiumSurfaces,contactShadow,mergeStatic} from './life.mjs?v=shift19';
-import {TIERS,resolveTier} from './quality.mjs?v=shift19';
-import {frameBudget} from './frame-budget.mjs?v=shift19';
-import {warmShaders} from './warmup.mjs?v=shift19';
-import {populate} from './crew.mjs?v=shift19';
-import {explore} from './explore.mjs?v=shift19';
-import {pondsPlay} from './play.mjs?v=shift19';
-import {chemistry,seeds,legend} from './molecules.mjs?v=shift19';
+import {texture,canvas as drawCanvas,grass,gravel,concrete,corrugated,sign,oilPalm,palmMaterial,environment,rippleNormal,sky,wind,premiumSurfaces,contactShadow,mergeStatic} from './life.mjs?v=shift20';
+import {TIERS,resolveTier} from './quality.mjs?v=shift20';
+import {frameBudget} from './frame-budget.mjs?v=shift20';
+import {warmShaders} from './warmup.mjs?v=shift20';
+import {populate} from './crew.mjs?v=shift20';
+import {explore} from './explore.mjs?v=shift20';
+import {pondsPlay} from './play.mjs?v=shift20';
+import {chemistry,seeds,legend} from './molecules.mjs?v=shift20';
 
 /*
  Conventional ponding system in 3D (shown when "Conventional ponds" is the pathway).

@@ -127,3 +127,31 @@
 .sc-btns{display:flex;gap:6px}.sc-btns button{flex:1;padding:9px;border-radius:10px;font-weight:700}
 .sc-save{background:var(--lime)!important;color:#14342b!important;border-color:var(--lime)!important}.sc-save b{color:#14342b!important}.sc-save.done{opacity:.7}
 
+/* ===== Language switch, lesson mode, pre/post test, learning record ===== */
+.lang-switch{margin-left:8px;padding:6px 12px;border-radius:999px;background:transparent;border:1px solid var(--lime);color:var(--lime);font-weight:800;letter-spacing:.05em}
+.lesson-bar{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px max(16px,4vw);background:#0c211bf2;backdrop-filter:blur(8px);border-bottom:1px solid #2f5246}
+.lesson-start{background:var(--lime)!important;color:#14342b!important;font-weight:800;border-radius:999px;padding:9px 16px}
+.lesson-rec{border-radius:999px}
+.lesson-sub{color:var(--muted);font-size:13px;margin:0}
+.lesson-steps{list-style:none;margin:0;padding:0;display:flex;gap:6px;flex-wrap:wrap}
+.lesson-steps button{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;background:#123627;border:1px solid #2f5246;font-size:13px;font-weight:650}
+.lesson-steps button span{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#1d3d33;font-size:11px}
+.lesson-steps button small{opacity:.7;font-weight:400}
+.lesson-steps button.past{border-color:#3f7a55}.lesson-steps button.past span{background:#3f7a55}
+.lesson-steps button[aria-current=step]{background:var(--lime);color:#14342b;border-color:var(--lime)}.lesson-steps button[aria-current=step] span{background:#14342b;color:var(--lime)}
+.lesson-now{flex:1 1 420px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.lesson-now p{margin:0;flex:1 1 260px;font-size:13.5px;color:#e3eedb}
+.lesson-ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.lesson-ctl button{padding:6px 10px;font-size:13px}
+.lesson-ctl .primary{background:var(--lime);color:#14342b;border-color:var(--lime);font-weight:800}
+.lesson-time{font-variant-numeric:tabular-nums;font-weight:800;padding:4px 10px;border-radius:999px;background:#1d3d33}.lesson-time.low{background:#7a2a1e;color:#ffe3d6}
+.lesson-test{max-width:640px;width:calc(100% - 32px);border:1px solid #3f6a55;border-radius:20px;background:#0f2620;color:var(--ink);padding:22px}
+.lesson-test::backdrop{background:#000a}
+.lesson-test h2{margin:0 0 6px}.lesson-test fieldset{border:1px solid #2f5246;border-radius:14px;margin:12px 0;padding:10px 14px}
+.lesson-test legend{font-weight:700;padding:0 6px}.lesson-test label{display:flex;gap:8px;align-items:flex-start;padding:6px 4px;font-size:14.5px}
+.lesson-test-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.lesson-test-btns .primary{background:var(--lime);color:#14342b;border-color:var(--lime);font-weight:800}.lesson-test-btns button:disabled{opacity:.5}
+.lesson-review{padding-left:18px;display:grid;gap:6px}.lesson-review li.ok{color:#c9f59a}.lesson-review li.bad{color:#ffb3a3}.lesson-review small{display:block;color:var(--muted)}
+.lesson-gain{font-size:18px}.lesson-gain b{color:var(--lime);font-size:22px;margin-left:6px}
+.lesson-record table{width:100%;border-collapse:collapse;margin:10px 0}.lesson-record th{text-align:left;width:30%;color:var(--lime);vertical-align:top;padding:8px;border-bottom:1px solid #2f5246}.lesson-record td{padding:8px;border-bottom:1px solid #2f5246;font-size:14px}
+.lesson-record input{width:100%;padding:8px;border-radius:8px;border:1px solid #3f6a55;background:#0b1f1a;color:var(--ink)}
+.lesson-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);opacity:0;padding:12px 18px;border-radius:14px;background:#2b231a;border:1px solid #ffd39b;color:#ffe3c4;z-index:60;transition:.3s;pointer-events:none}.lesson-toast.show{opacity:1;transform:translate(-50%,0)}
+@media print{body.print-record>*:not(.lesson-record){display:none!important}.lesson-record{position:static;display:block;color:#000;background:#fff;border:0}.lesson-record th,.lesson-record td{color:#000}.lesson-record .lesson-test-btns{display:none}}
