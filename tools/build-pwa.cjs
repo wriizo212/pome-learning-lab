@@ -48,8 +48,11 @@ const VERSION='pome-${version}';
 const PRECACHE=${JSON.stringify(['./',...files.map(f=>'./'+f)])};
 self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(PRECACHE)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('pome-')&&k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
-// Same-origin GET: answer from the cache at once (ignoring ?v=), refresh it in the background.
-self.addEventListener('fetch',e=>{const req=e.request,url=new URL(req.url);if(req.method!=='GET'||url.origin!==location.origin)return;
+// Pages (navigation): network first so learners always get the latest version when online; cache when offline.
+self.addEventListener('fetch',e=>{const req=e.request;if(req.mode!=='navigate'||new URL(req.url).origin!==location.origin)return;
+ e.respondWith(fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(VERSION).then(c=>c.put(req,copy))}return res}).catch(()=>caches.open(VERSION).then(c=>c.match(req,{ignoreSearch:true}).then(hit=>hit||c.match('./index.html')))))});
+// Other same-origin GET: answer from the cache at once (ignoring ?v=), refresh it in the background.
+self.addEventListener('fetch',e=>{const req=e.request,url=new URL(req.url);if(req.method!=='GET'||req.mode==='navigate'||url.origin!==location.origin)return;
  e.respondWith(caches.open(VERSION).then(async cache=>{const hit=await cache.match(req,{ignoreSearch:true});
   const fresh=fetch(req).then(res=>{if(res.ok&&res.type==='basic')cache.put(req,res.clone());return res}).catch(()=>hit);
   return hit||fresh}))});
