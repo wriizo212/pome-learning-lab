@@ -50,7 +50,7 @@ self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.a
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('pome-')&&k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 // Pages (navigation): network first so learners always get the latest version when online; cache when offline.
 self.addEventListener('fetch',e=>{const req=e.request;if(req.mode!=='navigate'||new URL(req.url).origin!==location.origin)return;
- e.respondWith(fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(VERSION).then(c=>c.put(req,copy))}return res}).catch(()=>caches.open(VERSION).then(c=>c.match(req,{ignoreSearch:true}).then(hit=>hit||c.match('./index.html')))))});
+ e.respondWith(fetch(req,{cache:'no-cache'}).then(res=>{if(res.ok){const copy=res.clone();caches.open(VERSION).then(c=>c.put(req,copy))}return res}).catch(()=>caches.open(VERSION).then(c=>c.match(req,{ignoreSearch:true}).then(hit=>hit||c.match('./index.html')))))});
 // Other same-origin GET: answer from the cache at once when the exact URL is cached, refresh it in the background.
 self.addEventListener('fetch',e=>{const req=e.request,url=new URL(req.url);if(req.method!=='GET'||req.mode==='navigate'||url.origin!==location.origin)return;
  e.respondWith(caches.open(VERSION).then(async cache=>{const hit=await cache.match(req);
