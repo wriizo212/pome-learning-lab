@@ -1,17 +1,17 @@
-import {frameBudget} from './frame-budget.mjs?v=shift18';
-import {warmShaders,densityKnob} from './warmup.mjs?v=shift18';
-import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './quality.mjs?v=shift18';
-import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift18';
-import {reactorScenery} from './reactor-scenery.mjs?v=shift18';
-import {hdZoom,hardware} from './hd.mjs?v=shift18';
-import {reactorPlay} from './play.mjs?v=shift18';
+import {frameBudget} from './frame-budget.mjs?v=shift19';
+import {warmShaders,densityKnob} from './warmup.mjs?v=shift19';
+import {TIERS,resolveTier,savedChoice,saveChoice,lower,canRaise} from './quality.mjs?v=shift19';
+import {windify,concrete,texture,environment,premiumSurfaces,contactShadow} from './life.mjs?v=shift19';
+import {reactorScenery} from './reactor-scenery.mjs?v=shift19';
+import {hdZoom,hardware} from './hd.mjs?v=shift19';
+import {reactorPlay} from './play.mjs?v=shift19';
 import * as T from './three.module.min.js';
 
 import {batchStations} from './batch.mjs';
-import {populate} from './crew.mjs?v=shift18';
-import {explore} from './explore.mjs?v=shift18';
-import {reactorProcess} from './reactor-flows.mjs?v=shift18';
-import {legend} from './molecules.mjs?v=shift18';
+import {populate} from './crew.mjs?v=shift19';
+import {explore} from './explore.mjs?v=shift19';
+import {reactorProcess} from './reactor-flows.mjs?v=shift19';
+import {legend} from './molecules.mjs?v=shift19';
 const panel=document.querySelector('.stage'), diagram=panel.querySelector('svg');
 const view=document.createElement('section');
 view.className='reactor-view';
